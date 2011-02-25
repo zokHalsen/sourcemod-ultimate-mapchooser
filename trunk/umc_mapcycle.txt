@@ -1,0 +1,121 @@
+// Mapcycle definition for Ultimate Mapchooser v2.3 by Steell
+
+///////////////////////////////////////////////////////////////////////////////
+//***************************************************************************//
+//**                           ULTIMATE MAPCHOOSER                         **//
+//***************************************************************************//
+// The format of this file is as specified in the following example:         //
+//                                                                           //
+// "umc_rotation"                                                            //
+// {                                                                         //
+//      "GROUPNAME1" //Name of the group, used by group votes.               //
+//      {                                                                    //
+//          //Text to display for maps from this group in the vote. If left  //
+//          //blank or omitted, the map's name will be used as the default.  //
+//          //Note: The string "{MAP}" will be replaced by the map's name.   //
+//          // (Default value: "{MAP})                                       //
+//          "display-template"      "any value"                              //
+//                                                                           //
+//          //Number of maps to include from this group in a vote.           //
+//          // (Default value: 1)                                            //
+//          "maps_invote"           "int >= 0"                               //
+//                                                                           //
+//          //The weight of this group for random picking. Higher numbers    //
+//          //mean the group is more likely to be picked. 0 means the group  //
+//          //can never be picked randomly.                                  //
+//          // (Default value: 1)                                            //
+//          "group_weight"          "int >= 0"                               //
+//                                                                           //
+//          //If a map from this group is picked randomly or via vote, the   //
+//          //next time a map is chosen randomly, it will be from the group  //
+//          //specified in this setting. If "" then a random group is picked.//
+//          // (Default value: "")                                           //
+//          "next_mapgroup"         "Group Name"                             //
+//                                                                           //
+//          //Used as defaults if "min_players" or "max_players" is          //
+//          //not defined for any map in this group.                         //
+//          // (Default value: 0)                                            //
+//          "default_min_players"   "int >= 0"                               //
+//          // (Default value: Player limit of the server)                   //
+//          "default_max_players"   "int >= 0"                               //
+//                                                                           //
+//          //Used as defaults if "min_time" or "max_time" is not defined    //
+//          //for any map in this group                                      //
+//          // (Default value: "0000")                                       //
+//          "default_min_time"  "HHMM, where HH is the hour and MM is the    //
+//                               minute"                                     //
+//          // (Default value: "2359")                                       //
+//          "default_max_time"	    "HHMM"                                   //
+//                                                                           //
+//          //The command specified here is performed at the start of all    //
+//          //maps in this group.                                            //
+//          // (Default value: "")                                           //
+//          "command"   "any valid console command"                          //
+//                                                                           //
+//          "MAP1" //Name of a map, must be a valid map.                     //
+//          {                                                                //
+//              //Text to display for this map in the vote. If left blank    //
+//              //or omitted, the map's name will be used instead.           //
+//              //Note: The string "{MAP}" will be replaced by the map's     //
+//              //      name.                                                //
+//              // (Default value: "{MAP}")                                  //
+//              "display-template"      "any value"                          //
+//                                                                           //
+//              //The weight of this map with reference to other maps        //
+//              //in this category. This number affect how likely the        //
+//              //map will appear in a vote, as well as how likely this      //
+//              //map will be chosen randomly (assuming this group has       //
+//              //already been chosen.)                                      //
+//              // (Default value: 1)                                        //
+//              "weight"        "int >= 0"                                   //
+//                                                                           //
+//              //Defines the number of players required to be on the        //
+//              //server in order for this map to be used.                   //
+//              // (Default values: see "default_min_players" and            //
+//              //  "default_max_players")                                   //
+//              "min_players"   "int >= 0"                                   //
+//              "max_players"   "int >= 0"                                   //
+//                                                                           //
+//              //Defines the minimum and maximum times the plugin will pick //
+//              //this map to be played.                                     //
+//              "min_time"      "HHMM"                                       //
+//              "max_time"      "HHMM"                                       //
+//                                                                           //
+//              //This command is performed at the start of this map. Note:  //
+//              //The command specified here is performed AFTER the one      //
+//              //specified for the group, and does not override it.         //
+//              // (Default value: "")                                       //
+//              "command"       "any valid console command"                  //
+//          }                                                                //
+//                                                                           //
+//          "MAP2"                                                           //
+//          {                                                                //
+//              ...                                                          //
+//          }                                                                //
+//                                                                           //
+//          ...                                                              //
+//                                                                           //
+//          "MAPN"                                                           //
+//          {                                                                //
+//              ...                                                          //
+//          }                                                                //
+//      }                                                                    //
+//                                                                           //
+//      "GROUPNAME2"                                                         //
+//      {                                                                    //
+//          ...                                                              //
+//      }                                                                    //
+//                                                                           //
+//      ...                                                                  //
+//                                                                           //
+//      "GROUPNAMEN"                                                         //
+//      {                                                                    //
+//          ...                                                              //
+//      }                                                                    //
+// }                                                                         //
+//***************************************************************************//
+///////////////////////////////////////////////////////////////////////////////
+
+"umc_rotation"
+{
+}
