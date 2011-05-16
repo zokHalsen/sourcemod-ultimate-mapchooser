@@ -22,6 +22,9 @@
     * *Group Votes* - Instead of voting for maps, players will instead vote for a group that is defined in the UMC-Mapcycle. Once the winning group is determined, a map from the group is selected (again, using Ultimate Mapchooser's Exclusion and Weighting system). Whether or not a group will appear in the vote is determined by the Exclusion system.
     * *Tiered Votes* - This mode combines the other two by first having players vote for a group, and then once that vote is finished, vote for a map from the group. Like the other two modes, this vote is populated according to Ultimate Mapchooser's Exclusion and Weighting system.
 
+= Nominations =
+  Before populating a vote with the specified UMC-Mapcycle, Ultimate Mapchooser will first go through it's internal list of nominated maps to see if any of those can be placed in the vote. Nominated maps are also processed through the Exclusion and Weighting system, however they are treated differently; all modules extending the Exclusion and Weighting system are notified that the map is a nomination, so that they can be processed differently. How they are processed is determined by the module, see the module's documentation for more information.
+
 = Vote Thresholds =
   Votes can fail for two reasons: if nobody votes, or if the winning option in a vote does not reach a defined threshold. This threshold is a minimum percentage of votes required for the winning option to have in order for the vote to succeed.
 
