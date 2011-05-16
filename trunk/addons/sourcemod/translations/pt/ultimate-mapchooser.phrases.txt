@@ -1,4 +1,4 @@
-//Phrases for Ultimate Mapchooser v2.0 by Steell
+//Phrases for Ultimate Mapchooser by Steell
 //Portugese translation by away000
 
 "Phrases"
@@ -23,7 +23,7 @@
         "pt"    "Vote para o próximo grupo!"
     }
 
-    "Extend"
+    "Extend Map"
     {
         "pt"    "Exntender o mapa"
     }
