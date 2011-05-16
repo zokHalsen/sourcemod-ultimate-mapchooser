@@ -58,6 +58,23 @@
 }
 }}}
   This example defines two Map Groups, "GroupA" and "GroupB", and two maps in each group.  "GroupA" has the options "default_min_time" and "default_max_time" set so that all its maps are by default available between 12:00AM (midnight) and 11:59AM. Since none of it's maps specify "min_time" or "max_time", these defaults are not overridden and are used by both maps.
+
   In "GroupB", "default_min_time" and "default_max_time" are set so that the group is available between 12:00PM (noon) and 11:59PM. "MapAB" has defined a "min_time" of 12:00AM, thus making it's time range 12:00AM - 11:59PM. "MapBB" does not specify it's own "min_time" or "max_time," so it will use the defaults for "GroupB."
 
 =List of CVars=
+  The list of cvars for the Time Limits module is located in *cfg/sourcemod/umc-timelimits.cfg*.
+  {{{
+// Determines if maps being displayed are exempt from being excluded due to Time Limits.
+// -
+// Default: "0"
+// Minimum: "0.000000"
+// Maximum: "1.000000"
+sm_umc_timelimits_ignoredisplay "0"
+
+// Determines if nominations are exempt from being excluded due to Time Limits.
+// -
+// Default: "0"
+// Minimum: "0.000000"
+// Maximum: "1.000000"
+sm_umc_timelimits_ignorenominations "0"
+}}}
