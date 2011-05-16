@@ -6,6 +6,27 @@
 
   Core also contains a few universal settings which control some general behavior of votes.
 
+  Core defines two map group options, *"maps_invote"* and *"display-template"*, and one map option, *"display"*.
+  {{{
+"umc_mapcycle"
+{
+    "A Group"
+    {
+        "maps_invote"  "X"
+        "display-template"  "TEMPLATE_STRING"
+        ...
+
+        "A Map"
+        {
+            "display"  "DISPLAY_STRING"
+            ...
+        }
+    }
+    ...
+}
+}}}
+  Where *X* is the number of maps which should appear in the vote (integer greater than or equal to 0), *TEMPLATE_STRING* is a string that will be displayed for any maps from the group in a vote (it can contain the sub-string "{MAP}" which will be replaced with the name of the map), and *DISPLAY_STRING* is a string that will be displayed for that map in a vote, overriding whatever was specified by "display-template".
+
 
 = List of CVars =
   The cvar list for the Core module is located in *cfg/sourcemod/ultimate-mapchooser.cfg*.
