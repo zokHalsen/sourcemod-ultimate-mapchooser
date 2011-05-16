@@ -2,12 +2,14 @@
 
 = Introduction =
 
-Add your content here.
+  The Weighting system is used when picking maps/groups randomly, in order to specify the "likelihood" of a map/group being picked.
 
+= When Is It Used =
 
-= Details =
+  The Weighting system is used in various places:  when a vote menu is being populated with maps, maps are chosen from the group at random. How likely a map is going to be picked for inclusion in a vote is determined by its calculated _weight_. This value is calculated via the Weighting system.
 
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+  Another case is when a module requests a random map from Ultimate Mapchooser (the [ModuleRandomCycle Random Mapcycle module] does this). How likely it is that the map will be picked is determined by its weight, again calculated via the Weighting system.
+
+= Modules =
+
+  The Weighting system is extended in UMC modules; without any modules adjusting weights, all random selections are uniform (all weights are the same). There are two modules packaged with Ultimate Mapchooser that extend the Weighting system: [ModuleWeight Weight] and [ModuleMapRateReweight Map Rate Map-Reweighting]. The first of which allows users to define a "weight" and "group_weight" option for maps and map groups respectively in a UMC-Mapcycle. The second module will adjust a map's weight based off of it's average rating in the external [http://forums.alliedmods.net/showthread.php?t=69593 Map Rate SourceMod Plugin].
