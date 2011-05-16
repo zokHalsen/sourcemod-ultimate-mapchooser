@@ -1,8 +1,10 @@
 #summary Detailed guide on how to install and configure Ultimate Mapchooser.
 
-= Introduction =
+=Installation=
+  Ultimate Mapchooser's Core and Modules are installed like any other SourceMod plugin; just move the compiled .smx file into the addons/sourcemod/plugins folder. SourceMod will then load them on map change, or they can be loaded manually via the "sm plugins load _name_" command in the server console (where _name_ is the file name of the compiled plugin, without the .smx extension).
 
-Add your content here.
+  Ultimate Mapchooser also has several translation files, which should be placed in the addons/sourcemod/translations folder following the directory structure outlined in the SourceMod documentation [http://wiki.alliedmods.net/Translations_(SourceMod_Scripting)#Distributing_Language_Files here].
+
 
 
 = Details =
