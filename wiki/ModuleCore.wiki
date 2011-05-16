@@ -9,7 +9,6 @@
 
 = List of CVars =
   The cvar list for the Core module is located in *cfg/sourcemod/ultimate-mapchooser.cfg*.
-
   {{{
 // Determines where in votes the "Don't Change" option will be displayed.
 //  0 - Bottom,
