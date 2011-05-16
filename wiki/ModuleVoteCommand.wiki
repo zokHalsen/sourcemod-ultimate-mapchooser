@@ -3,7 +3,7 @@
 =Purpose=
   The Vote Command module defines a SourceMod admin command, _"sm_umc_mapvote"_, that will start a map vote on the server.
 
-  _sm_umc_mapvote `<0|1|2>`_ -- Starts a UMC Map Vote. The one argument specifies when the map will be changed to the winner of the vote.
+  *_sm_umc_mapvote `<0|1|2>`_* -- Starts a UMC Map Vote. The one argument specifies when the map will be changed to the winner of the vote.
     * 0 = Change Immediately
     * 1 = Change at the end of the current round
     * 2 = Change at the end of the map
