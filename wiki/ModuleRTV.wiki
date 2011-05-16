@@ -14,7 +14,7 @@
 
 
 = List of CVars =
-  The list of cvars for the Rock The Vote module is located in *cfg/sourcemod/umc-rockthevote.cfg".
+  The list of cvars for the Rock The Vote module is located in *cfg/sourcemod/umc-rockthevote.cfg*.
   {{{
 // Allows a map to appear in the vote more than once. This should be enabled if you want the same map in different categories to be distinct.
 // -
