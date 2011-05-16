@@ -6,10 +6,7 @@
   Ultimate Mapchooser also has several translation files, which should be placed in the addons/sourcemod/translations folder following the directory structure outlined in the SourceMod documentation [http://wiki.alliedmods.net/Translations_(SourceMod_Scripting)#Distributing_Language_Files here].
 
 
+=Configuration=
+  All of Ultimate Mapchooser's behavioral settings are controlled by cvars, defined in configuration files located in cfg/sourcemod. If you are not using a pre-packaged release of Ultimate Mapchooser, these configuration files will be auto-generated the first time each module is run. For detailed instructions on the options in these configuration files, see the documentation for each specific Ultimate Mapchooser module in the wiki.
 
-= Details =
-
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+==Creating a UMC-Mapcycle==
