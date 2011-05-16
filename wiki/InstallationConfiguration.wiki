@@ -10,3 +10,48 @@
   All of Ultimate Mapchooser's behavioral settings are controlled by cvars, defined in configuration files located in cfg/sourcemod. If you are not using a pre-packaged release of Ultimate Mapchooser, these configuration files will be auto-generated the first time each module is run. For detailed instructions on the options in these configuration files, see the documentation for each specific Ultimate Mapchooser module in the wiki.
 
 ==Creating a UMC-Mapcycle==
+  All modules released with Ultimate Mapchooser that can manipulate the mapcycle in some way require a UMC-Mapcycle definition. The format for this file is defined as follows:
+{{{
+"umc_mapcycle"
+{
+    "GROUP1"
+    {
+        "group_option1"  "x"
+        "group_option2"  "x"
+        ...
+        "group_optionN"  "x"
+
+        "MAP1"
+        {
+            "map_option1"  "x"
+            "map_option2"  "x"
+            ...
+            "map_optionN"  "x"
+        }
+        
+        "MAP2"
+        {
+            ...
+        }
+        
+        ...
+
+        "MAPN"
+        {
+            ...
+        }
+    }
+
+    "GROUP2"
+    {
+        ...
+    }
+
+    ...
+
+    "GROUPN"
+    {
+        ...
+    }
+}
+}}}
