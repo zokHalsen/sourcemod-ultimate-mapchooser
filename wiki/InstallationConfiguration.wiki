@@ -56,4 +56,5 @@
 }
 }}}
   In summary, a UMC-Mapcycle contains a list of groups, each with a list of maps inside. There has to be at least one group, and each group has to have at least one map in it.
+
   Each group and map can also have several options available to it for configuration. These options are defined by whatever modules are installed. To see what options are available from a module, please see the documentation of a specific module.
