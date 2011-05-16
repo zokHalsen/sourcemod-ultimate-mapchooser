@@ -1,4 +1,4 @@
-//Vote warning definitions for Ultimate Mapchooser v2.3 by Steell
+//Vote warning definitions for Ultimate Mapchooser v3.0 by Steell
 
 ///////////////////////////////////////////////////////////////////////////////
 //***************************************************************************//

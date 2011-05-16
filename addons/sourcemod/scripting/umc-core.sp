@@ -1,0 +1,3690 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                                   ULTIMATE MAPCHOOSER CORE                                    *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ 
+#pragma semicolon 1
+
+#define PL_VERSION "3.0"
+
+#define RUNTESTS 0
+
+//Dependencies
+#include <umc-core>
+#include <umc_utils>
+#include <sourcemod>
+#include <sdktools_sound>
+
+#undef REQUIRE_PLUGIN
+
+//Auto update
+#include <autoupdate.inc>
+#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser"
+#define UPDATE_XML "/plugins.xml"
+
+//Some definitions
+#define DONT_CHANGE_OPTION "?DontChange?"
+#define EXTEND_MAP_OPTION "?Extend?"
+#define NOTHING_OPTION "?nothing?"
+
+//Plugin Information
+public Plugin:myinfo =
+{
+    name        = "[UMC] Ultimate Mapchooser Core",
+    author      = "Steell",
+    description = "Core component for [UMC]",
+    version     = PL_VERSION,
+    url         = "http://forums.alliedmods.net/showthread.php?t=134190"
+};
+
+//Changelog:
+/*
+3.0 (5/16/11)
+Near-complete rewrite of UMC. Divided up plugin into separate modules which operate independently. These modules are linked together through UMC's Core (this file).
+Fixed many, many bugs with the rewrite. I will only be listing the ones I know have been fixed.
+Fixed bug with Tiered Votes sometimes not displaying the second vote due to an invalid mapcycle.
+Fixed bug with Map Group Exclusion not working correctly.
+Fixed bug with Map Exclusion sometimes not working correctly.
+Implemented support for "mp_winlimit" triggered end of map votes.
+When UMC sets the next map, it can now be displayed in Center and Hint messages.
+-New "sm_umc_echonextmap_hint" and "sm_umc_echonextmap_center" cvars to control this ability.
+Added "next_mapgroup" to maps in the definitions, not just the groups anymore.
+Added ability to delay end of map votes so they will only appear at the end of rounds.
+-New "sm_umc_endvote_delayroundend" cvar to control this ability.
+Added command to display how maprate-reweight will be reweighting maps.
+Implemented developer's API, but it is not yet fully supported (in case I decide I need to make changes).
+Probably more, I really should have kept track.
+
+2.5.1 (5/5/11)
+Added color to the [UMC] prefix in say messages.
+Added German translation (thanks Leitwolf!)
+Added Polish translation (thanks Arcy!)
+Fixed minor issue with Random Selection of the Next Map not excluding maps correctly.
+Fixed minor issue with Player Limits that was generating errors.
+Fixed issue with "next_mapgroup" where it didn't properly check for excluded maps.
+Fixed bug with max runoff votes not working as intended.
+Implemented pre-command.
+
+2.5 (4/3/11)
+Added new feature: you can specify a maximum number of maps to appear in runoff votes.
+-New "sm_umc_runoff_max" cvar to control this ability.
+Players are now allowed to change their nomination.
+Fixed bug where the map group configuration is not set properly.
+Fixed tiered nomination menu where groups with no maps were still displayed.
+Fixed bug where the sm_umc_mapvote command would change to an invalid map if nobody voted.
+Added prevention code for various errors, not sure if it will fix them since I can't reproduce them.
+Optimized memory usage in adt_arrays with Strings.
+Added placeholders for "pre-command" support.
+
+2.4.6 (3/25/11)
+Fixed bug where having the same map in one group could cause a crash.
+Fixed errors where delays between votes (runoff and tiered) could cause errors if the map ends during them.
+Added dynamic reweight system, allowing other plugins to affect the weight of maps in UMC.
+
+2.4.5 (3/20/11)
+Disabled exit button on runoff votes.
+Made runoff votes use proper pagination (< 9 options = no pagination [Radio Style Menus only])
+
+2.4.4 (3/18/11)
+Fixed issue where an extension could cause multiple votes.
+
+2.4.3 (3/16/11)
+Fixed issue with second stage tiered votes not limiting maps to the winning map group.
+
+2.4.2 (3/9/11)
+Modified sm_umc_mapvote command to take an argument specifying when to change the map after the vote.
+Fixed issue with excluding previously played maps.
+Fixed issue with random selection of the next map excluding previously played maps.
+
+2.4.1 (3/7/11)
+Fixed bug that caused runoff votes to never have a maximum.
+Fixed bug that prevented some runoff votes from working correctly.
+
+2.4 (3/7/11)
+Made delay between votes (tiered and runoff) countdown to zero as opposed to one.
+Fixed bug that disabled RTVs and Random Selection of the Next Map if a vote occurs and there are no votes.
+Fixed bug with auto-pagination that broke votes with 8 or 9 items in HL2DM (and other mods that don't support Radio menus).
+
+2.3.4-beta3 (3/6/11)
+Made nomination menu not display maps from a map group if the strict cvar is on and enough maps have already been nominated to satisfy the maps_invote setting.
+Fixed selective runoff votes so they take into account previous votes (from before the runoff).
+
+2.3.4-beta2 (3/3/11)
+Added ability for map votes to allow duplicate maps. This is useful for people running votes where the same map may appear for different mods.
+-New sm_umc_vote_allowduplicates cvar to control this ability
+Added ability to filter the nomination menu based off of what maps should be excluded at the time it's displayed.
+-Removed sm_umc_nominate_timelimits cvar
+-New sm_umc_nominate_displaylimits cvar to control this ability
+Fixed cases where ignorelimits was not working.
+Code refactoring
+
+2.3.4-beta1 (3/2/11)
+Fixed bug with Yes/No Playerlimit vote where a tie would result in garbage display.
+Fixed bug where two RTVs could happen, one right after another, if enough people enter RTV during an RTV.
+Made nomination menu not close automatically.
+Fixed behavior of ignorelimits cvars and nominations.
+
+2.3 (2/24/11)
+Added client-side translations to all menus.
+Added optional "display" option to map definitions, and "display-template" option to map group definitions.
+Added ability to display nomination menu in tiers -- first select a group, then select a map.
+-New cvar to control this feature.
+Added ability to disable Map Exclusion for end-of-map votes, RTVs, random next map, and nominations.
+-Four new cvars to control this feature.
+Made all votes attempt to retry to initiate in the event they are blocked by a vote that is already running.
+Added call to OnNominationRemoved forward in all appropriate places.
+Modified nomination code in map group votes to not exclude the group if there were nominations for maps in it.
+Fixed odd bug where a vote would display garbage if there was a map group with a cumulative weight of 0.
+
+2.2.4 (2/21/11)
+Fixed bug with center message warnings.
+Fixed bug with runoff votes being populated with the wrong maps.
+Fixed bug with runoff votes not paying attention to the threshold cvar.
+Fixed bug with end of map vote timer that caused errors when the timelimit was changed.
+
+2.2.3 (2/19/11)
+Fixed bug that completely screwed up vote warnings.
+
+2.2.2 (2/19/11)
+Fixed bug that caused all time-based vote warnings to appear at 0 seconds.
+
+2.2.1 (2/18/11)
+Fixed problem with default min and max players for groups not being read correctly.
+
+2.2 (2/18/11)
+Added vote warnings support for frag and round limits.
+-Removed sm_umc_endvote_warnings cvar
+-Added three new cvars to control the feature: 1 each for time, frag, and round warnings.
+Added mapchooser's "sm_setnextmap" command.
+Changed required admin flag for commands from ADMFLAG_RCON to ADMFLAG_CHANGEMAP.
+Added prevention measures from starting RTVs during delay between runoff and tiered votes.
+Changed event hooks to act more like original mapchooser (may fix weird round_end bugs).
+Fixed "nextmap" chat command functionality.
+Fixed bug with end of map vote that prevented frag limit from triggering it.
+Fixed bug that required mapchooser to be enabled.
+Fixed rare memory leak with map exclusion algorithm for map groups with no maps defined.
+
+2.1 (2/17/11)
+Added support for mapchooser's natives.
+Added customization for how runoff and tiered vote messages are displayed.
+Fixed memory leak with nominations that are not added to votes.
+Fixed memory leak with map exclusion algorithm.
+
+2.0.2 (2/15/11)
+Fied (another) obscure bug with Runoff Votes, this time preventing map change.
+
+2.0.1 (2/14/11)
+Fixed obscure bug with Runoff Votes that prevents a vote from starting.
+
+2.0 (2/13/11)
+Added new "command" option to map groups and maps defined in the mapcycle. The strings supplied will be executed at the start of the map.
+Added some code optimizations.
+Improved logging.
+Added ability for plugin to search for a map's player limits if the map wasn't changed by the plugin.
+Fixed bug with Tiered Votes where votes would fail if the winning group had only one available map.
+Fixed bug with data not being cleared when a vote menu fails to be created.
+Fixed bug with "rockethevote" chat triggers not working.
+Fixed bug with vote warnings where mp_timelimit was 0.
+Fixed bug where strict nominations would sometimes cause duplicate vote entries.
+Fixed bug where player limits would stop working.
+Fixed bug with group voting where if a nominated map won the winning map wasn't set correctly.
+Fixed memory leak with checking for maps with proper time and player counts.
+Organized code
+
+2.0-beta (2/5/11)
+Added Runoff Vote feature. If a vote end and the winning option is less than a specified threshold, another vote will be run with losing options eliminated.
+-Added cvar to control max amount runoffs to run (> 0 enables the feature)
+-Added cvar to control the threshold required to prevent a runoff
+-Added cvar to control which sound is played at the start of a runoff
+-Added cvar to specify whether runoffs are shown to everyone or just players who need to (re)vote.
+Added Tiered Votes. If enabled, first players will vote for a category, and then they will vote for a map from that category.
+-Modified type cvars to allow for this kind of vote.
+-Added cvar to control how many maps are displayed in the vote (after a category is already selected).
+Added ability to exclude previously played categories.
+-Three new cvars to control this ability.
+Added ability to specify how many slots to block (up to 5)
+-Modified blocking cvar to allow for this customization.
+Internationalisation - Translations are now supported.
+Votes will now only paginate when there are more than 9 slots required in the menu.
+Added optional auto-updating.
+Fixed memory leak with Random Selection of the Next Map.
+Fixed memory leak with Vote Warnings.
+Fixed bug with Vote Warnings not working after a map change.
+
+1.5.1 (1/26/11)
+Added shortcut to vote warnings that allows users to specify a sequence of warnings with one definition.
+Fixed issue with time restrictions that prevented max_time from being larger than min_time (necessary for, as an example, 11:00PM - 6:00AM, which would be min_time: 2300  max_time: 0600)
+Changed name of plugin from Improved Map Randomizer (IMR) to Ultimate Mapchooser (UMC)
+
+1.5 (1/24/11)
+Added vote warning feature. You can now specify warnings which appear to players before an end-of-map vote. Warnings are fully customizeable.
+-New cvar to enable/disable this feature.
+Added vote sounds. Cvars specify sounds to be played when a vote starts and completed.
+-Four new cvars, 2 for end-of-map votes and 2 for RTVs
+Added time-based map selection. New "min_time" and "max_time" options added to maps in "random_mapcycle.txt".
+Made votes with less than 10 items not have a paginated menu.
+Added more chat triggers for RTV. Now accepts: rtv, !rtv, rockthevote, and !rockthevote.
+Fixed memory bug with tracking min/max players for a map.
+Fixed bug with nominations where some categories stopped appearing in the menu.
+Fixed bug with strict nomination cvar and populating votes.
+Fixed bug with random group selections where groups with all their maps having been played recently and still excluded would still appear in votes.
+Literally commented the entire plugin source code thoroughly. Happy reading!
+
+1.4.1 (8/27/10)
+Fixed bug in some mods where random selection of the next map was not being triggered.
+
+1.4 (8/13/10)
+Added separate options for when the max player limit and min player limit of the current map is broken.
+-Two new cvars to control this feature.
+-Old cvar removed.
+Added a delay before the plugin checks to see if the current map has a valid number of players.
+-New cvar to control this feature.
+Added the ability to limit the number of nominations appearing in a vote to the number specified by that group's "maps_invote" setting.
+-New cvar to control this feature.
+
+1.3 (8/10/10)
+Added vote slot blocking feature. When enabled, the first four vote slots are disabled to prevent accidental votes.
+-New cvar to control this feature.
+Fixed issues with displaying certain text to clients.
+Improved error handling when rotation file is invalid.
+
+1.2 (8/8/10)
+Fixed bug where "next_mapgroup" was not working properly with votes.
+Fixed bug where current map was appearing in nomination menu.
+Added feature where if the current players on the server is not within the range defined by the current map's "min_players" and "max_players", the map can be changed.
+-Two new cvars to control this feature.
+Nominations now work with group votes.
+-When a group wins the vote, it selects a random map from the nominations for that group, taking into account the weights of the maps.
+
+1.1.3 (8/5/10)
+Fixed memory bug with nominations.
+Fixed (another) bug where random selection of the next map would not work properly.
+Added ability to include a "Don't Change" option in RTVs.
+-New cvar to enable/disable this ability.
+-New cvar to control the delay between an RTV where "Don't Change" wins and the ability for players to RTV again.
+
+1.1.2 (8/4/10)
+Fixed bug in DOD:S where plugin could not start due to missing "mp_maxrounds" cvar.
+
+1.1.1 (8/3/10)
+Fixed bug where rounds ending would trigger end of map votes even after one was already triggered.
+Fixed bug where frags would trigger end of map votes even after one was already triggered.
+Fixed bug where current map would appear in votes.
+Fixed bug where random selection of the next map would not work properly.
+
+1.1 (8/2/10)
+Added public cvar for tracking.
+Modified nominations
+-Nominations menu now contains all maps in rotation. Nominated maps will now be rejected when considered for inclusion in the vote. This way, players can nominate maps which may be valid when it's time to vote, even if they aren't valid at time of nomination.
+
+1.0 (8/1/10)
+Initial Release
+*/
+
+//TODO:
+//  Search for the current group if it's not defined ("") [NATIVE]
+//  Take nominations into account when selecting a random map.
+//  Add cvar to control where nominations are placed in the vote (on top vs. scrambled)
+//  Possible Bug: map change (sm_map or changelevel) after a vote completes can set the wrong 
+//                current_cat. I'm not exactly sure how to fix this.
+
+
+//************************************************************************************************//
+//                                        GLOBAL VARIABLES                                        //
+//************************************************************************************************//
+
+    ////----CONVARS-----/////
+new Handle:cvar_runoff_display     = INVALID_HANDLE;
+new Handle:cvar_runoff_selective   = INVALID_HANDLE;        
+new Handle:cvar_vote_tieramount    = INVALID_HANDLE;
+new Handle:cvar_vote_tierdisplay   = INVALID_HANDLE;
+new Handle:cvar_logging            = INVALID_HANDLE;
+new Handle:cvar_runoff_slots       = INVALID_HANDLE;
+new Handle:cvar_extend_display     = INVALID_HANDLE;
+new Handle:cvar_dontchange_display = INVALID_HANDLE;
+
+//Stores the number of runoffs available.
+new remaining_runoffs;
+
+//Stores the current category.
+new String:current_cat[MAP_LENGTH];
+
+//Stores the category of the next map.
+new String:next_cat[MAP_LENGTH];
+
+//Stores the maps and map groups in a vote.
+new Handle:map_vote = INVALID_HANDLE;
+
+//Array of nomination tries.
+new Handle:nominations_arr = INVALID_HANDLE;
+
+//Variable to store the delay between stages of a tiered vote.
+new tiered_delay;
+
+//Variable to store the delay before a runoff vote starts.
+new runoff_delay;
+
+//Variable to hold the array of clients the runoff will be displayed to.
+new Handle:runoff_clients = INVALID_HANDLE;
+
+//Variable to hold the built runoff menu until after the runoff timer has finished.
+new Handle:runoff_menu = INVALID_HANDLE;
+
+//Forward for when a nomination is removed.
+new Handle:nomination_reset_forward = INVALID_HANDLE;
+
+//Stores when the map should be changed at the end of an end-of-map vote.
+new UMC_ChangeMapTime:change_map_when;
+
+//Stores the winning map from a native-induced vote.
+//new String:normal_winning_map[MAP_LENGTH];
+
+/* VOTE PARAMETERS */
+new String:stored_start_sound[PLATFORM_MAX_PATH], String:stored_end_sound[PLATFORM_MAX_PATH],
+    String:stored_runoff_sound[PLATFORM_MAX_PATH];
+new Handle:stored_kv = INVALID_HANDLE;
+new Handle:stored_exmaps = INVALID_HANDLE;
+new Handle:stored_exgroups = INVALID_HANDLE;
+//new stored_numexgroups;
+new bool:stored_scramble;
+new stored_blockslots;
+new bool:stored_ignoredupes;
+new bool:stored_strictnoms;
+new UMC_RunoffFailAction:stored_fail_action;
+new Float:extend_timestep;
+new extend_roundstep;
+new extend_fragstep;
+new Float:stored_threshold;
+new stored_runoffmaps_max;
+new stored_votetime;
+new String:stored_reason[PLATFORM_MAX_PATH];
+
+/* Storage */
+//Array to store results of a vote.
+new Handle:vote_storage = INVALID_HANDLE;
+new total_votes = 0;
+new prev_vote_count = 0;
+
+/* Reweight System */
+new Handle:reweight_forward = INVALID_HANDLE;
+new Handle:reweight_group_forward = INVALID_HANDLE;
+new bool:reweight_active = false;
+new Float:current_weight;
+
+/* Exclusion System */
+new Handle:exclude_forward = INVALID_HANDLE;
+//new bool:exclude_active = false;
+
+/* Reload System */
+new Handle:reload_forward = INVALID_HANDLE;
+
+/* Extend System */
+new Handle:extend_forward = INVALID_HANDLE;
+
+/* Nextmap System */
+new Handle:nextmap_forward = INVALID_HANDLE;
+
+/* Failure System */
+new Handle:failure_forward = INVALID_HANDLE;
+
+//Flags
+//new bool:vote_completed;   //Has a vote been completed?
+new bool:change_map_round; //Change map when the round ends?
+new bool:vote_inprogress;  //Is there a vote in progress? (Includes delays between tiered + runoff)
+new bool:vote_active;      //Is there an active vote menu?
+
+#if RUNTESTS
+RunTests()
+{
+    LogMessage("TEST: Running UMC tests.");
+    
+    //TESTS GO HERE
+    new Handle:kv = CreateKeyValues("umc_rotation");
+    KvJumpToKey(kv, "CP", true);
+    KvJumpToKey(kv, "MAP", true);
+    KvRewind(kv);
+    
+    PrintKv(kv);
+    if (KvJumpToKey(kv, "MAP"))
+        LogMessage("Success. What the hell?");
+    else
+        LogMessage("Failure.");
+    
+    CloseHandle(kv);
+    
+    LogMessage("TEST: Finished running UMC tests.");
+}
+#endif
+
+//************************************************************************************************//
+//                                        SOURCEMOD EVENTS                                        //
+//************************************************************************************************//
+
+//Called before the plugin loads, sets up our natives.
+public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
+{
+    RegPluginLibrary("umccore");
+    
+    CreateNative("UMC_AddWeightModifier", Native_UMCAddWeightModifier);
+    CreateNative("UMC_StartVote", Native_UMCStartVote);
+    CreateNative("UMC_GetCurrentMapGroup", Native_UMCGetCurrentGroup);
+    CreateNative("UMC_GetRandomMap", Native_UMCGetRandomMap);
+    CreateNative("UMC_SetNextMap", Native_UMCSetNextMap);
+    CreateNative("UMC_IsMapNominated", Native_UMCIsMapNominated);
+    CreateNative("UMC_NominateMap", Native_UMCNominateMap);
+    CreateNative("UMC_CreateValidMapArray", Native_UMCCreateMapArray);
+    CreateNative("UMC_CreateValidMapGroupArray", Native_UMCCreateGroupArray);
+    
+    //Setup our forward for when a nomination is removed
+    nomination_reset_forward = CreateGlobalForward(
+        "OnNominationRemoved", ET_Ignore, Param_String, Param_Cell
+    );
+    
+    reweight_forward = CreateGlobalForward(
+        "UMC_OnReweightMap", ET_Ignore, Param_Cell, Param_String, Param_String
+    );
+    
+    reweight_group_forward = CreateGlobalForward(
+        "UMC_OnReweightGroup", ET_Ignore, Param_Cell, Param_String
+    );
+    
+    exclude_forward = CreateGlobalForward(
+        "UMC_OnDetermineMapExclude",
+        ET_Hook, Param_Cell, Param_String, Param_String, Param_Cell, Param_Cell
+    );
+    
+    reload_forward = CreateGlobalForward("UMC_RequestReloadMapcycle", ET_Ignore);
+    
+    extend_forward = CreateGlobalForward("UMC_OnMapExtended", ET_Ignore);
+    
+    nextmap_forward = CreateGlobalForward(
+        "UMC_OnNextmapSet", ET_Ignore, Param_Cell, Param_String, Param_String
+    );
+    
+    failure_forward = CreateGlobalForward("UMC_OnVoteFailed", ET_Ignore);
+
+    return APLRes_Success;
+}
+
+
+//Called when the plugin is finished loading.
+public OnPluginStart()
+{
+    cvar_extend_display = CreateConVar(
+        "sm_umc_extend_display",
+        "0",
+        "Determines where in votes the \"Extend Map\" option will be displayed.\n 0 - Bottom,\n 1 - Top",
+        0, true, 0.0, true, 1.0
+    );
+    
+    cvar_dontchange_display = CreateConVar(
+        "sm_umc_dontchange_display",
+        "0",
+        "Determines where in votes the \"Don't Change\" option will be displayed.\n 0 - Bottom,\n 1 - Top",
+        0, true, 0.0, true, 1.0
+    );
+
+    cvar_runoff_slots = CreateConVar(
+        "sm_umc_runoff_blockslots",
+        "1",
+        "Determines whether slots in runoff votes should be blocked. This value is ignored if the original vote didn't have blocked slots.",
+        0, true, 0.0, true, 1.0
+    );
+    
+    cvar_logging = CreateConVar(
+        "sm_umc_logging_verbose",
+        "0",
+        "Enables in-depth logging. Use this to have the plugin log how votes are being populated.",
+        0, true, 0.0, true, 1.0
+    );
+    
+    cvar_runoff_selective = CreateConVar(
+        "sm_umc_runoff_selective",
+        "0",
+        "Specifies whether runoff votes are only displayed to players whose votes were eliminated in the runoff and players who did not vote.",
+        0, true, 0.0, true, 1.0
+    );
+    
+    cvar_vote_tieramount = CreateConVar(
+        "sm_umc_vote_tieramount",
+        "6",
+        "Specifies the maximum number of maps to appear in the second part of a tiered vote.",
+        0, true, 2.0
+    );
+    
+    cvar_runoff_display = CreateConVar(
+        "sm_umc_runoff_display",
+        "C",
+        "Determines where the Runoff Vote Message is displayed on the screen.\n C - Center Message\n S - Chat Message\n T - Top Message\n H - Hint Message"
+    );
+    
+    cvar_vote_tierdisplay = CreateConVar(
+        "sm_umc_vote_tierdisplay",
+        "C",
+        "Determines where the Tiered Vote Message is displayed on the screen.\n C - Center Message\n S - Chat Message\n T - Top Message\n H - Hint Message"
+    );
+
+    //Version
+    CreateConVar(
+        "improved_map_randomizer_version", PL_VERSION, "Ultimate Mapchooser's version",
+        FCVAR_NOTIFY|FCVAR_DONTRECORD|FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED
+    );
+    
+    //Create the config if it doesn't exist, and then execute it.
+    AutoExecConfig(true, "ultimate-mapchooser");
+    
+    //Admin command to set the next map
+    RegAdminCmd("sm_setnextmap", Command_SetNextmap, ADMFLAG_CHANGEMAP, "sm_setnextmap <map>");
+    
+    //Admin command to reload the mapcycle.
+    RegAdminCmd(
+        "sm_umc_reload_mapcycles", Command_Reload, ADMFLAG_RCON, "Reloads the mapcycle file."
+    );
+    
+    //Admin command to stop votes in progress.
+    RegAdminCmd(
+        "sm_umc_stopvote", Command_StopVote, ADMFLAG_CHANGEMAP,
+        "Stops a UMC vote that's in progress."
+    );
+    
+    //Hook round end events
+    HookEvent("round_end",            Event_RoundEnd); //Generic
+    HookEventEx("game_round_end",     Event_RoundEnd); //Hidden: Source, Neotokyo
+    HookEventEx("teamplay_win_panel", Event_RoundEnd); //TF2
+    HookEventEx("arena_win_panel",    Event_RoundEnd); //TF2
+    
+    //Initialize our vote arrays
+    map_vote        = CreateArray();
+    vote_storage    = CreateArray();
+    nominations_arr = CreateArray();
+    
+    //Make listeners for player chat. Needed to recognize chat commands ("rtv", etc.)
+    AddCommandListener(OnPlayerChat, "say");
+    AddCommandListener(OnPlayerChat, "say2"); //Insurgency Only
+    AddCommandListener(OnPlayerChat, "say_team");
+    
+    //Load the translations file
+    LoadTranslations("ultimate-mapchooser.phrases");
+    
+    #if RUNTESTS
+    RunTests();
+    #endif
+}
+
+
+//************************************************************************************************//
+//                                           GAME EVENTS                                          //
+//************************************************************************************************//
+
+//Called before any configs are executed.
+public OnMapStart()
+{   
+    //Update the current category.
+    strcopy(current_cat, sizeof(current_cat), next_cat);
+    strcopy(next_cat, sizeof(next_cat), INVALID_GROUP);
+}
+
+
+//Called after all config files were executed.
+public OnConfigsExecuted()
+{
+    //Have all plugins reload their mapcycles.
+    //Call_StartForward(reload_forward);
+    //Call_Finish();
+
+    //Turn off the reweight system in the event it was left active (map change?)
+    reweight_active = false;
+    
+    //No votes have been completed.
+    //vote_completed = false;
+    
+    change_map_round = false;
+    
+    vote_inprogress = false;
+    vote_active = false; //Assuming the case where this is still active was caught by VoteComplete()
+    
+    change_map_round = false;
+}
+
+
+//Called when a player types in chat.
+//Required to handle user commands.
+public Action:OnPlayerChat(client, const String:command[], argc)
+{
+    //Return immediately if...
+    //    ...nothing was typed.
+    if (argc == 0) return Plugin_Continue;
+
+    //Get what was typed.
+    decl String:text[13];
+    GetCmdArg(1, text, sizeof(text));
+    
+    if (StrEqual(text, "umc", false) || StrEqual(text, "!umc", false)
+        || StrEqual(text, "/umc", false))
+        PrintToChatAll("[SM] Ultimate Mapchooser v%s by Steell", PL_VERSION);
+    
+    return Plugin_Continue;
+}
+
+
+//Called when a client has left the server. Needed to update nominations.
+public OnClientDisconnect(client)
+{
+    //Find this client in the array of clients who have entered RTV.
+    new index = FindClientNomination(client);
+    
+    //Remove the client from the nomination pool if...
+    //    ...the client is in the pool to begin with.
+    if (index != -1)
+    {
+        new Handle:nomination = GetArrayCell(nominations_arr, index);
+        
+        decl String:oldMap[MAP_LENGTH];
+        GetTrieString(nomination, MAP_TRIE_MAP_KEY, oldMap, sizeof(oldMap));
+        new owner;
+        GetTrieValue(nomination, "client", owner);
+        Call_StartForward(nomination_reset_forward);
+        Call_PushString(oldMap);
+        Call_PushCell(owner);
+        Call_Finish();
+        
+        CloseHandle(nomination);
+        RemoveFromArray(nominations_arr, index);
+    }
+}
+
+
+//Called when a round ends.
+public Event_RoundEnd(Handle:evnt, const String:name[], bool:dontBroadcast)
+{
+    if (change_map_round)
+    {
+        decl String:map[MAP_LENGTH];
+        GetNextMap(map, sizeof(map));    
+        ForceChangeInFive(map, "CORE");
+    }
+}
+
+
+//Called at the end of a map.
+public OnMapEnd()
+{
+    //Empty array of nominations (and close all handles).
+    ClearNominations();
+}
+
+
+//************************************************************************************************//
+//                                             NATIVES                                            //
+//************************************************************************************************//
+
+//native Handle:UMC_CreateValidMapArray(Handle:kv, const String:group[], Handle:excludedMaps,
+//                                      Handle:excludedGroups, numExcludedGroups, bool:isNom, 
+//                                      bool:forMapChange);
+public Native_UMCCreateMapArray(Handle:plugin, numParams)
+{
+    new Handle:kv = CreateKeyValues("umc_rotation");
+    new Handle:arg = Handle:GetNativeCell(1);
+    KvCopySubkeys(arg, kv);
+    
+    new len;
+    GetNativeStringLength(2, len);
+    new String:group[len+1];
+    if (len > 0)
+        GetNativeString(2, group, len+1);
+        
+    new Handle:exMaps = Handle:GetNativeCell(3);
+    new Handle:exGroups = Handle:GetNativeCell(4);
+    new numExGroups = GetNativeCell(5);
+    new bool:isNom = bool:GetNativeCell(6);
+    new bool:forMapChange = bool:GetNativeCell(7);
+    
+    new Handle:result = CreateMapArray(kv, arg, group, exMaps, exGroups, numExGroups, isNom,
+                                       forMapChange);
+    
+    CloseHandle(kv);
+    
+    return _:result;
+}
+
+
+//Create an array of valid maps from the given mapcycle and group.
+Handle:CreateMapArray(Handle:kv, Handle:mapcycle, const String:group[], Handle:exMaps,
+                      Handle:exGroups, numExGroups, bool:isNom, bool:forMapChange)
+{
+    if (kv == INVALID_HANDLE)
+    {
+        LogError("NATIVE: Cannot build map array, mapcycle is invalid.");
+        return INVALID_HANDLE;
+    }
+ 
+    new bool:oneSection = false; 
+    if (StrEqual(group, INVALID_GROUP))
+    {
+        if (!KvGotoFirstSubKey(kv))
+        {
+            LogError("NATIVE: Cannot build map array, mapcycle has no groups.");
+            return INVALID_HANDLE;
+        }
+    }
+    else
+    {
+        if (!KvJumpToKey(kv, group))
+        {
+            LogError("NATIVE: Cannot build map array, mapcycle has no group '%s'", group);
+            return INVALID_HANDLE;
+        }
+        
+        oneSection = true;
+    }
+    
+    new Handle:result = CreateArray();
+    decl String:mapName[MAP_LENGTH], String:groupName[MAP_LENGTH];
+    new cIndex;
+    do
+    {
+        KvGetSectionName(kv, groupName, sizeof(groupName));
+        
+        if (exGroups != INVALID_HANDLE)
+        {
+            cIndex = FindStringInArray(exGroups, groupName);
+            if (cIndex != -1 && cIndex < numExGroups)
+            {
+                continue;
+            }
+        }
+        
+        if (!KvGotoFirstSubKey(kv)) continue;     
+        
+        do
+        {
+            if (IsValidMap(kv, mapcycle, groupName, exMaps, exGroups, isNom, forMapChange))
+            {
+                KvGetSectionName(kv, mapName, sizeof(mapName));
+                PushArrayCell(result, CreateMapTrie(mapName, groupName));
+            }
+            
+        } while (KvGotoNextKey(kv));
+        
+        KvGoBack(kv);
+        
+        if (oneSection) break;
+        
+    } while (KvGotoNextKey(kv));
+    
+    KvGoBack(kv);
+    
+    return result;
+}
+
+
+//native Handle:UMC_CreateValidMapGroupArray(Handle:kv, Handle:excludedMaps, Handle:excludedGroups,
+//                                           numExcludedGroups, bool:isNom, bool:forMapChange);
+public Native_UMCCreateGroupArray(Handle:plugin, numParams)
+{
+    new Handle:arg = Handle:GetNativeCell(1);
+    new Handle:kv = CreateKeyValues("umc_rotation");
+    KvCopySubkeys(arg, kv);
+    new Handle:exMaps = Handle:GetNativeCell(2);
+    new Handle:exGroups = Handle:GetNativeCell(3);
+    new numExGroups = GetNativeCell(4);
+    new bool:isNom = bool:GetNativeCell(5);
+    new bool:forMapChange = bool:GetNativeCell(6);
+    
+    new Handle:result = CreateMapGroupArray(kv, arg, exMaps, exGroups, numExGroups, isNom, forMapChange);
+    
+    CloseHandle(kv);
+    
+    return _:result;
+}
+
+
+//Create an array of valid maps from the given mapcycle and group.
+Handle:CreateMapGroupArray(Handle:kv, Handle:mapcycle, Handle:exMaps, Handle:exGroups, numExGroups,
+                           bool:isNom, bool:forMapChange)
+{
+    if (!KvGotoFirstSubKey(kv))
+    {
+        LogError("NATIVE: Cannot build map array, mapcycle has no groups.");
+        return INVALID_HANDLE;
+    }
+    
+    new Handle:result = CreateArray(ByteCountToCells(MAP_LENGTH));
+    decl String:groupName[MAP_LENGTH];
+    do
+    {
+        if (IsValidCat(kv, mapcycle, exGroups, numExGroups, exMaps, isNom, forMapChange))
+        {
+            KvGetSectionName(kv, groupName, sizeof(groupName));
+            PushArrayString(result, groupName);
+        }
+        
+    } while (KvGotoNextKey(kv));
+    
+    KvGoBack(kv);
+    
+    return result;
+}
+
+
+//native bool:UMC_IsMapNominated(const String:map[], const String:group[]);
+public Native_UMCIsMapNominated(Handle:plugin, numParams)
+{
+    new len;
+    GetNativeStringLength(1, len);
+    new String:map[len+1];
+    if (len > 0)
+        GetNativeString(1, map, len+1);
+        
+    GetNativeStringLength(2, len);
+    new String:group[len+1];
+    if (len > 0)
+        GetNativeString(2, group, len+1);
+    
+    return _:(FindNominationIndex(map, group) != -1);
+}
+
+
+//native bool:UMC_NominateMap(const String:map[], const String:group[]);
+public Native_UMCNominateMap(Handle:plugin, numParams)
+{
+    new len;
+    GetNativeStringLength(1, len);
+    new String:map[len+1];
+    if (len > 0)
+        GetNativeString(1, map, len+1);
+        
+    GetNativeStringLength(2, len);
+    new String:group[len+1];
+    if (len > 0)
+        GetNativeString(2, group, len+1);
+        
+    return _:InternalNominateMap(map, group, GetNativeCell(3));
+}
+
+
+//native AddWeightModifier(MapWeightModifier:func);
+public Native_UMCAddWeightModifier(Handle:plugin, numParams)
+{
+    if (reweight_active)
+    {
+        current_weight *= Float:GetNativeCell(1);
+        DebugMessage("New map weight: %f", current_weight);
+    }
+    else
+        LogError("REWEIGHT: Attempted to add weight modifier outside of UMC_OnReweightMap forward.");
+}
+
+
+//native bool:UMC_StartVote( ...20+ params... );
+public Native_UMCStartVote(Handle:plugin, numParams)
+{
+    if (vote_inprogress)
+        return _:false;
+    
+    //Get the name of the calling plugin.
+    GetPluginFilename(plugin, stored_reason, sizeof(stored_reason));
+    
+    vote_inprogress = true;
+    //vote_completed = false;
+
+    //Retrieve the many, many parameters.
+    new Handle:kv = Handle:GetNativeCell(1);
+    new UMC_VoteType:type = UMC_VoteType:GetNativeCell(2);
+    new time = GetNativeCell(3);
+    new Handle:exMaps = Handle:GetNativeCell(4);
+    new Handle:exGroups = Handle:GetNativeCell(5);
+    new numExGroups = GetNativeCell(6);
+    new bool:scramble = bool:GetNativeCell(7);
+    new numBlockSlots = GetNativeCell(8);
+    
+    new len;
+    GetNativeStringLength(9, len);
+    new String:startSound[len+1];
+    if (len > 0)
+        GetNativeString(9, startSound, len+1);
+    GetNativeStringLength(10, len);
+    new String:endSound[len+1];
+    if (len > 0)
+        GetNativeString(10, endSound, len+1);
+    
+    new bool:extend = bool:GetNativeCell(11);
+    new Float:timestep = Float:GetNativeCell(12);
+    new roundstep = GetNativeCell(13);
+    new fragstep = GetNativeCell(14);
+    new bool:dontChange = bool:GetNativeCell(15);
+    new Float:threshold = Float:GetNativeCell(16);
+    new UMC_ChangeMapTime:successAction = UMC_ChangeMapTime:GetNativeCell(17);
+    new UMC_VoteFailAction:failAction = UMC_VoteFailAction:GetNativeCell(18);
+    new maxRunoffs = GetNativeCell(19);
+    new maxRunoffMaps = GetNativeCell(20);
+    new UMC_RunoffFailAction:runoffFailAction = UMC_RunoffFailAction:GetNativeCell(21);
+    
+    GetNativeStringLength(22, len);
+    new String:runoffSound[len+1];
+    if (len > 0)
+        GetNativeString(22, runoffSound, len+1);
+    
+    new bool:nominationStrictness = bool:GetNativeCell(23);
+    new bool:allowDuplicates = bool:GetNativeCell(24);
+    
+    //OK now that that's done, let's save 'em.
+    
+    new blocksize = ByteCountToCells(MAP_LENGTH);
+    stored_exmaps = CopyStringArray(exMaps, blocksize);
+    stored_exgroups = CopyStringArray(exGroups, blocksize);
+    //stored_numexgroups = numExGroups;
+    stored_scramble = scramble;
+    stored_blockslots = numBlockSlots;
+    stored_ignoredupes = allowDuplicates;
+    stored_strictnoms = nominationStrictness;
+
+    if (failAction == VoteFailAction_Nothing)
+    {
+        stored_fail_action = RunoffFailAction_Nothing;
+        remaining_runoffs = 0;
+    }
+    else if (failAction == VoteFailAction_Runoff)
+    {    
+        stored_fail_action = runoffFailAction;   
+        remaining_runoffs = (maxRunoffs == 0) ? -1 : maxRunoffs;
+    }
+    
+    extend_timestep = timestep;
+    extend_roundstep = roundstep;
+    extend_fragstep = fragstep;
+    stored_threshold = threshold;
+    remaining_runoffs = maxRunoffs;
+    stored_runoffmaps_max = maxRunoffMaps;
+    stored_votetime = time;
+    
+    change_map_when = successAction;
+    
+    stored_kv = CreateKeyValues("umc_rotation");
+    KvCopySubkeys(kv, stored_kv);
+    
+    strcopy(stored_start_sound, sizeof(stored_start_sound), startSound);
+    strcopy(stored_end_sound, sizeof(stored_end_sound), endSound);
+    strcopy(stored_runoff_sound, sizeof(stored_runoff_sound), runoffSound);
+    
+    //Make the vote menu.
+    new Handle:menu = BuildVoteMenu(type, exMaps, exGroups, numExGroups, scramble, numBlockSlots,
+                                    extend, dontChange, allowDuplicates, nominationStrictness);
+    
+    //Run the vote if...
+    //    ...the menu was created successfully.
+    if (menu != INVALID_HANDLE)
+    {
+        //Play the vote start sound if...
+        //  ...the filename is defined.
+        if (strlen(startSound) > 0)
+            EmitSoundToAll(startSound);
+    
+        vote_active = true;
+    
+        //Log an error if...
+        //    ...the vote cannot start for some reason.
+        VoteMenuToAll(menu, time);
+        
+        return _:true;
+    }
+    else
+        return _:false;
+}
+
+
+//native bool:UMC_GetRandomMap(Handle:kv, const String:group=INVALID_GROUP, String:buffer[], size,
+//                             Handle:excludedMaps, Handle:excludedGroups, bool:forceGroup);
+public Native_UMCGetRandomMap(Handle:plugin, numParams)
+{
+    new Handle:kv = Handle:GetNativeCell(1);
+    new Handle:filtered = CreateKeyValues("umc_rotation");
+    KvCopySubkeys(kv, filtered);
+	
+    new len;
+    GetNativeStringLength(2, len);
+    new String:group[len+1];
+    if (len > 0)
+        GetNativeString(2, group, len+1);
+    
+    new Handle:exMaps = Handle:GetNativeCell(7);
+    new Handle:exGroups = Handle:GetNativeCell(8);
+    new numEGroups = GetNativeCell(9);
+    
+    new bool:isNom = bool:GetNativeCell(10);
+    new bool:forMapChange = bool:GetNativeCell(11);
+    
+    FilterMapcycle(filtered, kv, exMaps, exGroups, numEGroups, isNom, forMapChange);
+    
+    decl String:map[MAP_LENGTH], String:groupResult[MAP_LENGTH];
+    new bool:result = GetRandomMapFromCycle(filtered, group, map, sizeof(map), groupResult,
+                                            sizeof(groupResult), kv);
+    
+    CloseHandle(filtered);
+    
+    if (result)
+    {
+        SetNativeString(3, map, GetNativeCell(4), false);
+        SetNativeString(5, groupResult, GetNativeCell(6), false);
+        return true;
+    }
+    return false;
+}
+
+
+//native bool:UMC_SetNextMap(Handle:kv, const String:map[], const String:group[]);
+public Native_UMCSetNextMap(Handle:plugin, numParams)
+{
+    new Handle:kv = Handle:GetNativeCell(1);
+    
+    new len;
+    GetNativeStringLength(2, len);
+    new String:map[len+1];
+    if (len > 0)
+        GetNativeString(2, map, len+1);
+    GetNativeStringLength(3, len);
+    new String:group[len+1];
+    if (len > 0)
+        GetNativeString(3, group, len+1);
+    
+    if (!IsMapValid(map))
+    {
+        LogError("SETMAP: Map %s is invalid!", map);
+        return;
+    }
+	
+    new UMC_ChangeMapTime:when = UMC_ChangeMapTime:GetNativeCell(4);
+    
+    decl String:reason[PLATFORM_MAX_PATH];
+    GetPluginFilename(plugin, reason, sizeof(reason));
+        
+    DoMapChange(when, kv, map, group, reason);
+}
+
+
+// native CanMapChooserStartVote();
+public Native_CanVoteStart(Handle:plugin, numParams)
+{
+    return !vote_inprogress;
+}
+
+
+//
+public Native_UMCGetCurrentGroup(Handle:plugin, numParams)
+{
+    SetNativeString(1, current_cat, GetNativeCell(2), false);
+}
+
+
+//************************************************************************************************//
+//                                            COMMANDS                                            //
+//************************************************************************************************//
+
+//Called when the command to set the nextmap is called.
+public Action:Command_SetNextmap(client, args)
+{
+    if (args < 1)
+    {
+        ReplyToCommand(client, "\x03[UMC]\x01 Usage: sm_setnextmap <map>");
+        return Plugin_Handled;
+    }
+    
+    decl String:map[MAP_LENGTH];
+    GetCmdArg(1, map, sizeof(map));
+    
+    if (!IsMapValid(map))
+    {
+        ReplyToCommand(client, "\x03[UMC]\x01 Map '%s' was not found.", map);
+        return Plugin_Handled;
+    }
+    
+    //TODO: Make this a translation
+    ShowActivity(client, "Changed nextmap to \"%s\".", map);
+    LogMessage("%L changed nextmap to \"%s\"", client, map);
+    
+    //SetNextMap(map);
+    DoMapChange(ChangeMapTime_MapEnd, INVALID_HANDLE, map, INVALID_GROUP, "sm_setnextmap");
+    
+    //vote_completed = true;
+    
+    return Plugin_Handled;
+}
+
+
+//Called when the command to reload the mapcycle has been triggered.
+public Action:Command_Reload(client, args)
+{
+    //Call the reload forward.
+    Call_StartForward(reload_forward);
+    Call_Finish();
+    
+    //Return success
+    return Plugin_Handled;
+}
+
+
+//"sm_umc_stopvote"
+public Action:Command_StopVote(client, args)
+{
+    if (vote_inprogress)
+    {
+        if (vote_active)
+        {
+            CancelVote();
+        }
+        else
+            vote_inprogress = false;
+    }
+    else
+    {
+        ReplyToCommand(client, "\x03[UMC]\x01 No map vote running!");
+    }
+    return Plugin_Handled;
+}
+
+
+//************************************************************************************************//
+//                                        VOTING UTILITIES                                        //
+//************************************************************************************************//
+
+//Build and returns a new vote menu.
+Handle:BuildVoteMenu(UMC_VoteType:type, Handle:exMaps, Handle:exGroups, numExGroups, bool:scramble,
+                     numBlockSlots, bool:extend, bool:dontChange, bool:allowDupes, bool:strictNoms)
+{
+    new Handle:result = INVALID_HANDLE;
+
+    switch (type)
+    {
+        case (VoteType_Map):
+        {
+            result = BuildMapVoteMenu(Handle_MapVoteResults, scramble, extend, dontChange,
+                                      numBlockSlots, exMaps, exGroups, numExGroups, allowDupes,
+                                      strictNoms);
+        }
+        case (VoteType_Group):
+        {
+            result = BuildCatVoteMenu(Handle_CatVoteResults, scramble, extend, dontChange,
+                                      numBlockSlots, exMaps, exGroups, numExGroups,
+                                      strictNoms);
+        }
+        case (VoteType_Tier):
+        {
+            result = BuildCatVoteMenu(Handle_TierVoteResults, scramble, extend, dontChange,
+                                      numBlockSlots, exMaps, exGroups, numExGroups,
+                                      strictNoms);
+        }
+    }
+    return result;
+}
+
+
+//Builds and returns a menu for a map vote.
+//    callback:   function to be called when the vote is finished.
+//    scramble:   whether the menu items are in a random order (true) or in the order the categories 
+//                are listed in the cycle.
+//    extend:     whether an extend option should be added to the vote.
+//    dontChange: whether a "Don't Change" option should be added to the vote.
+//    excluded:     adt_array of maps to be excluded from the vote.
+//    excludedCats: adt_array of cats to be excluded from the vote.
+Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:dontChange,
+                        blockSlots=0, Handle:excluded=INVALID_HANDLE,
+                        Handle:excludedCats=INVALID_HANDLE, numExcludedCats=0,
+                        bool:ignoreDupes=false, bool:strictNoms=false,
+                        bool:ignoreInvoteSetting=false)
+{
+    DebugMessage("MAPVOTE - Building map vote menu.");
+    //Throw an error and return nothing if...
+    //    ...the mapcycle is invalid.
+    if (stored_kv == INVALID_HANDLE)
+    {
+        LogError("VOTING: Cannot build map vote menu, rotation file is invalid.");
+        return INVALID_HANDLE;
+    }
+    
+    DebugMessage("Preparing mapcycle for traversal.");
+    //Duplicate the stored_kv handle, because we will be deleting some keys.
+    KvRewind(stored_kv); //rewind original
+    new Handle:kv = CreateKeyValues("umc_rotation"); //new handle
+    KvCopySubkeys(stored_kv, kv); //copy everything to the new handle
+    FilterMapcycle(kv, stored_kv, excluded, excludedCats, numExcludedCats);
+    
+    DebugMessage("Checking for categories.");
+    //Log an error and return nothing if...
+    //    ...it cannot find a category.
+    if (!KvGotoFirstSubKey(kv))
+    {
+        LogError("VOTING: No map categories found in rotation. Vote menu was not built.");
+        CloseHandle(kv);
+        return INVALID_HANDLE;
+    }
+    
+    DebugMessage("Preparing vote data storage.");
+    ClearVoteArrays();
+
+    DebugMessage("Getting options from cvars.");
+    //Determine how we're logging
+    new bool:verboseLogs = GetConVarBool(cvar_logging);
+    
+    DebugMessage("Initializing Buffers");
+    //Buffers
+    new String:mapName[MAP_LENGTH];     //Name of the map
+    new String:display[MAP_LENGTH];     //String to be displayed in the vote
+    new String:gDisp[MAP_LENGTH];
+    new String:catName[MAP_LENGTH];     //Name of the category.
+    
+    //Other variables
+    new voteCounter = 0; //Number of maps in the vote currently
+    new numNoms = 0;     //Number of nominated maps in the vote.
+    new Handle:nominationsFromCat = INVALID_HANDLE; //adt_array containing all nominations from the
+                                                    //current category.
+    new Handle:tempCatNoms = INVALID_HANDLE;
+    new Handle:trie        = INVALID_HANDLE; //a nomination
+    new Handle:nameArr     = INVALID_HANDLE; //adt_array of map names from nominations
+    new Handle:weightArr   = INVALID_HANDLE; //adt_array of map weights from nominations.
+    
+    new Handle:map_vote_display = CreateArray(ByteCountToCells(MAP_LENGTH));
+    
+    new nomIndex, position, numMapsFromCat, nomCounter, inVote, index; //, cIndex;
+    
+    new tierAmount = GetConVarInt(cvar_vote_tieramount);
+    
+    DebugMessage("Performing Traversal");
+    //Add maps to vote array from current category.
+    do
+    {
+        //Store the name of the current category.
+        KvGetSectionName(kv, catName, sizeof(catName));
+        
+        DebugMessage("Fetching map group data");
+        
+        //Get the map-display template from the categeory definition.
+        KvGetString(kv, "display-template", gDisp, sizeof(gDisp), "{MAP}");
+        
+        DebugMessage("Fetching Nominations");
+        
+        //Get all nominations for the current category.
+        tempCatNoms = GetCatNominations(catName);
+        nominationsFromCat = FilterNominationsArray(tempCatNoms, stored_kv, stored_kv);
+        CloseHandle(tempCatNoms);
+        
+        //Get the amount of nominations for the current category.
+        numNoms = GetArraySize(nominationsFromCat);
+        
+        DebugMessage("Calculating amount of maps needed to be fetched.");
+        
+        //Get the total amount of maps to appear in the vote from this category.
+        inVote = ignoreInvoteSetting 
+                    ? tierAmount
+                    : KvGetNum(kv, "maps_invote", 1);
+        
+        if (verboseLogs)
+        {
+            if (ignoreInvoteSetting)
+                LogMessage("VOTE MENU: (Verbose) Second stage tiered vote. See cvar \"sm_umc_vote_tieramount.\"");
+            LogMessage("VOTE MENU: (Verbose) Fetching %i maps from group '%s'", inVote, catName);
+        }
+        
+        //Calculate the number of maps we still need to fetch from the mapcycle.
+        numMapsFromCat = inVote - numNoms;
+        
+        DebugMessage("Determining proper nomination processing algorithm.");
+        
+        //Populate vote with nomination maps from this category if...
+        //    ...we do not need to fetch any maps from the mapcycle AND
+        //    ...the number of nominated maps in the vote is limited to the maps_invote setting for
+        //       the category.
+        if (numMapsFromCat < 0 && strictNoms)
+        {
+            //////
+            //The piece of code inside this block is for the case where the current category's
+            //nominations exceeds it's number of maps allowed in the vote.
+            //
+            //In order to solve this problem, we first fetch all nominations where the map has
+            //appropriate min and max players for the amount of players on the server, and then
+            //randomly pick from this pool based on the weights if the maps, until the number
+            //of maps in the vote from this category is reached.
+            //////
+            
+            DebugMessage("Performing strict nomination algorithm.");
+            
+            if (verboseLogs)
+            {
+                LogMessage(
+                    "VOTE MENU: (Verbose) Number of nominations (%i) exceeds allowable maps in vote for the map group '%s'. Limiting nominated maps to %i. (See cvar \"sm_umc_nominate_strict\")",
+                    numNoms, catName, inVote
+                );
+            }
+        
+            //No nominations have been fetched from pool of possible nomination.
+            nomCounter = 0;
+            
+            //Populate vote array with nominations from this category if...
+            //    ...we have nominations from this category.
+            if (numNoms > 0)
+            {
+                //Initialize name and weight adt_arrays.
+                nameArr = CreateArray(ByteCountToCells(MAP_LENGTH));
+                weightArr = CreateArray();
+                
+                DebugMessage("Fetching data from all nominations in the map group.");
+                
+                //Store data from a nomination for...
+                //    ...each index of the adt_array of nominations from this category.
+                for (new i = 0; i < numNoms; i++)
+                {
+                    DebugMessage("Fetching nomination data.");
+                    //Store nomination.
+                    trie = GetArrayCell(nominationsFromCat, i);
+                    
+                    //Get the map name from the nomination.
+                    GetTrieString(trie, MAP_TRIE_MAP_KEY, mapName, sizeof(mapName));    
+                    
+                    DebugMessage("Determining what to do with the nomination.");
+                    
+                    //Add map to list of possible maps to be added to vote from the nominations 
+                    //if...
+                    //    ...the map is valid (correct number of players, correct time)
+                    if (!ignoreDupes 
+                        && FindStringInVoteArray(mapName, MAP_TRIE_MAP_KEY, map_vote) != -1)
+                    {
+                        DebugMessage("Skipping repeated nomination.");
+                        if (verboseLogs)
+                        {
+                            LogMessage(
+                                "VOTE MENU: (Verbose) Skipping nominated map '%s' from map group '%s' because it already is in the vote.",
+                                mapName, catName
+                            );
+                        }
+                    }
+                    else
+                    {
+                        DebugMessage("Adding nomination to the possible vote pool.");
+                        //Increment number of noms fetched.
+                        nomCounter++;
+                        
+                        //Add map name to the pool.
+                        PushArrayString(nameArr, mapName);
+                        
+                        //Add map weight to the pool.
+                        PushArrayCell(weightArr, GetMapWeight(stored_kv, mapName, catName));
+                    }
+                }
+                
+                //After we have parsed every map from the list of nominations...
+                
+                DebugMessage("Choosing nominations from the pool to be inserted into the vote.");
+                
+                //Populate vote array with maps from the pool if...
+                //    ...the number of nominations fetched is greater than zero.
+                if (nomCounter > 0)
+                {
+                    //Add a nominated map from the pool into the vote arrays for...
+                    //    ...the number of available spots there are from the category.
+                    new min = (inVote < nomCounter) ? inVote : nomCounter;
+                    
+                    DebugMessage("Begin parsing nomination pool.");
+                    
+                    for (new i = 0; i < min; i++)
+                    {
+                        DebugMessage("Fetching a random nomination from the pool.");
+                        //Get a random map from the pool.
+                        GetWeightedRandomSubKey(mapName, sizeof(mapName), weightArr, nameArr, index);
+                        
+                        DebugMessage("Determining where to place the map in the vote.");
+                        //Get the position in the vote array to add the map to
+                        position = GetNextMenuIndex(voteCounter, scramble);
+                        
+                        DebugMessage("Fetching extra info for the map from the mapcycle.");
+                        //Get extra fields from the map
+                        KvJumpToKey(kv, mapName);
+                        KvGetString(kv, "display", display, sizeof(display), gDisp);
+                        
+                        DebugMessage("Setting proper display string.");
+                        if (strlen(display) == 0)
+                            strcopy(display, sizeof(display), mapName);
+                        else
+                            ReplaceString(display, sizeof(display), "{MAP}", mapName, false);
+                        
+                        KvGoBack(kv);
+                        
+                        DebugMessage("Adding nomination to the vote.");
+                        
+                        new Handle:map = CreateMapTrie(mapName, catName);
+                        InsertArrayCell(map_vote, position, map);
+                        InsertArrayString(map_vote_display, position, display);
+                        
+                        //Increment number of maps added to the vote.
+                        voteCounter++;
+                        
+                        DebugMessage("Preventing nomination and map from being picked again.");
+                        
+                        //Delete the map so it can't be picked again.
+                        KvDeleteKey(kv, mapName);
+
+                        //Remove map from pool.
+                        RemoveFromArray(nameArr, index);
+                        RemoveFromArray(weightArr, index);
+                        
+                        if (verboseLogs)
+                        {
+                            LogMessage(
+                                "VOTE MENU: (Verbose) Nominated map '%s' from group '%s' was added to the vote.",
+                                mapName, catName
+                            );
+                        }
+                    }
+                }
+                
+                //Close handles for the pool.
+                CloseHandle(nameArr);
+                CloseHandle(weightArr);
+                
+                //Update numMapsFromCat to reflect the actual amount still required.
+                numMapsFromCat = inVote - nomCounter;
+            }
+        }
+        //Otherwise, we fill the vote with nominations then fill the rest with random maps from the
+        //mapcycle.
+        else
+        {
+            DebugMessage("Adding all nominations to the vote.");
+            //Add nomination to the vote array for..
+            //    ...each index in the nomination array.
+            for (new i = 0; i < numNoms; i++)
+            {
+                DebugMessage("Fetching nomination info.");
+                //Get map name.
+                GetTrieString(GetArrayCell(nominationsFromCat, i), MAP_TRIE_MAP_KEY, mapName,
+                    sizeof(mapName));
+                
+                DebugMessage("Determining what to do with the nomination.");
+                
+                //Add nominated map to the vote array if...
+                //    ...the map isn't already in the vote AND
+                //    ...the server has a valid number of players for the map.
+                if (!ignoreDupes
+                    && FindStringInVoteArray(mapName, MAP_TRIE_MAP_KEY, map_vote) != -1)
+                {
+                    DebugMessage("Skipping repeated nomination.");
+                    if (verboseLogs)
+                    {
+                        LogMessage(
+                            "VOTE MENU: (Verbose) Skipping nominated map '%s' from map group '%s' because it is already in the vote.",
+                            mapName, catName
+                        );
+                    }
+                }
+                else
+                {
+                    DebugMessage("Adding nomination to the vote.");
+                    //Get extra fields from the map
+                    KvJumpToKey(kv, mapName);
+                    KvGetString(kv, "display", display, sizeof(display), gDisp);
+                    
+                    DebugMessage("Setting proper display string.");
+                    if (strlen(display) == 0)
+                        strcopy(display, sizeof(display), mapName);
+                    else
+                        ReplaceString(display, sizeof(display), "{MAP}", mapName, false);
+                        
+                    KvGoBack(kv);
+                    
+                    DebugMessage("Determining where to place the map in the vote.");
+                    //Get the position in the vote array to add the map to.
+                    position = GetNextMenuIndex(voteCounter, scramble);
+                    
+                    DebugMessage("Adding nomination to the vote.");
+                    
+                    new Handle:map = CreateMapTrie(mapName, catName);
+                    InsertArrayCell(map_vote, position, map);
+                    InsertArrayString(map_vote_display, position, display);
+                    
+                    //Increment number of maps added to the vote.
+                    voteCounter++;
+                    
+                    DebugMessage("Preventing map from being picked again.");
+                        
+                    //Delete the map so it cannot be picked again.
+                    KvDeleteKey(kv, mapName);
+                    
+                    if (verboseLogs)
+                    {
+                        LogMessage(
+                            "VOTE MENU: (Verbose) Nominated map '%s' from group '%s' was added to the vote.",
+                            mapName, catName
+                        );
+                    }
+                }
+            }
+        }
+        
+        //////
+        //At this point in the algorithm, we have already handled nominations for this category.
+        //If there are maps which still need to be added to the vote, we will be fetching them
+        //from the mapcycle directly.
+        //////
+        
+        DebugMessage("Finished processing nominations.");
+        
+        if (verboseLogs)
+        {
+            LogMessage("VOTE MENU: (Verbose) Finished parsing nominations for map group '%s'",
+                catName);
+            if (numMapsFromCat > 0)
+            {
+                LogMessage("VOTE MENU: (Verbose) Still need to fetch %i maps from the group.",
+                    numMapsFromCat);
+            }
+        }
+        
+        //We no longer need the nominations array, so we close the handle.
+        CloseHandle(nominationsFromCat);
+        
+        DebugMessage("Begin filling remaining spots in the vote.");
+        //Add a map to the vote array from the current category while...
+        //    ...maps still need to be added from the current category.
+        while (numMapsFromCat > 0)
+        {
+            DebugMessage("Attempting to fetch a map from the group.");
+            //Skip the category if...
+            //    ...there are no more maps that can be added to the vote.
+            if (!GetRandomMap(kv, mapName, sizeof(mapName), stored_kv))//, excluded, excludedCats))
+            {
+                if (verboseLogs)
+                    LogMessage("VOTE MENU: (Verbose) No more maps in map group '%s'", catName);
+                DebugMessage("No more maps in group. Continuing to next group.");
+                break;
+            }
+
+            //The name of the selected map is now stored in mapName.    
+            
+            DebugMessage("Checking to make sure the map isn't already in the vote.");
+            //Remove the map from the category (so it cannot be selected again) and repick a map 
+            //if...
+            //    ...the map has already been added to the vote (through nomination or another 
+            //       category
+            if (!ignoreDupes && FindStringInVoteArray(mapName, MAP_TRIE_MAP_KEY, map_vote) != -1)
+            {
+                DebugMessage("Map found in vote. Removing from mapcycle.");
+                KvDeleteKey(kv, mapName);
+                if (verboseLogs)
+                {
+                    LogMessage(
+                        "VOTE MENU: (Verbose) Skipping selected map '%s' from map group '%s' because it is already in the vote.",
+                        mapName, catName
+                    );
+                }
+                continue;
+            }
+            
+            //At this point we have a map which we are going to add to the vote array.
+
+            if (verboseLogs)
+            {
+                LogMessage(
+                    "VOTE MENU: (Verbose) Selected map '%s' from group '%s' was added to the vote.",
+                    mapName, catName
+                );
+            }
+            
+            DebugMessage("Searching for map in nominations.");
+            //Find this map in the list of nominations.
+            nomIndex = FindNominationIndex(mapName, catName);
+            
+            //Remove the nomination if...
+            //    ...it was found.
+            if (nomIndex != -1)
+            {
+                DebugMessage("Map found in nominations.");
+                new Handle:nom = GetArrayCell(nominations_arr, nomIndex);
+                
+                DebugMessage("Calling nomination removal forward.");
+                new owner;
+                GetTrieValue(nom, "client", owner);
+                
+                Call_StartForward(nomination_reset_forward);
+                Call_PushString(mapName);
+                Call_PushCell(owner);
+                Call_Finish();
+                
+                DebugMessage("Removing nomination.");
+                CloseHandle(nom);
+                RemoveFromArray(nominations_arr, nomIndex);
+                if (verboseLogs)
+                {
+                    LogMessage("VOTE MENU: (Verbose) Removing selected map '%s' from nominations.",
+                        mapName);
+                }
+            }
+            
+            DebugMessage("Fetching extra info for the map from the mapcycle.");
+            //Get extra fields from the map
+            KvJumpToKey(kv, mapName);
+            KvGetString(kv, "display", display, sizeof(display), gDisp);
+            
+            DebugMessage("Setting proper display string.");
+            if (strlen(display) == 0)
+                strcopy(display, sizeof(display), mapName);
+            else 
+                ReplaceString(display, sizeof(display), "{MAP}", mapName, false);
+            
+            KvGoBack(kv);
+            
+            DebugMessage("Determining where to place the map in the vote.");
+            //Get the position in the vote array to add the map to.
+            position = GetNextMenuIndex(voteCounter, scramble);
+            
+            DebugMessage("Adding map to the vote.");
+                    
+            new Handle:map = CreateMapTrie(mapName, catName);
+            InsertArrayCell(map_vote, position, map);
+            InsertArrayString(map_vote_display, position, display);
+            
+            //Increment number of maps added to the vote.
+            voteCounter++;
+            
+            DebugMessage("Preventing map from being picked again.");
+            //Delete the map from the KV so we can't pick it again.
+            KvDeleteKey(kv, mapName);
+            
+            //One less map to be added to the vote from this category.
+            numMapsFromCat--;
+        }
+    } while (KvGotoNextKey(kv)); //Do this for each category.
+    
+    DebugMessage("Vote now populated with maps.");
+    
+    //We no longer need the copy of the mapcycle
+    CloseHandle(kv);
+    
+    DebugMessage("Initializing vote menu.");
+    //Begin creating menu
+    new Handle:menu = CreateMenu(Handle_VoteMenu, MenuAction_DisplayItem|MenuAction_Display);
+    SetVoteResultCallback(menu, callback); //Set callback
+    SetMenuExitButton(menu, false); //Don't want an exit button.
+        
+    //Set the title
+    SetMenuTitle(menu, "Map Vote Menu Title");
+    
+    //Keep track of slots taken up in the vote.
+    new voteSlots = blockSlots;
+    
+    DebugMessage("Setup slot blocking.");
+    //Add blocked slots if...
+    //    ...the cvar for blocked slots is enabled.
+    AddSlotBlockingToMenu(menu, blockSlots);
+    
+    new Handle:infoArr = BuildNumArray(voteCounter);    
+    
+    DebugMessage("Adding maps to the menu.");
+    //Add the array of maps to the menu.
+    AddArrayToMenu(menu, infoArr, map_vote_display);
+    CloseHandle(map_vote_display);
+    CloseHandle(infoArr);
+    
+    //Update how many slots have been taken up in the vote.
+    voteSlots += voteCounter;
+    
+    if (verboseLogs && scramble)
+        LogMessage("VOTE MENU: (Verbose) Scrambling menu.");
+    
+    DebugMessage("Add extend or don't change options.");
+    //Add an extend item if...
+    //    ...the extend flag is true.
+    if (extend)
+    {
+        if (GetConVarBool(cvar_extend_display))
+            InsertMenuItem(menu, blockSlots, EXTEND_MAP_OPTION, "Extend Map");
+        else
+            AddMenuItem(menu, EXTEND_MAP_OPTION, "Extend Map");
+        voteCounter++;
+        voteSlots++;
+    }
+    //Add a don't change item if...
+    //    ...the don't change flag is true.
+    if (dontChange)
+    {
+        if (GetConVarBool(cvar_dontchange_display))
+            InsertMenuItem(menu, blockSlots, DONT_CHANGE_OPTION, "Don't Change");
+        else
+            AddMenuItem(menu, DONT_CHANGE_OPTION, "Don't Change");
+        voteCounter++;
+        voteSlots++;
+    }
+    DebugMessage("Making sure there are enough items in the vote.");
+    //Throw an error and return nothing if...
+    //    ...the number of items in the vote is less than 2 (hence no point in voting).
+    if (voteCounter <= 1)
+    {
+        DebugMessage("Not enough items in the vote. Aborting.");
+        LogError("VOTING: Not enough maps to run a map vote. %i maps available.", voteCounter);
+        CloseHandle(menu);
+        ClearVoteArrays();
+        return INVALID_HANDLE;
+    }
+    else //Otherwise, finish making the menu.
+    {
+        DebugMessage("Setting proper pagination.");
+        SetCorrectMenuPagination(menu, voteSlots);
+        DebugMessage("Vote menu built successfully.");
+        return menu; //Return the finished menu (finally).
+    }
+}
+
+
+//Builds and returns a menu for a category vote.
+//    callback:   function to be called when the vote is finished.
+//    scramble:   whether the menu items are in a random order (true) or in the order the categories 
+//                are listed in the cycle.
+//    extend:     whether an extend option should be added to the vote.
+//    dontChange: whether a "Don't Change" option should be added to the vote.
+//    excluded:   adt_array of maps to be excluded from the vote
+Handle:BuildCatVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:dontChange,
+                        blockSlots=0, Handle:excluded=INVALID_HANDLE,
+                        Handle:excludedCats=INVALID_HANDLE, numExcludedCats=0,
+                        bool:strictNoms=false)
+{
+    //Throw an error and return nothing if...
+    //    ...the mapcycle is invalid.
+    if (stored_kv == INVALID_HANDLE)
+    {
+        LogError("VOTING: Cannot build map group vote menu, rotation file is invalid.");
+        return INVALID_HANDLE;
+    }
+    
+    //Rewind our mapcycle.
+    KvRewind(stored_kv); //rewind original
+    //new Handle:kv = FilterMapcycle(stored_kv, excluded, excludedCats, numExcludedCats);
+    new Handle:kv = CreateKeyValues("umc_rotation"); //new handle
+    KvCopySubkeys(stored_kv, kv);
+    
+    //Log an error and return nothing if...
+    //    ...it cannot find a category.
+    if (!KvGotoFirstSubKey(kv))
+    {
+        LogError("VOTING: No map categories found in rotation. Vote menu was not built.");
+        CloseHandle(kv);
+        return INVALID_HANDLE;
+    }
+    
+    ClearVoteArrays();
+    
+    new bool:verboseLogs = GetConVarBool(cvar_logging);
+    
+    decl String:catName[MAP_LENGTH]; //Buffer to store category name in.
+    decl String:mapName[MAP_LENGTH];
+    new voteCounter = 0;      //Number of categories in the vote.
+    new Handle:catArray = CreateArray(ByteCountToCells(MAP_LENGTH), 0); //Array of categories in the vote.
+    
+    new Handle:catNoms = INVALID_HANDLE;
+    new Handle:nom = INVALID_HANDLE;
+    new size;
+    new bool:haveNoms = false;
+    
+    //Add the current category to the vote.
+    do
+    {
+        KvGetSectionName(kv, catName, sizeof(catName));
+        
+        catNoms = GetCatNominations(catName);
+        size = GetArraySize(catNoms);
+        for (new i = 0; i < size; i++)
+        {
+            nom = GetArrayCell(catNoms, i);
+            GetTrieString(nom, MAP_TRIE_MAP_KEY, mapName, sizeof(mapName));
+            if (IsValidMapFromCat(kv, stored_kv, mapName, .isNom=true))
+            {
+                haveNoms = true;
+                break;
+            }
+        }
+        CloseHandle(catNoms);
+        
+        //Skip this category if...
+        //    ...the server doesn't have the required amount of players or all maps are excluded OR
+        //    ...the number of maps in the vote from the category is less than 1.
+        if (!haveNoms && !IsValidCat(kv, stored_kv, excludedCats, numExcludedCats, excluded))
+        {
+            if (verboseLogs)
+            {
+                LogMessage(
+                    "VOTE MENU: (Verbose) Skipping map group '%s' due to invalid server player count or server time.",
+                    catName
+                );
+            }
+            continue;
+        }
+        else if (KvGetNum(kv, "maps_invote", 1) < 1 && strictNoms)
+        {
+            if (verboseLogs)
+            {
+                LogMessage(
+                    "VOTE MENU: (Verbose) Skipping map group '%s' due to \"maps_invote\" setting of 0.",
+                    catName
+                );
+            }
+            continue;
+        }
+        
+        if (verboseLogs)
+            LogMessage("VOTE MENU: (Verbose) Group '%s' was added to the vote.", catName);
+        
+        //Add category to the vote array...
+        InsertArrayString(catArray, GetNextMenuIndex(voteCounter, scramble), catName);
+        
+        //Increment number of categories in the vote.
+        voteCounter++;
+    } while (KvGotoNextKey(kv)); //Do this for each category.
+    
+    //No longer need the copied mapcycle
+    CloseHandle(kv);
+    
+    //Begin creating menu
+    new Handle:menu = CreateMenu(Handle_VoteMenu, MenuAction_DisplayItem|MenuAction_Display);
+    SetVoteResultCallback(menu, callback);    //Set callback
+    SetMenuExitButton(menu, false); //Disable exit button
+    
+    //Set the title
+    SetMenuTitle(menu, "Group Vote Menu Title");
+    
+    //Keep track of slots taken up in the vote.
+    new voteSlots = blockSlots;
+
+    //Add slot blocking
+    AddSlotBlockingToMenu(menu, blockSlots);
+    
+    //Add array of votes to the menu.
+    AddArrayToMenu(menu, catArray);
+    voteSlots += GetArraySize(catArray);
+
+    //We no longer need the vote array, so we close the handle.
+    CloseHandle(catArray);
+
+    //Add an extend item if...
+    //    ...the extend flag is true.
+    if (extend)
+    {
+        if (GetConVarBool(cvar_extend_display))
+            InsertMenuItem(menu, blockSlots, EXTEND_MAP_OPTION, "Extend Map");
+        else
+            AddMenuItem(menu, EXTEND_MAP_OPTION, "Extend Map");
+        voteCounter++;
+        voteSlots++;
+    }
+    //Add a don't change item if...
+    //    ...the don't change flag is true.
+    if (dontChange)
+    {
+        if (GetConVarBool(cvar_dontchange_display))
+            InsertMenuItem(menu, blockSlots, DONT_CHANGE_OPTION, "Don't Change");
+        else
+            AddMenuItem(menu, DONT_CHANGE_OPTION, "Don't Change");
+        voteCounter++;
+        voteSlots++;
+    }
+    //Throw an error and return nothing if...
+    //    ...the number of items in the vote is less than 2 (hence no point in voting).
+    if (voteCounter <= 1)
+    {
+        LogError("VOTING: Not enough map groups to run a group vote. %i groups available.",
+            voteCounter);
+        CloseHandle(menu);
+        ClearVoteArrays();
+        return INVALID_HANDLE;
+    }
+    else //Otherwise, finish making the menu.
+    {
+        SetCorrectMenuPagination(menu, voteSlots);
+        return menu; //Return our finished menu!
+    }
+}
+
+
+//Adds slot blocking to a menu
+AddSlotBlockingToMenu(Handle:menu, blockSlots)
+{
+    //Add blocked slots if...
+    //    ...the cvar for blocked slots is enabled.
+    if (blockSlots > 3)
+        AddMenuItem(menu, NOTHING_OPTION, "", ITEMDRAW_SPACER);
+    if (blockSlots > 0)
+        AddMenuItem(menu, NOTHING_OPTION, "Slot Block Message 1", ITEMDRAW_DISABLED);
+    if (blockSlots > 1)
+        AddMenuItem(menu, NOTHING_OPTION, "Slot Block Message 2", ITEMDRAW_DISABLED);
+    if (blockSlots > 2)
+        AddMenuItem(menu, NOTHING_OPTION, "", ITEMDRAW_SPACER);
+    if (blockSlots > 4)
+        AddMenuItem(menu, NOTHING_OPTION, "", ITEMDRAW_SPACER);
+}
+
+
+//Selects a random map from a category based off of the supplied weights for the maps.
+//    kv:     a mapcycle whose traversal stack is currently at the level of the category to choose 
+//            from.
+//    buffer:    a string to store the selected map in
+//    key:  the key containing the weight information (for maps, 'weight', for cats, 'group_weight')
+//    excluded: an adt_array of maps to exclude from the selection.
+//bool:GetRandomMap(Handle:kv, String:buffer[], size, Handle:excluded, Handle:excludedCats, 
+//                  bool:isNom=false, bool:forMapChange=true, bool:memory=true)
+bool:GetRandomMap(Handle:kv, String:buffer[], size, Handle:originalMapcycle)
+{
+    decl String:catName[MAP_LENGTH];
+    KvGetSectionName(kv, catName, sizeof(catName));
+    
+    DebugMessage("Preparing mapcycle for random map selection.");
+    //Return failure if...
+    //    ...there are no maps in the category.
+    if (!KvGotoFirstSubKey(kv))
+    {
+        DebugMessage("No maps found in map group. Return false.");
+        return false;
+    }
+
+    DebugMessage("Preparing to traverse maps in the group.");
+    new index = 0; //counter of maps in the random pool
+    new Handle:nameArr = CreateArray(ByteCountToCells(MAP_LENGTH)); //Array to store possible map names
+    new Handle:weightArr = CreateArray();  //Array to store possible map weights.
+    decl String:temp[MAP_LENGTH]; //Buffer to store map names in.
+    
+    //Add a map to the random pool.
+    do
+    {    
+        //Get the name of the map.
+        KvGetSectionName(kv, temp, sizeof(temp));
+        
+        DebugMessage("Adding map %s to the pool.", temp);
+        
+        //Add the map to the random pool.
+        PushArrayCell(weightArr, GetMapWeight(originalMapcycle, temp, catName));
+        PushArrayString(nameArr, temp);
+        
+        //One more map in the pool.
+        index++;
+    } while (KvGotoNextKey(kv)); //Do this for each map.
+    
+    DebugMessage("Finished populating random pool.");
+    //Go back to the category level.
+    KvGoBack(kv);
+
+    //Close pool and fail if...
+    //    ...no maps are selectable.
+    if (index == 0)
+    {
+        DebugMessage("No maps found in pool. Returning false.");
+        CloseHandle(nameArr);
+        CloseHandle(weightArr);
+        return false;
+    }
+
+    DebugMessage("Getting random map from the pool.");
+    
+    //Use weights to randomly select a map from the pool.
+    new bool:result = GetWeightedRandomSubKey(buffer, size, weightArr, nameArr, _);
+    
+    //Close the pool.
+    CloseHandle(nameArr);
+    CloseHandle(weightArr);
+    
+    //Done!
+    return result;
+}
+
+
+//Searches array for given string. Returns -1 on failure.
+FindStringInVoteArray(const String:target[], const String:val[], Handle:arr)
+{
+    new size = GetArraySize(arr);
+    decl String:buffer[MAP_LENGTH];
+    for (new i = 0; i < size; i++)
+    {
+        GetTrieString(GetArrayCell(arr, i), val, buffer, sizeof(buffer));
+        if (StrEqual(buffer, target))
+            return i;
+    }
+    return -1;
+}
+
+
+//Called when a vote has finished.
+public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
+{
+    //LogMessage("DEBUG: Vote Handler Called.");
+    //Cleanup the memory taken by the vote if...
+    //    ...the vote is actually over.
+    if (action == MenuAction_End)
+    {
+        //LogMessage("DEBUG: End");
+    
+        CloseHandle(menu);
+        VoteCompleted(); //Called when vote menu has been closed.
+    }
+    if (action == MenuAction_Display)
+    {
+        //LogMessage("DEBUG: Display");
+        
+        new Handle:panel = Handle:param2;
+        
+        decl String:phrase[255];
+        GetMenuTitle(menu, phrase, sizeof(phrase));
+        
+        decl String:buffer[255];
+        Format(buffer, sizeof(buffer), "%T", phrase, param1);
+        
+        SetPanelTitle(panel, buffer);
+    }
+    if (action == MenuAction_DisplayItem)
+    {
+        //LogMessage("DEBUG: DisplayItem");
+        
+        decl String:map[MAP_LENGTH], String:display[MAP_LENGTH];
+        GetMenuItem(menu, param2, map, sizeof(map), _, display, sizeof(display));
+        
+        if (StrEqual(map, EXTEND_MAP_OPTION) || StrEqual(map, DONT_CHANGE_OPTION) ||
+            (StrEqual(map, NOTHING_OPTION) && strlen(display) > 0))
+        {
+            decl String:buffer[255];
+            Format(buffer, sizeof(buffer), "%T", display, param1);
+            
+            return RedrawMenuItem(buffer);
+        }
+    }
+    return 0;
+}
+
+
+//Called right after the vote menu is destroyed.
+VoteCompleted()
+{
+    //Catches the case where a vote occurred but nobody voted.
+    if (vote_active)
+    {
+        //Reset flags
+        vote_active = false;
+        
+        //Cleanup the vote
+        EmptyStorage();
+        DeleteVoteParams();
+        ClearVoteArrays();
+        
+        VoteFailed();
+    }
+}
+
+
+//Utility function to clear all the voting storage arrays.
+ClearVoteArrays()
+{
+    ClearHandleArray(map_vote);
+}
+
+
+//Get the winner from a vote.
+any:GetWinner()
+{
+    new counter = 1;
+    new Handle:voteItem = GetArrayCell(vote_storage, 0);
+    new Handle:voteClients = INVALID_HANDLE;
+    GetTrieValue(voteItem, "clients", voteClients);
+    new most_votes = GetArraySize(voteClients);
+    new num_items = GetArraySize(vote_storage);
+    while (counter < num_items)
+    {
+        GetTrieValue(GetArrayCell(vote_storage, counter), "clients", voteClients);
+        if (GetArraySize(voteClients) < most_votes)
+            break;
+        counter++;
+    }
+    if (counter > 1)
+        return GetArrayCell(vote_storage, GetRandomInt(0, counter - 1));
+    else
+        return GetArrayCell(vote_storage, 0);
+}
+
+
+//Generates a list of categories to be excluded from the second stage of a tiered vote.
+Handle:MakeSecondTieredCatExclusion(Handle:kv, const String:cat[])
+{
+    //Log an error and return nothing if...
+    //  ...there are no categories in the cycle (for some reason).
+    if (!KvGotoFirstSubKey(kv))
+    {
+        LogError("TIERED VOTE: Cannot create second stage of vote, rotation file is invalid (no categories were found.)");
+        return INVALID_HANDLE;
+    }
+    
+    //Array to return at the end.
+    new Handle:result = CreateArray(ByteCountToCells(MAP_LENGTH));
+    
+    //Buffer to store a category name
+    decl String:catName[MAP_LENGTH];
+    
+    do //For a category in the mapcycle...
+    {
+        //Get the name of the category.
+        KvGetSectionName(kv, catName, sizeof(catName));
+        
+        //Add the category name to the result array if...
+        //  ...it is not equal to the given category.
+        if (!StrEqual(catName, cat, false))
+            PushArrayString(result, catName);
+        
+    } while (KvGotoNextKey(kv));
+    
+    //Return to the root.
+    KvGoBack(kv);
+    
+    //Success!
+    return result;
+}
+
+
+//Updates the display for the interval between tiered votes.
+DisplayTierMessage(timeleft)
+{
+    decl String:msg[255], String:notification[10];
+    Format(msg, sizeof(msg), "%t", "Another Vote", timeleft);
+    GetConVarString(cvar_vote_tierdisplay, notification, sizeof(notification));
+    DisplayServerMessage(msg, notification);
+}
+
+
+//Empties the vote storage
+EmptyStorage()
+{
+    new size = GetArraySize(vote_storage);
+    for (new i = 0; i < size; i++)
+        RemoveFromStorage(0);
+    total_votes = 0;
+}
+
+
+//Removes a vote item from the storage
+RemoveFromStorage(index)
+{
+    new Handle:stored = GetArrayCell(vote_storage, index);
+    new Handle:clients = INVALID_HANDLE;
+    GetTrieValue(stored, "clients", clients);
+    total_votes -= GetArraySize(clients);
+    CloseHandle(clients);
+    CloseHandle(stored);
+    RemoveFromArray(vote_storage, index);
+}
+
+
+//Gets the winning info for the vote
+GetVoteWinner(String:info[], maxinfo, &Float:percentage, String:disp[]="", maxdisp=0)
+{
+    new Handle:winner = GetWinner();
+    new Handle:clients = INVALID_HANDLE;
+    GetTrieString(winner, "info", info, maxinfo);
+    GetTrieString(winner, "disp", disp, maxdisp);
+    GetTrieValue(winner, "clients", clients);
+    percentage = float(GetArraySize(clients)) / total_votes * 100;
+}
+
+
+//Finds the index of the given vote item in the storage array. Returns -1 on failure.
+FindVoteInStorage(const String:info[])
+{
+    new arraySize = GetArraySize(vote_storage);
+    new Handle:vote = INVALID_HANDLE;
+    decl String:infoBuf[255];
+    for (new i = 0; i < arraySize; i++)
+    {
+        vote = GetArrayCell(vote_storage, i);
+        GetTrieString(vote, "info", infoBuf, sizeof(infoBuf));
+        if (StrEqual(info, infoBuf))
+            return i;
+    }
+    return -1;
+}
+
+
+//Comparison function for stored vote items. Used for sorting.
+public CompareStoredVoteItems(index1, index2, Handle:array, Handle:hndl)
+{
+    new size1, size2;
+    new Handle:vote = INVALID_HANDLE;
+    new Handle:clientArray = INVALID_HANDLE;
+    vote = GetArrayCell(array, index1);
+    GetTrieValue(vote, "clients", clientArray);
+    size1 = GetArraySize(clientArray);
+    vote = GetArrayCell(array, index2);
+    GetTrieValue(vote, "clients", clientArray);
+    size2 = GetArraySize(clientArray);
+    return size2 - size1;
+}
+
+
+//Adds vote results to the vote storage
+AddToStorage(Handle:menu, num_votes, num_items, const item_info[][2], num_clients,
+             const client_info[][2])
+{
+    prev_vote_count = GetArraySize(vote_storage);
+    
+    new String:infoBuffer[255], String:dispBuffer[255];
+    new storageIndex;
+    new Handle:voteItem = INVALID_HANDLE;
+    new Handle:voteClientArray = INVALID_HANDLE;
+    new itemIndex;
+    for (new i = 0; i < num_items; i++)
+    {
+        itemIndex = item_info[i][VOTEINFO_ITEM_INDEX];
+        GetMenuItem(menu, itemIndex, infoBuffer, sizeof(infoBuffer), _, 
+                    dispBuffer, sizeof(dispBuffer));
+        storageIndex = FindVoteInStorage(infoBuffer);
+        if (storageIndex == -1)
+        {
+            voteItem = CreateTrie();
+            voteClientArray = CreateArray();
+            SetTrieString(voteItem, "info", infoBuffer);
+            SetTrieString(voteItem, "disp", dispBuffer);
+            SetTrieValue(voteItem, "clients", voteClientArray);
+            PushArrayCell(vote_storage, voteItem);
+        }
+        else
+        {
+            voteItem = GetArrayCell(vote_storage, storageIndex);
+            GetTrieValue(voteItem, "clients", voteClientArray);
+        }
+        
+        for (new j = 0; j < num_clients; j++)
+        {
+            if (client_info[j][VOTEINFO_CLIENT_ITEM] == itemIndex)
+                PushArrayCell(voteClientArray, client_info[j][VOTEINFO_CLIENT_INDEX]);
+        }
+    }
+    SortADTArrayCustom(vote_storage, CompareStoredVoteItems);
+    total_votes += num_votes;
+}
+
+
+//Handles the results of a vote
+ProcessVoteResults(Handle:menu, num_votes, num_clients, const client_info[][2], num_items,
+                   const item_info[][2], VoteHandler:runoff_callback, Function:winner_callback)
+{
+    //Vote is no longer running.
+    vote_active = false;
+
+    //Adds these results to the storage.
+    AddToStorage(menu, num_votes, num_items, item_info, num_clients, client_info);
+    
+    //Perform a runoff vote if it is necessary.
+    if (NeedRunoff())
+    {
+        //If we can't runoff anymore
+        if (remaining_runoffs == 0 || prev_vote_count == 2)
+        {
+            if (stored_fail_action == RunoffFailAction_Accept)
+            {
+                ProcessVoteWinner(winner_callback);
+            }
+            else if (stored_fail_action == RunoffFailAction_Nothing)
+            {
+                new Float:percentage;
+                GetVoteWinner("", 0, percentage, "", 0);
+                PrintToChatAll(
+                    "\x03[UMC]\x01 %t (%t)",
+                    "Vote Failed",
+                    "Vote Win Percentage",
+                        percentage,
+                        total_votes
+                );
+                LogMessage("MAPVOTE: Vote failed, winning map did not reach threshold.");
+                VoteFailed();
+            }
+            EmptyStorage();
+            DeleteVoteParams();
+            ClearVoteArrays();
+        }
+        else
+        {
+            DoRunoffVote(menu, runoff_callback);
+            
+            //Empty storage if we're revoting completely.
+            if (!GetConVarBool(cvar_runoff_selective))
+                EmptyStorage();
+        }
+    }
+    else //Otherwise set the results.
+    {
+        ProcessVoteWinner(winner_callback);
+        EmptyStorage();
+    }
+}
+
+
+//Processes the winner from the vote.
+ProcessVoteWinner(Function:callback)
+{
+    //Detemine winner information.
+    decl String:winner[255], String:disp[255];
+    new Float:percentage;
+    GetVoteWinner(winner, sizeof(winner), percentage, disp, sizeof(disp));
+    
+    //Call the appropriate VoteWinnerHandler
+    Call_StartFunction(INVALID_HANDLE, callback);
+    Call_PushString(winner);
+    Call_PushString(disp);
+    Call_PushFloat(percentage);
+    Call_Finish();
+}
+
+
+//Determines if a runoff vote is needed.
+bool:NeedRunoff()
+{
+    //Get the winning vote item.
+    new Handle:voteItem = GetArrayCell(vote_storage, 0);
+    new Handle:clients = INVALID_HANDLE;
+    GetTrieValue(voteItem, "clients", clients);
+    
+    new numClients = GetArraySize(clients);
+    new bool:result = (float(numClients) / total_votes) < stored_threshold;
+    return result;
+}
+
+
+//Sets up a runoff vote.
+DoRunoffVote(Handle:menu, VoteHandler:callback)
+{   
+    remaining_runoffs--;
+
+    //Array to store clients the menu will be displayed to.
+    runoff_clients = CreateArray();
+    
+    //Build the runoff vote based off of the results of the failed vote.
+    runoff_menu = BuildRunoffMenu(menu, callback, runoff_clients);
+
+    //Setup the timer if...
+    //  ...the menu was built successfully
+    if (runoff_menu != INVALID_HANDLE)
+    {
+        //Setup timer to delay the start of the runoff vote.
+        runoff_delay = 7;
+        
+        //Display the first message
+        DisplayRunoffMessage(runoff_delay+1);
+        
+        DebugMessage("Runoff timer created. Runoff vote will be displayed in %i seconds.",
+            runoff_delay+1);
+        
+        //Setup data pack to go along with the timer.
+        //new Handle:pack;    
+        CreateTimer(
+            1.0,
+            Handle_RunoffVoteTimer,
+            INVALID_HANDLE, //pack,
+            TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT
+        );
+        //Add info to the pack.
+        //WritePackString(pack, sound);
+    }
+    else //Otherwise, cleanup
+    {
+        LogError("RUNOFF: Unable to create runoff vote menu, runoff aborted.");
+        CloseHandle(runoff_clients);
+    }
+}
+
+
+//Builds a runoff vote menu.
+//  menu:           the menu of the original vote we're running off from
+//  callback:       VoteHandler to be called when the voting is finished
+//  clientArray:    adt_array to be populated with clients whose votes were eliminated
+Handle:BuildRunoffMenu(Handle:menu, VoteHandler:callback, Handle:clientArray)
+{
+    new bool:verboseLogs = GetConVarBool(cvar_logging);
+    if (verboseLogs)
+        LogMessage("RUNOFF MENU: (Verbose) Building runoff vote menu.");
+    
+    new Float:runoffThreshold = stored_threshold;
+    
+    //Copy the current total number of votes. Needed because the number will change as we remove items.
+    new totalVotes = total_votes;
+    
+    new Handle:voteItem = INVALID_HANDLE;
+    new Handle:voteClients = INVALID_HANDLE;
+    new voteNumVotes;
+    new num_items = GetArraySize(vote_storage);
+    
+    //Array determining which clients have voted
+    new bool:clientVotes[MAXPLAYERS];
+    for (new i = 0; i < num_items; i++)
+    {
+        voteItem = GetArrayCell(vote_storage, i);
+        GetTrieValue(voteItem, "clients", voteClients);
+        voteNumVotes = GetArraySize(voteClients);
+        
+        for (new j = 0; j < voteNumVotes; j++)
+            clientVotes[GetArrayCell(voteClients, j)] = true;
+    }
+    for (new i = 0; i < sizeof(clientVotes); i++)
+    {
+        if (!clientVotes[i])
+            PushArrayCell(clientArray, i);
+    }
+    
+    new Handle:winning = GetArrayCell(vote_storage, 0);
+    new winningNumVotes;
+    new Handle:winningClients = INVALID_HANDLE;
+    GetTrieValue(winning, "clients", winningClients);
+    winningNumVotes = GetArraySize(winningClients);
+    
+    //Starting max possible percentage of the winning item in this vote.
+    new Float:percent = float(winningNumVotes) / float(totalVotes) * 100;
+    new Float:newPercent;
+    
+    //Max number of maps in the runoff vote
+    new maxMaps = stored_runoffmaps_max;
+    new bool:checkMax = maxMaps > 1;
+    
+    //Starting at the item with the least votes, calculate the new possible max percentage
+    //of the winning item. Stop when this percentage is greater than the threshold.
+    for (new i = num_items - 1; i > 1; i--)
+    {
+        voteItem = GetArrayCell(vote_storage, i);
+        GetTrieValue(voteItem, "clients", voteClients);
+        voteNumVotes = GetArraySize(voteClients);
+        ArrayAppend(clientArray, voteClients);
+        
+        newPercent = float(voteNumVotes) / float(totalVotes) * 100;
+        percent += newPercent;
+        
+        if (verboseLogs)
+        {
+            decl String:dispBuf[255];
+            GetTrieString(voteItem, "disp", dispBuf, sizeof(dispBuf));
+            LogMessage(
+                "RUNOFF MENU: (Verbose) '%s' was removed from the vote. It had %i votes (%.f%% of total)",
+                dispBuf, voteNumVotes, newPercent
+            );
+        }
+        
+        //No longer store the map
+        RemoveFromStorage(i);
+        num_items--;
+        
+        //Stop if...
+        //  ...the new percentage is over the threshold AND
+        //  ...the number of maps in the vote is under the max.
+        if (percent >= runoffThreshold && (!checkMax || num_items <= maxMaps))
+            break;
+    }
+    
+    if (verboseLogs)
+    {
+        LogMessage(
+            "RUNOFF MENU: (Verbose) Stopped removing options from the vote. Maximum possible winning vote percentage is %.f%%.",
+            percent
+        );
+    }
+    
+    //Start building the new vote menu.
+    new Handle:newMenu = CreateMenu(Handle_VoteMenu, MenuAction_DisplayItem|MenuAction_Display);
+    SetVoteResultCallback(newMenu, callback);
+    SetMenuExitButton(newMenu, false);
+    
+    //Set the menu title to the old one.
+    new String:title[255];
+    GetMenuTitle(menu, title, sizeof(title));
+    SetMenuTitle(newMenu, title);
+    
+    new voteSlots = 0;
+    
+    //Add blocked slots.
+    if (GetConVarBool(cvar_runoff_slots))
+    {
+        voteSlots += stored_blockslots;
+        AddSlotBlockingToMenu(newMenu, stored_blockslots);
+    }
+    
+    //Populate the new menu with what remains of the storage.
+    new count = 0;
+    decl String:info[255], String:disp[255];
+    for (new i = 0; i < num_items; i++)
+    {
+        voteItem = GetArrayCell(vote_storage, i);
+        GetTrieString(voteItem, "info", info, sizeof(info));
+        GetTrieString(voteItem, "disp", disp, sizeof(disp));
+        AddMenuItem(newMenu, info, disp);
+        count++;
+        voteSlots++;
+    }
+    
+    //Log an error and do nothing if...
+    //  ...there weren't enough items added to the runoff vote.
+    //  *This shouldn't happen if the algorithm is working correctly*
+    if (count < 2)
+    {
+        CloseHandle(newMenu);
+        LogError(
+            "RUNOFF: Not enough remaining maps to perform runoff vote. %i maps remaining. Please notify plugin author.",
+            count
+        );
+        return INVALID_HANDLE;
+    }
+    
+    //Set the proper pagination.
+    SetCorrectMenuPagination(newMenu, voteSlots);
+    
+    return newMenu;
+}
+                       
+                       
+//Called when the runoff timer for an end-of-map vote completes.
+public Action:Handle_RunoffVoteTimer(Handle:timer)
+{
+    if (!vote_inprogress)
+    {
+        VoteFailed();
+        EmptyStorage();
+        DeleteVoteParams();
+        ClearVoteArrays();
+    }
+    
+    DisplayRunoffMessage(runoff_delay);
+
+    //Display a message and continue timer if...
+    //  ...the timer hasn't finished yet.
+    if (runoff_delay > 0)
+    {
+        runoff_delay--;
+        return Plugin_Continue;
+    }
+
+    LogMessage("RUNOFF: Starting runoff vote.");
+    
+    //Log an error and do nothing if...
+    //    ...another vote is currently running for some reason.
+    if (IsVoteInProgress()) 
+    {
+        //LogMessage("RUNOFF: There is a vote already in progress, cannot start a new vote.");
+        return Plugin_Continue;
+    }
+    
+    //Setup array of clients to display the vote to.
+    new clients[MAXPLAYERS];
+    ConvertArray(runoff_clients, clients, sizeof(clients));
+    new numClients = GetArraySize(runoff_clients);
+    CloseHandle(runoff_clients);
+    
+    //Play the vote start sound if...
+    //  ...the filename is defined.
+    if (strlen(stored_runoff_sound) > 0)
+        EmitSoundToAll(stored_runoff_sound);
+    //Otherwise, play the sound for end-of-map votes if...
+    //  ...the filename is defined.
+    else if (strlen(stored_start_sound) > 0)
+        EmitSoundToAll(stored_start_sound);
+    
+    //Run the vote to selected client only if...
+    //  ...the cvar to do so is enabled.
+    if (GetConVarBool(cvar_runoff_selective))
+    {
+        //Log an error if...
+        //    ...the vote cannot start for some reason.
+        if (!VoteMenu(runoff_menu, clients, numClients, stored_votetime))
+            LogMessage("RUNOFF: Menu already has a vote in progress, cannot start a new vote.");
+        else
+        {
+            PrintToChatAll("\x03[UMC]\x01 %t", "Selective Runoff");
+            vote_active = true;
+        }
+    }
+    //Otherwise, just display it to everybody.
+    else
+    {
+        //Log an error if...
+        //    ...the vote cannot start for some reason.
+        if (!VoteMenuToAll(runoff_menu, stored_votetime))
+            LogMessage("RUNOFF: Menu already has a vote in progress, cannot start a new vote.");
+        else
+            vote_active = true;
+    }
+
+    return Plugin_Stop;
+}
+
+
+//Displays a notification for the impending runoff vote.
+DisplayRunoffMessage(timeRemaining)
+{
+    decl String:msg[255], String:notification[10];
+    if (timeRemaining > 5)
+        Format(msg, sizeof(msg), "%t", "Runoff Msg");
+    else
+        Format(msg, sizeof(msg), "%t", "Another Vote", timeRemaining);
+    GetConVarString(cvar_runoff_display, notification, sizeof(notification));
+    DisplayServerMessage(msg, notification);
+}
+
+
+//Handles the results of an end-of-map map vote.
+public Handle_MapVoteResults(Handle:menu, num_votes, num_clients, const client_info[][2], num_items,
+                             const item_info[][2])
+{
+    ProcessVoteResults(menu, num_votes, num_clients, client_info, num_items, item_info,
+                       Handle_MapVoteResults, Handle_MapVoteWinner);
+}
+
+
+//Handles the winner of an end-of-map map vote.
+public Handle_MapVoteWinner(const String:info[], const String:disp[], Float:percentage)
+{
+    //vote_completed = true;
+
+    //Print a message and extend the current map if...
+    //    ...the server voted to extend the map.
+    if (StrEqual(info, EXTEND_MAP_OPTION))
+    {
+        PrintToChatAll(
+            "\x03[UMC]\x01 %t %t (%t)",
+            "End of Map Vote Over",
+            "Map Extended",
+            "Vote Win Percentage",
+                percentage,
+                total_votes
+        );
+        LogMessage("MAPVOTE: Players voted to extend the map.");
+        ExtendMap();
+    }
+    else if (StrEqual(info, DONT_CHANGE_OPTION))
+    {
+        PrintToChatAll(
+            "\x03[UMC]\x01 %t %t (%t)",
+            "End of Map Vote Over",
+            "Map Unchanged",
+            "Vote Win Percentage",
+                percentage,
+                total_votes
+        );
+        
+        LogMessage("MAPVOTE: Players voted to stay on the map (Don't Change).");
+        VoteFailed();
+    }
+    else //Otherwise, we print a message and then set the new map.
+    {
+        PrintToChatAll(
+            "\x03[UMC]\x01 %t %t (%t)",
+            "End of Map Vote Over",
+            "End of Map Vote Map Won",
+                disp,
+            "Vote Win Percentage",
+                percentage,
+                total_votes
+        );
+        
+        //Find the index of the winning map in the stored vote array.
+        new index = StringToInt(info);
+        decl String:map[MAP_LENGTH], String:group[MAP_LENGTH];
+        
+        new Handle:mapData = GetArrayCell(map_vote, index);
+        GetTrieString(mapData, MAP_TRIE_MAP_KEY, map, sizeof(map));
+        GetTrieString(mapData, MAP_TRIE_GROUP_KEY, group, sizeof(group));
+        
+        //Set it.
+        DoMapChange(change_map_when, stored_kv, map, group, stored_reason);
+        
+        LogMessage("MAPVOTE: Players voted for map '%s' from group '%s'", map, group);
+    }
+    
+    //Play the vote completed sound if...
+    //  ...the vote completed sound is defined.
+    if (strlen(stored_end_sound) > 0)
+        EmitSoundToAll(stored_end_sound);
+    
+    //No longer need the vote array.
+    ClearVoteArrays();
+    DeleteVoteParams();
+}
+
+
+//Handles the results of an end-of-map category vote.
+public Handle_CatVoteResults(Handle:menu, num_votes, num_clients, const client_info[][2], num_items,
+                             const item_info[][2])
+{
+    ProcessVoteResults(menu, num_votes, num_clients, client_info, num_items, item_info,
+                       Handle_CatVoteResults, Handle_CatVoteWinner);
+}
+
+
+//Handles the winner of an end-of-map category vote.
+public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:percentage)
+{
+    //vote_completed = true;
+    
+    //Print a message and extend the map if...
+    //    ...the server voted to extend the map.
+    if (StrEqual(cat, EXTEND_MAP_OPTION))
+    {
+        PrintToChatAll(
+            "\x03[UMC]\x01 %t %t (%t)",
+            "End of Map Vote Over",
+            "Map Extended",
+            "Vote Win Percentage",
+                percentage,
+                total_votes
+        );
+        LogMessage("MAPVOTE: Players voted to extend the map.");
+        ExtendMap();
+    }
+    else if (StrEqual(cat, DONT_CHANGE_OPTION))
+    {
+        PrintToChatAll(
+            "\x03[UMC]\x01 %t %t (%t)",
+            "End of Map Vote Over",
+            "Map Unchanged",
+            "Vote Win Percentage",
+                percentage,
+                total_votes
+        );
+        
+        LogMessage("Players voted to stay on the map (Don't Change).");
+        VoteFailed();
+    }
+    else //Otherwise, we pick a random map from the category and set that as the next map.
+    {
+        decl String:map[MAP_LENGTH];
+        
+        //Number of nominated maps for the winning category.
+        new counter = 0;
+        
+        //Rewind the mapcycle.
+        KvRewind(stored_kv); //rewind original
+        new Handle:kv = CreateKeyValues("umc_rotation");
+        KvCopySubkeys(stored_kv, kv);
+        
+        //An adt_array of nominations from the given category.
+        new Handle:tempCatNoms = GetCatNominations(cat);
+        new Handle:nominationsFromCat = FilterNominationsArray(tempCatNoms, kv, stored_kv);
+        CloseHandle(tempCatNoms);
+        
+        //if...
+        //    ...there are nominations for this category.
+        if (GetArraySize(nominationsFromCat) > 0)
+        {
+            //Array of nominated map names.
+            new Handle:nameArr = CreateArray(ByteCountToCells(MAP_LENGTH));
+            
+            //Array of nominated map weights (linked to the previous by index).
+            new Handle:weightArr = CreateArray();
+            
+            //Buffer to store the map name
+            decl String:nameBuffer[MAP_LENGTH];
+            
+            //A nomination.
+            new Handle:trie = INVALID_HANDLE;
+            
+            //Jump to the category in the mapcycle.
+            KvJumpToKey(kv, cat);
+            FilterMapGroup(kv, stored_kv, stored_exmaps, stored_exgroups);
+            
+            //Add nomination to name and weight array for...
+            //    ...each nomination in the nomination array for this category.
+            new arraySize = GetArraySize(nominationsFromCat);
+            for (new i = 0; i < arraySize; i++)
+            {
+                //Get the nomination at the current index.
+                trie = GetArrayCell(nominationsFromCat, i);
+                
+                //Get the map name from the nomination.
+                GetTrieString(trie, MAP_TRIE_MAP_KEY, nameBuffer, sizeof(nameBuffer));    
+                
+                //Add the map to the storage arrays if...
+                //    ...the server has the required amount of players for the map.
+                //if (IsValidMapFromCat(kv, nameBuffer, .isNom=true))
+                //{
+                //Increment the nomination counter.
+                counter++;
+                
+                //Add the map to the map name array.
+                PushArrayString(nameArr, nameBuffer);
+                
+                //Add the map's weight to the map weight array.
+                //GetTrieValue(trie, "weight", weight);
+                //PushArrayCell(weightArr, weight);
+                PushArrayCell(weightArr, GetMapWeight(stored_kv, nameBuffer, cat));
+                //}
+            }
+            
+            //Pick a random map from the nominations if...
+            //    ...there are nominations to choose from.
+            if (counter > 0 && GetWeightedRandomSubKey(map, sizeof(map), weightArr, nameArr, _))
+                DoMapChange(change_map_when, stored_kv, map, cat, stored_reason);
+            else //Otherwise, we select a map randomly from the category.
+            {
+                GetRandomMap(kv, map, sizeof(map), stored_kv);
+                DoMapChange(change_map_when, stored_kv, map, cat, stored_reason);
+            }
+            
+            //Close the handles for the storage arrays.
+            CloseHandle(nameArr);
+            CloseHandle(weightArr);
+        }
+        else //Otherwise, there are no nominations to worry about so we just pick a map randomly
+             //from the winning category.
+        {
+            GetRandomMap(kv, map, sizeof(map), stored_kv); //, stored_exmaps, stored_exgroups);
+            DoMapChange(change_map_when, stored_kv, map, cat, stored_reason);
+        }
+        
+        //We no longer need the adt_array to store nominations.
+        CloseHandle(nominationsFromCat);
+        
+        //We no longer need the copy of the mapcycle.
+        CloseHandle(kv);
+        
+        
+        PrintToChatAll(
+            "\x03[UMC]\x01 %t %t (%t)",
+            "End of Map Vote Over",
+            "End of Map Vote Group Won",
+                map, cat,
+            "Vote Win Percentage",
+                percentage,
+                total_votes
+        );
+        LogMessage("MAPVOTE: Players voted for map group '%s'", cat);
+    }
+    
+    //Play the vote completed sound if...
+    //  ...the vote completed sound is defined.
+    if (strlen(stored_end_sound) > 0)
+        EmitSoundToAll(stored_end_sound);
+        
+    DeleteVoteParams();
+}
+
+
+//Handles the results of an end-of-map tiered vote.
+public Handle_TierVoteResults(Handle:menu, num_votes, num_clients, const client_info[][2],
+                              num_items, const item_info[][2])
+{        
+    ProcessVoteResults(menu, num_votes, num_clients, client_info, num_items, item_info,
+                       Handle_TierVoteResults, Handle_TierVoteWinner);
+}
+
+
+//Handles the winner of an end-of-map tiered vote.
+public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:percentage)
+{
+    DebugMessage("Handling Tiered Endvote Winner \"%s\"", cat);
+    
+    //Print a message and extend the map if...
+    //    ...the server voted to extend the map.
+    if (StrEqual(cat, EXTEND_MAP_OPTION))
+    {
+        DebugMessage("Endvote - Extending the map.");
+    
+        PrintToChatAll(
+            "\x03[UMC]\x01 %t %t (%t)",
+            "End of Map Vote Over",
+            "Map Extended",
+            "Vote Win Percentage",
+                percentage,
+                total_votes
+        );
+        LogMessage("MAPVOTE: Players voted to extend the map.");
+        ExtendMap();
+    }
+    else if (StrEqual(cat, DONT_CHANGE_OPTION))
+    {
+        PrintToChatAll(
+            "\x03[UMC]\x01 %t %t (%t)",
+            "End of Map Vote Over",
+            "Map Unchanged",
+            "Vote Win Percentage",
+                percentage,
+                total_votes
+        );
+        
+        LogMessage("MAPVOTE: Players voted to stay on the map (Don't Change).");
+        VoteFailed();
+    }
+    else //Otherwise, we set up the second stage of the tiered vote
+    {
+        DebugMessage("Setting up second part of Tiered RTV.");
+        LogMessage("MAPVOTE (Tiered): Players voted for map group '%s'", cat);
+        
+        //Jump to the map group
+        KvRewind(stored_kv);
+        new Handle:kv = CreateKeyValues("umc_rotation");
+        KvCopySubkeys(stored_kv, kv);
+        
+        DebugMessage("Counting the number nominations from the winning group.");
+        //Get the number of valid nominations from the group
+        new Handle:tempNoms = GetCatNominations(cat);
+        new Handle:catNoms = FilterNominationsArray(tempNoms, kv, stored_kv);
+        CloseHandle(tempNoms);
+        new vMapCount = GetArraySize(catNoms);
+        CloseHandle(catNoms);
+        
+        KvJumpToKey(kv, cat);
+        FilterMapGroup(kv, stored_kv, stored_exmaps, stored_exgroups);
+        
+        DebugMessage("Counting the number of available maps from the winning group.");
+        //Get the number of valid maps from the group
+        vMapCount += CountMapsFromGroup(kv);
+        
+        //Return to the root.
+        KvGoBack(kv);
+        
+        DebugMessage("Determining if we need to run a second vote.");
+        //Just parse the results as a normal map group vote if...
+        //  ...the total number of valid maps is 1.
+        if (vMapCount == 1)
+        {
+            DebugMessage("Only 1 map available, no vote required.");
+            LogMessage(
+                "MAPVOTE (Tiered): Only one valid map found in group. Handling results as a Map Group Vote."
+            );
+            Handle_CatVoteWinner(cat, disp, percentage);
+            return;
+        }
+    
+        DebugMessage("Starting countdown timer for the second vote.");
+        
+        //Setup timer to delay the next vote for a few seconds.
+        tiered_delay = 4;
+        
+        //Display the first message
+        DisplayTierMessage(5);
+        
+        new Handle:exGroups = MakeSecondTieredCatExclusion(kv, cat);
+        
+        //DEBUG
+        decl String:buf[MAP_LENGTH];
+        for (new i = 0; i < GetArraySize(exGroups); i++)
+        {
+            GetArrayString(exGroups, i, buf, sizeof(buf));
+            LogMessage("DEBUG: %s", buf);
+        }
+        
+        CloseHandle(kv);
+        
+        //Setup timer to delay the next vote for a few seconds.
+        CreateTimer(
+            1.0,
+            Handle_TieredVoteTimer,
+            exGroups,
+            TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT|TIMER_DATA_HNDL_CLOSE
+        );
+    }
+    
+    DebugMessage("Playing RTV complete sound.");
+    
+    //Play the vote completed sound if...
+    //  ...the vote completed sound is defined.
+    if (strlen(stored_end_sound) > 0)
+        EmitSoundToAll(stored_end_sound);
+        
+    DebugMessage("Finished handling Tiered RTV winner.");
+}
+
+
+//Called when the timer for the tiered end-of-map vote triggers.
+public Action:Handle_TieredVoteTimer(Handle:timer, Handle:exGroups)
+{
+    if (!vote_inprogress)
+    {
+        VoteFailed();
+        EmptyStorage();
+        DeleteVoteParams();
+        ClearVoteArrays();
+    }
+    
+    DisplayTierMessage(tiered_delay);
+    
+    if (tiered_delay > 0)
+    {
+        tiered_delay--;
+        return Plugin_Continue;
+    }
+        
+    if (IsVoteInProgress())
+    {
+        return Plugin_Continue;
+    }
+    
+    //Log a message
+    LogMessage("MAPVOTE (Tiered): Starting second stage of tiered vote.");
+        
+    //Initialize the menu.
+    new Handle:menu = BuildMapVoteMenu(Handle_MapVoteResults, stored_scramble, false, false,
+                                       stored_blockslots, stored_exmaps, exGroups,
+                                       GetArraySize(exGroups), stored_ignoredupes,
+                                       stored_strictnoms, true);
+                                     
+    if (menu != INVALID_HANDLE)
+    {
+        //Play the vote start sound if...
+        //  ...the vote start sound is defined.
+        if (strlen(stored_start_sound) > 0)
+            EmitSoundToAll(stored_start_sound);
+        
+        //Display the menu.
+        VoteMenuToAll(menu, stored_votetime);
+        
+        vote_active = true;
+    }
+    else
+        LogError("MAPVOTE (Tiered): Unable to create second stage vote menu. Vote aborted.");
+        
+    return Plugin_Stop;
+}
+
+
+//Extend the current map.
+ExtendMap()
+{
+    vote_inprogress = false;
+    //vote_completed = false;
+    
+    //Set new limit cvar values if they are enabled to begin with (> 0).
+    new Handle:cvar_maxrounds = FindConVar("mp_maxrounds");
+    new Handle:cvar_fraglimit = FindConVar("mp_fraglimit");
+    new Handle:cvar_winlimit  = FindConVar("mp_winlimit");
+    
+    if (cvar_maxrounds != INVALID_HANDLE && GetConVarInt(cvar_maxrounds) > 0)
+        SetConVarInt(cvar_maxrounds, GetConVarInt(cvar_maxrounds) + extend_roundstep);
+    if (cvar_winlimit != INVALID_HANDLE && GetConVarInt(cvar_winlimit) > 0)
+        SetConVarInt(cvar_winlimit, GetConVarInt(cvar_winlimit) + extend_roundstep);
+    if (cvar_fraglimit != INVALID_HANDLE && GetConVarInt(cvar_fraglimit) > 0)
+        SetConVarInt(cvar_fraglimit, GetConVarInt(cvar_fraglimit) + extend_fragstep);
+    
+    //Extend the time limit.
+    ExtendMapTimeLimit(RoundToNearest(extend_timestep * 60));
+    
+    Call_StartForward(extend_forward);
+    Call_Finish();
+    
+    //Log some stuff.
+    LogMessage("MAPVOTE: Map extended.");
+}
+
+
+//Called when the vote has failed.
+VoteFailed()
+{    
+    vote_inprogress = false;
+
+    Call_StartForward(failure_forward);
+    Call_Finish();
+}
+
+
+//Sets the next map and when to change to it.
+DoMapChange(UMC_ChangeMapTime:when, Handle:kv, const String:map[], const String:group[],
+            const String:reason[])
+{
+    vote_inprogress = false;
+    
+    //Set the next map group
+    strcopy(next_cat, sizeof(next_cat), group);
+
+    if (when == ChangeMapTime_RoundEnd && FindConVar("mp_maxrounds") == INVALID_HANDLE)
+        change_map_round = true;
+    else
+        SetupMapChange(when, map, reason);
+    
+    
+    new Handle:new_kv = INVALID_HANDLE;
+    if (kv != INVALID_HANDLE)
+    {
+        new_kv = CreateKeyValues("umc_rotation");
+        KvCopySubkeys(kv, new_kv);
+    }
+    
+    Call_StartForward(nextmap_forward);
+    Call_PushCell(new_kv);
+    Call_PushString(map);
+    Call_PushString(group);
+    Call_Finish();
+}
+
+
+//Deletes the stored parameters for the vote.
+DeleteVoteParams()
+{
+    CloseHandle(stored_kv);
+    CloseHandle(stored_exmaps);
+    CloseHandle(stored_exgroups);
+}
+
+
+//************************************************************************************************//
+//                                        VALIDITY TESTING                                        //
+//************************************************************************************************//
+
+//Checks to see if the server has the required number of players for the given map, and is in the
+//required time range.
+//    kv:       a mapcycle whose traversal stack is currently at the level of the map's category.
+//    map:      the map to check
+//    excluded: optional adt_array specifying maps to be excluded (if the map is in this array, it
+//              is automatically considered to be invalid).
+bool:IsValidMapFromCat(Handle:kv, Handle:mapcycle, const String:map[], Handle:excluded=INVALID_HANDLE,
+                       Handle:excludedCats=INVALID_HANDLE, bool:isNom=false, bool:forMapChange=true)
+{   
+    decl String:catName[MAP_LENGTH];
+    KvGetSectionName(kv, catName, sizeof(catName));
+    
+    //Return that the map is not valid if...
+    //    ...the map doesn't exist in the category.
+    if (!KvJumpToKey(kv, map))
+        return false;
+    
+    //Determine if the map is valid, store the answer.
+    new bool:result = IsValidMap(kv, mapcycle, catName, excluded, excludedCats, isNom, forMapChange);
+    
+    //Rewind back to the category.
+    KvGoBack(kv);
+    
+    //Return the result.
+    return result;
+}
+
+
+//Determines if the server has the required number of players for the given map.
+//    kv:       a mapcycle whose traversal stack is currently at the level of the map.
+//    defaults: a trie containing default min and max player values, to be used if the map doesn't
+//              have them defined.
+bool:IsValidMap(Handle:kv, Handle:mapcycle, const String:groupName[], Handle:excludedMaps,
+                Handle:excludedGroups, bool:isNom=false, bool:forMapChange=true)
+{
+    decl String:mapName[MAP_LENGTH];
+    KvGetSectionName(kv, mapName, sizeof(mapName));
+    
+    if (!IsMapValid(mapName))
+        return false;
+    
+    DebugMessage("Starting exclusion traversal...");
+    new index = -1;
+    new bool:isExcluded = false;
+    decl String:exCat[MAP_LENGTH];
+    if (excludedMaps != INVALID_HANDLE && excludedGroups != INVALID_HANDLE)
+    {
+        do
+        {
+            index = FindStringInArrayEx(excludedMaps, mapName, index+1);
+            DebugMessage("Map found at %i", index);
+            
+            if (index >= 0 && GetArraySize(excludedGroups) > index)
+            {
+                GetArrayString(excludedGroups, index, exCat, sizeof(exCat));
+                isExcluded = StrEqual(exCat, groupName, false);
+                DebugMessage("Map Excluded? %i (%s | %s)", _:isExcluded, exCat, groupName);
+            }
+        } while (!isExcluded && index != -1);
+    }
+    
+    if (isExcluded)
+        return false;
+    
+    new Action:result;
+    
+    new Handle:new_kv = CreateKeyValues("umc_rotation");
+    KvCopySubkeys(mapcycle, new_kv);
+    
+    Call_StartForward(exclude_forward);
+    Call_PushCell(new_kv);
+    Call_PushString(mapName);
+    Call_PushString(groupName);
+    Call_PushCell(isNom);
+    Call_PushCell(forMapChange);
+    Call_Finish(result);
+    
+    CloseHandle(new_kv);
+    
+    new bool:re = result == Plugin_Continue;
+    
+    return re;
+}
+
+
+//Determines if the server has the required number of players for the given category and the
+//required time.
+//    kv: a mapcycle whose traversal stack is currently at the level of the category.
+//    excludedCats: adt_array containing categories to be automatically considered invalid.
+//    excludedMaps: adr_array containing maps to be automatically considered invalid.
+bool:IsValidCat(Handle:kv, Handle:mapcycle, Handle:excludedCats, numExcludedCats, Handle:excludedMaps,
+                bool:isNom=false, bool:forMapChange=true)
+{
+    //Get the name of the cat.
+    decl String:catName[MAP_LENGTH];
+    KvGetSectionName(kv, catName, sizeof(catName));
+    
+    DebugMessage("IsValidCat: numEC - %i, sizeEC - %i, sizeEM - %i", numExcludedCats,
+                 GetArraySize(excludedCats), GetArraySize(excludedMaps));
+
+    //Return false if...
+    //  ...the category is in the excluded array.
+    if (excludedCats != INVALID_HANDLE && numExcludedCats > 0)
+    {
+        new index = FindStringInArray(excludedCats, catName);
+        DebugMessage("Checking group exclusion. CIndex: %i", index);
+        if (index != -1 && GetArraySize(excludedCats) - index <= numExcludedCats)
+            return false;
+    }
+    
+    //Return that the map is invalid if...
+    //    ...there are no maps to check.
+    if (!KvGotoFirstSubKey(kv))
+        return false;
+    
+    //Check to see if the server's player count satisfies the min/max conditions for a map in the
+    //category.
+    do
+    {
+        //Return to the category level of the mapcycle and return true if...
+        //    ...a map was found to be satisfied by the server's player count.
+        if (IsValidMap(kv, mapcycle, catName, excludedMaps, excludedCats, isNom, forMapChange))
+        {
+            KvGoBack(kv);
+            return true;
+        }
+    } while(KvGotoNextKey(kv)); //Goto the next map in the category.
+
+    //Return to the category level.
+    KvGoBack(kv);
+    
+    //No maps in the category can be played with the current amount of players on the server.
+    return false;
+}
+
+
+//Counts the number of maps in the given group.
+CountMapsFromGroup(Handle:kv)
+{
+    new result = 0;
+    if (!KvGotoFirstSubKey(kv))
+        return result;
+    
+    do
+    {
+        result++;
+    } while (KvGotoNextKey(kv));
+    
+    KvGoBack(kv);
+    
+    return result;
+}
+
+
+//Calculates the weight of a map by running it through all of the weight modifiers.
+Float:GetMapWeight(Handle:mapcycle, const String:map[], const String:group[])
+{
+    //Get the starting weight
+    current_weight = 1.0;
+    
+    new Handle:kv = CreateKeyValues("umc_rotation");
+    KvCopySubkeys(mapcycle, kv);
+    
+    reweight_active = true;
+    
+    Call_StartForward(reweight_forward);
+    Call_PushCell(kv);
+    Call_PushString(map);
+    Call_PushString(group);
+    Call_Finish();
+    
+    reweight_active = false;
+    
+    CloseHandle(kv);
+    
+    //And return our calculated weight.
+    return (current_weight >= 0.0) ? current_weight : 0.0;
+}
+
+
+//Calculates the weight of a map group
+Float:GetMapGroupWeight(Handle:originalMapcycle, const String:group[])
+{
+    current_weight = 1.0;
+    
+    new Handle:kv = CreateKeyValues("umc_rotation");
+    KvCopySubkeys(originalMapcycle, kv);
+    
+    reweight_active = true;
+    
+    Call_StartForward(reweight_group_forward);
+    Call_PushCell(kv);
+    Call_PushString(group);
+    Call_Finish();
+    
+    reweight_active = false;
+    
+    CloseHandle(kv);
+    
+    return (current_weight >= 0.0) ? current_weight : 0.0;
+}
+
+
+//Filters a mapcycle with all invalid entries filtered out.
+FilterMapcycle(Handle:kv, Handle:originalMapcycle, Handle:exMaps, Handle:exGroups, numExGroups,
+               bool:isNom=false, bool:forMapChange=true)
+{
+    //Do nothing if there are no map groups.
+    if (!KvGotoFirstSubKey(kv))
+        return;
+    
+    decl String:group[MAP_LENGTH];
+    decl String:temp[MAP_LENGTH];
+    new bool:checkGrEx = numExGroups > 0;
+    new egSize = GetArraySize(exGroups);
+    new exGBounds = egSize - numExGroups;
+    new bool:excludeGroup = false;
+    for ( ; ; )
+    {    
+        //Check if the map group is in the excluded array.
+        if (checkGrEx)
+        {
+            KvGetSectionName(kv, group, sizeof(group));
+            excludeGroup = false;
+            
+            for (new i = egSize - 1; i >= exGBounds; i--)
+            {
+                GetArrayString(exGroups, i, temp, sizeof(temp));
+                if (StrEqual(temp, group, false))
+                {
+                    excludeGroup = true;
+                    break;
+                }
+            }
+            
+            if (excludeGroup)
+            {
+                if (KvDeleteThis(kv) == -1)
+                    return;
+                else
+                    continue;
+            }
+        }
+        
+        //Filter all the maps.
+        FilterMapGroup(kv, originalMapcycle, exMaps, exGroups, isNom, forMapChange);
+        
+        //Delete the group if there are no valid maps in it.
+        if (!KvGotoFirstSubKey(kv))
+        {
+            if (KvDeleteThis(kv) == -1)
+                return;
+            else
+                continue;
+        }
+        KvGoBack(kv);
+        
+        //Stop traversal if there are no groups left.
+        if (!KvGotoNextKey(kv))
+            break;
+    }
+    
+    //Return to the root.
+    KvGoBack(kv);
+}
+
+
+//Filters the kv at the level of the map group.
+FilterMapGroup(Handle:kv, Handle:mapcycle, Handle:exMaps, Handle:exGroups, bool:isNom=false,
+               bool:forMapChange=true)
+{
+    decl String:group[MAP_LENGTH];
+    KvGetSectionName(kv, group, sizeof(group));
+
+    if (!KvGotoFirstSubKey(kv))
+        return;
+    
+    for ( ; ; )
+    {
+        if (!IsValidMap(kv, mapcycle, group, exMaps, exGroups, isNom, forMapChange))
+        {
+            if (KvDeleteThis(kv) == -1)
+                return;
+        }
+        else
+        {
+            if (!KvGotoNextKey(kv))
+                break;
+        }
+    }
+    
+    KvGoBack(kv);
+}
+
+
+//************************************************************************************************//
+//                                           NOMINATIONS                                          //
+//************************************************************************************************//
+
+//Filters an array of nominations so that only valid maps remain.
+Handle:FilterNominationsArray(Handle:nominations, Handle:kv, Handle:mapcycle, bool:forMapChange=true)
+{
+    new Handle:result = CreateArray();
+
+    new size = GetArraySize(nominations);
+    new Handle:nom;
+    decl String:gBuffer[MAP_LENGTH], String:mBuffer[MAP_LENGTH];
+    for (new i = 0; i < size; i++)
+    {
+        nom = GetArrayCell(nominations, i);
+        GetTrieString(nom, MAP_TRIE_MAP_KEY, mBuffer, sizeof(mBuffer));
+        GetTrieString(nom, MAP_TRIE_GROUP_KEY, gBuffer, sizeof(gBuffer));
+        if (!KvJumpToKey(kv, gBuffer))
+            continue;
+        
+        if (IsValidMapFromCat(kv, mapcycle, mBuffer, .isNom=true, .forMapChange=forMapChange))
+            PushArrayCell(result, nom);
+        
+        KvGoBack(kv);
+    }
+    
+    return result;
+}
+
+
+//Nominated a map and group
+bool:InternalNominateMap(const String:map[], const String:group[], client)
+{
+    if (FindNominationIndex(map, group) != -1)
+        return false;
+
+    //Create the nomination trie.
+    new Handle:nomination = CreateMapTrie(map, group);
+    SetTrieValue(nomination, "client", client); //Add the client
+    
+    //Get and add the nominated map's weight.
+    //SetTrieValue(nomination, "weight", GetArrayCell(nomination_weights[client], param2));
+    
+    //Remove the client's old nomination, if it exists.
+    new index = FindClientNomination(client);
+    if (index != -1)
+    {
+        new Handle:oldNom = GetArrayCell(nominations_arr, index);
+        
+        decl String:oldName[MAP_LENGTH];
+        GetTrieString(oldNom, MAP_TRIE_MAP_KEY, oldName, sizeof(oldName));
+        
+        Call_StartForward(nomination_reset_forward);
+        Call_PushString(oldName);
+        Call_PushCell(client);
+        Call_Finish();
+        
+        CloseHandle(oldNom);
+        RemoveFromArray(nominations_arr, index);
+    }
+    
+    //Add the nomination to the nomination array.
+    PushArrayCell(nominations_arr, nomination);
+    
+    return true;
+}
+
+
+//Returns the index of the given client in the nomination pool. -1 is returned if the client isn't
+//in the pool.
+FindClientNomination(client)
+{
+    new buffer;
+    new arraySize = GetArraySize(nominations_arr);
+    for (new i = 0; i < arraySize; i++)
+    {
+        GetTrieValue(GetArrayCell(nominations_arr, i), "client", buffer);
+        if (buffer == client)
+            return i;
+    }
+    return -1;
+}
+
+
+//Utility function to find the index of a map in the nomination pool.
+FindNominationIndex(const String:map[], const String:group[])
+{
+    decl String:mName[MAP_LENGTH];
+    decl String:gName[MAP_LENGTH];
+    new Handle:nom = INVALID_HANDLE;
+    new arraySize = GetArraySize(nominations_arr);
+    for (new i = 0; i < arraySize; i++)
+    {
+        nom = GetArrayCell(nominations_arr, i);
+        GetTrieString(nom, MAP_TRIE_MAP_KEY, mName, sizeof(mName));
+        GetTrieString(nom, MAP_TRIE_GROUP_KEY, gName, sizeof(gName));
+        if (StrEqual(mName, map, false) && StrEqual(gName, group, false))
+            return i;
+    }
+    return -1;
+}
+
+
+//Utility function to get all nominations from a group.
+Handle:GetCatNominations(const String:cat[])
+{
+    new Handle:arr1 = FilterNominations(MAP_TRIE_GROUP_KEY, cat);
+    new Handle:arr2 = FilterNominations(MAP_TRIE_GROUP_KEY, INVALID_GROUP);
+    ArrayAppend(arr1, arr2);
+    CloseHandle(arr2);
+    return arr1;
+}
+
+
+//Utility function to filter out nominations whose value for the given key matches the given value.
+Handle:FilterNominations(const String:key[], const String:value[])
+{
+    new Handle:result = CreateArray();
+    new Handle:buffer;
+    decl String:temp[255];
+    new arraySize = GetArraySize(nominations_arr);
+    for (new i = 0; i < arraySize; i++)
+    {
+        buffer = GetArrayCell(nominations_arr, i);
+        GetTrieString(GetArrayCell(nominations_arr, i), key, temp, sizeof(temp));
+        if (StrEqual(temp, value))
+            PushArrayCell(result, buffer);
+    }
+    return result;
+}
+
+
+//Clears all stored nominations.
+ClearNominations()
+{
+    new size = GetArraySize(nominations_arr);
+    new Handle:nomination = INVALID_HANDLE;
+    new owner;
+    decl String:map[MAP_LENGTH];
+    for (new i = 0; i < size; i++)
+    {
+        nomination = GetArrayCell(nominations_arr, i);
+        GetTrieString(nomination, MAP_TRIE_MAP_KEY, map, sizeof(map));
+        GetTrieValue(nomination, "client", owner);
+
+        Call_StartForward(nomination_reset_forward);
+        Call_PushString(map);
+        Call_PushCell(owner);
+        Call_Finish();
+        
+        CloseHandle(nomination);
+    }
+    ClearArray(nominations_arr);
+}
+
+
+//************************************************************************************************//
+//                                         RANDOM NEXTMAP                                         //
+//************************************************************************************************//
+
+//bool:GetRandomMapFromCycle(Handle:kv, const String:group[], String:buffer[], size, String:gBuffer[],
+//                           gSize, Handle:exMaps, Handle:exGroups, numEGroups, bool:isNom=false,
+//                           bool:forMapChange=true)
+bool:GetRandomMapFromCycle(Handle:kv, const String:group[], String:buffer[], size, String:gBuffer[],
+                           gSize, Handle:originalMapcycle)
+{
+    //Buffer to store the name of the category we will be looking for a map in.
+    decl String:gName[MAP_LENGTH];
+    
+    strcopy(gName, sizeof(gName), group);
+    if (StrEqual(gName, INVALID_GROUP) || !KvJumpToKey(kv, gName))
+    {
+        if (!GetRandomCat(kv, gName, sizeof(gName), originalMapcycle))
+        {
+            LogError(
+                "RANDOM MAP: Cannot pick a random map, no available map groups found in rotation."
+            );
+            return false;
+        }
+        KvJumpToKey(kv, gName);
+    }
+    
+    //Buffer to store the name of the new map.
+    decl String:mapName[MAP_LENGTH];
+    
+    //Log an error and fail if...
+    //    ...there were no maps found in the category.
+    if (!GetRandomMap(kv, mapName, sizeof(mapName), originalMapcycle))//, exMaps, exGroups, isNom, forMapChange))
+    {
+        LogError(
+            "RANDOM MAP: Cannot pick a random map, no available maps found. Parent Group: %s",
+            gName
+        );
+        return false;
+    }
+    
+    KvGoBack(kv);
+    
+    //Copy results into the buffers.
+    strcopy(buffer, size, mapName);
+    strcopy(gBuffer, gSize, gName);
+    
+    //Return success!
+    return true;
+}
+
+
+//Selects a random category based off of the supplied weights for the categories.
+//    kv:       a mapcycle whose traversal stack is currently at the root level.
+//    buffer:      a string to store the selected category in.
+//    key:      the key containing the weight information (most likely 'group_weight')
+//    excluded: adt_array of excluded maps
+//bool:GetRandomCat(Handle:kv, String:buffer[], size, Handle:excludedCats, numExcludedCats,
+//                  Handle:excluded, bool:isNom=false, bool:forMapChange=true)
+bool:GetRandomCat(Handle:kv, String:buffer[], size, Handle:originalMapcycle)
+{
+    DebugMessage("Getting a random group");
+
+    //Fail if...
+    //    ...there are no categories in the mapcycle.
+    if (!KvGotoFirstSubKey(kv))
+        return false;
+
+    new index = 0; //counter of categories in the random pool
+    new Handle:nameArr = CreateArray(ByteCountToCells(MAP_LENGTH)); //Array to store possible category names.
+    new Handle:weightArr = CreateArray();  //Array to store possible category weights.
+    
+    DebugMessage("Starting traversal");
+    //Add a category to the random pool.
+    do
+    {
+        decl String:temp[MAP_LENGTH]; //Buffer to store the name of the category.
+        
+        //Get the name of the category.
+        KvGetSectionName(kv, temp, sizeof(temp));
+        
+        DebugMessage("Group %s added to random pool.", temp);
+        
+        //Add the category to the random pool.
+        PushArrayCell(weightArr, GetMapGroupWeight(originalMapcycle, temp));
+        PushArrayString(nameArr, temp);
+        
+        //One more category in the pool.
+        index++;
+    } while (KvGotoNextKey(kv)); //Do this for each category.s
+
+    //Return to the root level.
+    KvGoBack(kv);
+    
+    DebugMessage("Finished traversal.");
+    
+    //Fail if...
+    //    ...no categories are selectable.
+    if (index == 0)
+    {
+        CloseHandle(nameArr);
+        CloseHandle(weightArr);
+        return false;
+    }
+    
+    DebugMessage("Selecting a random group.");
+
+    //Use weights to randomly select a category from the pool.
+    new bool:result = GetWeightedRandomSubKey(buffer, size, weightArr, nameArr);
+    
+    //Close the pool.
+    CloseHandle(nameArr);
+    CloseHandle(weightArr);
+    
+    if (result)
+        DebugMessage("Selected group %s", buffer);
+    
+    //Booyah!
+    return result;
+}
+
+
