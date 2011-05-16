@@ -1,13 +1,21 @@
 #summary Documentation for the Map Rate Map-Reweighting (umc-maprate-reweight) module.
 
-= Introduction =
+= Purpose =
 
-Add your content here.
+  The Map Rate Map-Reweighting module will take the average rating of a map from the [http://forums.alliedmods.net/showthread.php?t=69593 Map Rate] SourceMod plugin and use that value to modify the weights of maps in Ultimate Mapchooser. This module requires the Map Rate plugin to be present in order to work.
+
+  This module will modify the calculated weight of a map by multiplying it's weight value by the calculated average rating from Map Rate. Therefore, maps can be made up to five times more likely to be randomly selected by Ultimate Mapchooser.
+
+  _*sm_umc_maprate_testreweight* <mapname>_ -- Displays the calculated reweight-factor for the given map.
 
 
-= Details =
+= List of CVars =
 
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+  The list of cvars for the Map Rate Map-Reweighting module is located in *cfg/sourcemod/umc-maprate-reweight.cfg*.
+  {{{
+// Minimum number of ratings required for a map in order for it to be reweighted.
+// -
+// Default: "5"
+// Minimum: "0.000000"
+sm_umc_maprate_minvotes "5"
+}}}
