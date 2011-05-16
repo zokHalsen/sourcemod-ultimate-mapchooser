@@ -30,7 +30,7 @@
   In the event of a vote failure, two actions can be taken:
     * Do nothing
     * Hold a runoff vote (see below).
-Most modules have a cvar to control what will happen in the event of a failed vote.
+  Most modules have a cvar to control what will happen in the event of a failed vote.
 
 == Runoff Votes ==
   Runoff votes, if enabled, occur in the event that a vote completed without reaching the defined threshold. A runoff vote is a second attempt at the original vote, but with some of the losing options eliminated (it will always eliminate the bottom options first).
@@ -42,7 +42,7 @@ Most modules have a cvar to control what will happen in the event of a failed vo
   In the event that a runoff fails, there are two possible actions which can be taken:
     * Do nothing
     * Just consider the vote a success
-Most modules have a cvar to control what will happen in the event of a failed runoff.
+  Most modules have a cvar to control what will happen in the event of a failed runoff.
 
   Besides being able to customize a set maximum number of runoffs, you can also set a maximum number of items to appear in a runoff vote (minimum 2). 
 
