@@ -1,13 +1,4 @@
 #summary Instructions on how to utilize the developer's API.
 
-= Introduction =
-
-Add your content here.
-
-
-= Details =
-
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+= Coming Soon =
+  The developer's API is present but I am not ready to provide official support for it. You can still write modules for UMC by using the *umc-core.inc* incude file packaged with Ultimate Mapchooser, as well as looking at the source code for existing Ultimate Mapchooser modules.
