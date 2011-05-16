@@ -4,7 +4,7 @@
 
   The Weight module extends Ultimate Mapchooser's weighting system to allow users to specify a weight for maps and groups in their UMC-Mapcycle definitions. Specifically, it defines one new group option "group_weight" and one new map option "weight."
 
-  {{{
+   {{{
 "umc_mapcycle"
 {
     "A Group"
