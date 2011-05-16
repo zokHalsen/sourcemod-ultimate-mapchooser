@@ -4,6 +4,6 @@
 
   Ultimate Mapchooser's voting system is based off of SourceMod's built in capabilities in _mapchooser.smx_. However, this functionality augmented by several features:
 
-  * Ability to hold runoff votes.
-  * Ability to block first few slots in the vote (to prevent accidental/spammed votes)
-  * Ability to control how the votes are populated.
+    * Ability to hold runoff votes.
+    * Ability to block first few slots in the vote (to prevent accidental/spammed votes)
+    * Ability to control how the votes are populated.
