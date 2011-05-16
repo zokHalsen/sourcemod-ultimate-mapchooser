@@ -5,7 +5,7 @@
   The End of Map Vote Warnings module provides audible and visual warnings before an End of Map vote appears. This module requires the [ModuleEndVote End of Map Vote module] in order to run.
 
 = Configuration =
-  Vote warnings have their own definition format. This format is as follows:
+  Vote warnings have their own definition file format. This format is as follows:
   {{{
 "vote_warnings"
 {
