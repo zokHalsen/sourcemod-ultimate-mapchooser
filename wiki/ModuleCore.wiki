@@ -27,6 +27,11 @@
 }}}
   Where *X* is the number of maps which should appear in the vote (integer greater than or equal to 0), *TEMPLATE_STRING* is a string that will be displayed for any maps from the group in a vote (it can contain the sub-string "{MAP}" which will be replaced with the name of the map), and *DISPLAY_STRING* is a string that will be displayed for that map in a vote, overriding whatever was specified by "display-template".
 
+= List of Commands =
+  Core provides the following commands:
+    * _sm_umc_reload_mapcycles_ - Requests that all modules reload their UMC-Mapcycles.
+    * _sm_umc_setnextmap_ - Sets the next map (same functionality as was built into the original mapchooser.smx)
+    * _sm_umc_stopvote_ - Stops an Ultimate Mapchooser vote currently in progress.
 
 = List of CVars =
   The cvar list for the Core module is located in *cfg/sourcemod/ultimate-mapchooser.cfg*.
