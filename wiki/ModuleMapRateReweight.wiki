@@ -6,8 +6,9 @@
 
   This module will modify the calculated weight of a map by multiplying it's weight value by the calculated average rating from Map Rate. Therefore, maps can be made up to five times more likely to be randomly selected by Ultimate Mapchooser.
 
-  _*sm_umc_maprate_testreweight* `<mapname>`_ -- Displays the calculated reweight-factor for the given map.
-
+=List of Commands=
+  The Map Rate Map-Reweighting module provides the following commands:
+    * _sm_umc_maprate_testreweight `<mapname>`_ -- Displays the calculated reweight-factor for the given map.
 
 = List of CVars =
 
