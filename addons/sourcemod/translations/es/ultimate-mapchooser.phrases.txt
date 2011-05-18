@@ -2,7 +2,7 @@
 {
     "Slot Block Message 1"
     {
-		"es"	"Considere quÈ mapa quiere jugar"
+		"es"	"Considere qu√© mapa quiere jugar"
     }
 
     "Slot Block Message 2"
@@ -12,12 +12,12 @@
 
     "Map Vote Menu Title"
     {
-		"es"	"Vote por el prÛximo mapa!"
+		"es"	"Vote por el pr√≥ximo mapa!"
     }
 
     "Group Vote Menu Title"
     {
-		"es"	"Vote para el prÛxima categoria de mapas!" 
+		"es"	"Vote para el pr√≥xima categoria de mapas!" 
     }
 
     "Extend Map"
@@ -32,23 +32,23 @@
 
     "End of Map Vote Over"
     {
-		"es"	"La votaciÛn del mapa ha terminado."
+		"es"	"La votaci√≥n del mapa ha terminado."
     }
 
     "Map Extended"
     {
-		"es"	"El mapa actual ser· extendido."
+		"es"	"El mapa actual ser√° extendido."
     }
 
     "End of Map Vote Map Won"
     {
-		"es"	"El prÛximo mapa ser· {1}."
+		"es"	"El pr√≥ximo mapa ser√° {1}."
     }
 
     "Vote Win Percentage"
     {
-		//Deben de haber dos sÌmbolos de porcentaje aquÌ.
-		//Si solo se ve uno, no se mostrara el sÌmbolo de porcentaje en el juego. 
+		//Deben de haber dos s√≠mbolos de porcentaje aqu√≠.
+		//Si solo se ve uno, no se mostrara el s√≠mbolo de porcentaje en el juego. 
 		"es"    "Se ha recibido un {1}%% de {2} votos"
     }
 
@@ -69,12 +69,12 @@
 
     "End of Map Vote Group Won"
     {
-		"es"	"El prÛximo mapa ser· '{1},' escojido de la categoria '{2}.'
+		"es"	"El pr√≥ximo mapa ser√° '{1},' escojido de la categoria '{2}.'
     }
 
     "Runoff Msg"
     {
-		"es"	"°Voto Anulado! No se ha alcanzado una mayorÌa."
+		"es"	"¬°Voto Anulado! No se ha alcanzado una mayor√≠a."
     }
 
     "Another Vote"
@@ -99,17 +99,17 @@
 
     "No RTV Player Count"
     {
-		"es"	"No se puede ejecutar el Mecer el Voto hasta que {1} jugadores estÈn conectados al servidor."
+		"es"	"No se puede ejecutar el Mecer el Voto hasta que {1} jugadores est√©n conectados al servidor."
     }
 
     "No RTV Nextmap"
     {
-		"es"	"No se puede ejecutar el Mecer El Voto hasta el prÛximo mapa."
+		"es"	"No se puede ejecutar el Mecer El Voto hasta el pr√≥ximo mapa."
     }
 
     "No RTV Time"
     {
-		"es"	"Podr·s Mecer El Voto en aproximadamente {1} segundos."
+		"es"	"Podr√°s Mecer El Voto en aproximadamente {1} segundos."
     }
 
     "More Required"
@@ -128,13 +128,12 @@
     }
 
     "RTV Start"
-    {
 		"es"	"Meciendo el Voto!"
     }
 
     "Vote In Progress"
     {
-		"es"	"VotaciÛn en progreso."
+		"es"	"Votaci√≥n en progreso."
     }
 
     "RTV Already Entered"
@@ -144,7 +143,7 @@
 
     "No Nominate Nextmap"
     {
-		"es"	"No puedes nominar hasta el prÛximo mapa."
+		"es"	"No puedes nominar hasta el pr√≥ximo mapa."
     }
 
     "Pending Vote"
@@ -154,7 +153,7 @@
 
     "Next Map"
     {
-		"es"	"PrÛximo mapa: {1}"
+		"es"	"Pr√≥ximo mapa: {1}"
     }
 
     "Player Nomination"
@@ -174,7 +173,7 @@
 
     "Yes"
     {
-		"es"	"SÌ"
+		"es"	"S√≠"
     }
 
     "No"
@@ -184,7 +183,7 @@
 
     "Starting Map Vote"
     {
-		"es"	"Comenzando la VotaciÛn de Mapa. El mapa cambiara una vez que la votaciÛn haya terminado."
+		"es"	"Comenzando la Votaci√≥n de Mapa. El mapa cambiara una vez que la votaci√≥n haya terminado."
     }
 
     "Default Warning"
@@ -196,11 +195,11 @@
     
     "Vote Failed"
     {
-        "es"	"La votaciÛn de mapa a sido anulada. La opciÛn ganadora no a recibido el porcentaje suficiente de los votos."
+        "es"	"La votaci√≥n de mapa a sido anulada. La opci√≥n ganadora no a recibido el porcentaje suficiente de los votos."
     }
     
     "Selective Runoff"
     {
-        "es"	"Presentando el men˙ del voto a los jugadores que no votaron o cuyos votos fueron eliminados."
+        "es"	"Presentando el men√∫ del voto a los jugadores que no votaron o cuyos votos fueron eliminados."
     }
 }

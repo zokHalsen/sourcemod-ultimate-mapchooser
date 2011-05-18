@@ -2,27 +2,27 @@
 {
     "Slot Block Message 1"
     {
-        "pl"    "Rozwa¿, któr¹ mapê chcesz graæ"
+        "pl"    "RozwaÂ¿, ktÃ³rÂ¹ mapÃª chcesz graÃ¦"
     }
 
     "Slot Block Message 2"
     {
-        "pl"    "i nie wciskaj numerków bezmyœlnie."
+        "pl"    "i nie wciskaj numerkÃ³w bezmyÅ“lnie."
     }
 
     "Map Vote Menu Title"
     {
-        "pl"    "Wybierz nastêpn¹ mapê!"
+        "pl"    "Wybierz nastÃªpnÂ¹ mapÃª!"
     }
 
     "Group Vote Menu Title"
     {
-        "pl"    "Wybierz nastêpn¹ grupê map!"
+        "pl"    "Wybierz nastÃªpnÂ¹ grupÃª map!"
     }
 
     "Extend Map"
     {
-        "pl"    "Przed³u¿ mapê"
+        "pl"    "PrzedÂ³uÂ¿ mapÃª"
     }
 
     "Don't Change"
@@ -32,23 +32,23 @@
 
     "End of Map Vote Over"
     {
-        "pl"    "G³osowanie zosta³o zakoñczone."
+        "pl"    "GÂ³osowanie zostaÂ³o zakoÃ±czone."
     }
 
     "Map Extended"
     {
-        "pl"    "Aktualna mapa zostanie przed³u¿ona."
+        "pl"    "Aktualnie grana mapa zostanie przedÂ³uÂ¿ona."
     }
 
     "End of Map Vote Map Won"
     {
-        "pl"    "Nastêpn¹ map¹ bêdzie {1}."
+        "pl"    "NastÃªpnÂ¹ mapÂ¹ bÃªdzie {1}."
     }
 
     "Vote Win Percentage"
     {
-        //Maj¹ byæ dwa znaki %, jak bêdzie tylko jeden to nic siê nie wyœwietli po cyferkach
-        "pl"    "Otrzyma³a  {1}%% z {2} g³osów"
+        //MajÂ¹ byÃ¦ dwa znaki %, jak bÃªdzie tylko jeden to nic siÃª nie wyÅ“wietli po cyferkach
+        "pl"    "OtrzymaÂ³a  {1}%% z {2} gÂ³osÃ³w"
     }
 
     "Map Unchanged"
@@ -56,129 +56,119 @@
         "pl"    "Mapa nie zostanie zmieniona."
     }
 
-    "RTV Map Won"
-    {
-        "pl"    "Zmieniamy mapê na {1}."
-    }
-
     "Map Change in 5"
     {
-        "pl"    "Zmieniamy mapê za 5 sekund."
+        "pl"    "Mapa zmieni siÃª za 5 sekund."
     }
 
     "Map Change at Round End"
     {
-        "pl"    "Mapa zostanie zmieniona na koniec rundy."
+        "en"    "Map will change at the end of this round."
     }
 
     "End of Map Vote Group Won"
     {
-        "pl"    "Nastêpn¹ map¹ bêdzie '{1},' wybrana z grupy map '{2},'"
-    }
-
-    "RTV Group Won"
-    {
-        "pl"    "Mapa zostanie zmieniona na '{1},' wybrana z grupy map '{2}.'"
+        "pl"    "NastÃªpnÂ¹ mapÂ¹ bÃªdzie '{1},' wybrana z grupy '{2},'"
     }
 
     "Runoff Msg"
     {
-        "pl"    "G³osowanie nieudane! Nie osi¹gniêto wiêkszoœci."
+        "pl"    "GÂ³osowanie nieudane! Nie osiÂ¹gniÃªto wiÃªkszoÅ“ci."
     }
 
     "Another Vote"
     {
-        "pl"    "Kolejne g³osowanie zacznie siê za {1} sekund."
+        "pl"    "Kolejne gÂ³osowanie zacznie siÃª za {1} sekund."
     }
 
     "Player Disconnect RTV"
     {
-        "pl"    "Gracz wyszed³, rozpoczynaj¹c g³osowanie."
+        "pl"    "Gracz wyszedÂ³, rozpoczynajÂ¹c gÂ³osowanie."
     }
 
     "Not Enough Players"
     {
-        "pl"    "Nie wystarczaj¹ca iloœæ graczy na aktualn¹ mapê ({1} jest wymagane)"
+        "pl"    "Nie wystarczajÂ¹ca iloÅ“Ã¦ graczy na aktualnÂ¹ mapÃª ({1} jest wymagane)"
     }
 
     "Too Many Players"
     {
-        "pl"    "Za du¿o graczy na serwerze na aktualnie gran¹ mapê (max {1})"
+        "pl"    "Za duÂ¿o graczy na serwerze na aktualnie granÂ¹ mapÃª (max {1})"
     }
 
     "No RTV Player Count"
     {
-        "pl"    "Nie mo¿na dawaæ RTV, dopóki nie wejdzie {1} wiêcej graczy na serwer."
-    }
-
-    "No RTV Nextmap"
-    {
-        "pl"    "Nie mo¿na dawaæ RTV, dopóki mapa siê nie zmieni."
-    }
-
-    "No RTV Time"
-    {
-        "pl"    "Nie mo¿na dawaæ RTV przez {1} sekund."
+        "pl"    "Nie moÂ¿na dawaÃ¦ RTV, dopÃ³ki nie wejdzie {1} wiÃªcej graczy na serwer."
     }
 
     "More Required"
     {
-        "pl"    "potrzeba {1} g³osów"
+        "pl"    "potrzeba {1} gÂ³osÃ³w"
+    }
+
+    "No RTV Time"
+    {
+        "pl"    "Nie moÂ¿na dawaÃ¦ RTV przez {1} sekund."
+    }
+
+    "More Required"
+    {
+        "pl"    "potrzeba {1} gÂ³osÃ³w"
     }
 
     "RTV Entered"
     {
-        "pl"    "{1} da³ RTV i chce zmieniæ mapê."
+        "pl"    "{1} daÂ³ RTV i chce zmieniÃ¦ mapÃª."
     }
 
     "RTV Info Msg"
     {
-        "pl"    "Wpisz NOMINATE, by nominowaæ mapê lub RTV by przyspieszyæ g³osowanie na mapkê."
+        "pl"    "Wpisz NOMINATE, by nominowaÃ¦ mapÃª lub RTV by przyspieszyÃ¦ gÂ³osowanie na mapkÃª."
     }
 
     "RTV Start"
     {
-        "pl"    "Zmieniamy mapê!"
+        "pl"    "Zmieniamy mapÃª!"
     }
 
     "Vote In Progress"
     {
-        "pl"    "G³osowanie w toku."
+        "pl"    "GÂ³osowanie w toku."
     }
 
     "RTV Already Entered"
     {
-        "pl"    "Ju¿ wpisa³eœ RTV."
+        "pl"    "JuÂ¿ wpisaÂ³eÅ“ RTV."
     }
 
     "No Nominate Nextmap"
     {
-        "pl"    "Nie mo¿na nominowaæ, dopóki mapa siê nie zmieni."
+        "pl"    "Nie moÂ¿na nominowaÃ¦, dopÃ³ki mapa siÃª nie zmieni."
     }
 
     "Pending Vote"
     {
-        "pl"    "Oczekiwanie na g³osowanie"
+        "pl"    "Oczekiwanie na gÂ³osowanie"
     }
 
     "Next Map"
     {
-        "pl"    "Nastêpna mapa: {1}"
+        "pl"    "NastÃªpna mapa: {1}"
     }
 
     "Player Nomination"
     {
-        "pl"    "{1} nominowa³ {2}."
+        "pl"    "{1} nominowaÂ³ {2}."
     }
 
     "Nomination Menu Title"
     {
-        "pl"    "Wybierz swoj¹ mapê."
+        "pl"    "Wybierz swojÂ¹ mapÃª."
     }
 
     "Yes/No Menu Title"
     {
-        "pl"    "Zmieniæ mapê na {1}?"
+        "pl"    "ZmieniÃ¦ mapÃª na {1}?"
     }
 
     "Yes"
@@ -193,11 +183,23 @@
 
     "Starting Map Vote"
     {
-        "pl"    "Zaczynamy g³osowanie. Mapa zmieni siê po jego zakoñczeniu."
+        "pl"    "Zaczynamy gÂ³osowanie. Mapa zmieni siÃª po jego zakoÃ±czeniu."
     }
 
     "Default Warning"
     {
-        "pl"    "{TIME} sekund do g³osowania."
+        //Tu gdzie {TIME} zostanie wstawiona iloÅ“Ã¦ sekund.
+        //Zostaw {TIME} w tej samej postaci - po angielsku- to nie jest bÂ³Â¹d.
+        "pl"    "{TIME} sekund do rozpoczÃªcia gÂ³osowania."
+    }
+    
+    "Vote Failed"
+    {
+        "pl"    "GÂ³osowanie nieudane. WygrywajÂ¹ca opcja nie przekroczyÂ³a wymaganego progu procentowego"
+    }
+    
+    "Selective Runoff"
+    {
+        "pl"    "PokazujÃª menu gÂ³osowania dla graczy, ktÃ³rzy nie gÂ³osowali lub ktÃ³rych gÂ³osy zostaÂ³y wyeliminowane."
     }
 }
