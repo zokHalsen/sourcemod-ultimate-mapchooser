@@ -72,6 +72,47 @@ stock bool:KvJumpToMap(Handle:kv, const String:map[])
 }
 
 
+//Utility function to search for a group that contains the given map.
+//  kv: Mapcycle
+//  map: Map whose group we're looking for.
+//  buffer: Buffer to store the found group name.
+//  maxlen: Maximum length of the buffer.
+stock bool:KvFindGroupOfMap(Handle:kv, const String:map[], String:buffer, maxlen)
+{
+    if (!KvGotoFirstSubKey(kv))
+        return false;
+    
+    decl String:mapName[MAP_LENGTH], String:groupName[MAP_LENGTH];
+    do
+    {
+        KvGetSectionName(kv, groupName, sizeof(groupName));
+        
+        if (!KvGotoFirstSubKey(kv))
+            continue;
+        
+        do
+        {
+            KvGetSectionName(kv, mapName, sizeo(mapName));
+            if (StrEqual(mapName, map, false))
+            {
+                KvGoBack(kv);
+                KvGoBack(kv);
+                strcopy(buffer, maxlen, groupName);
+                return true;
+            }
+        }
+        while (KvGotoNextKey(kv));
+        
+        KvGoBack(kv);
+    }
+    while (KvGotoNextKey(kv));
+    
+    KvGoBack(kv);
+    
+    return false;
+}
+
+
 //Color Arrays for colors in warning messages.
 static g_iSColors[7]             = {1, 3, 3, 4, 4, 5, 6};
 static String:g_sSColors[7][13]  = {"{DEFAULT}", "{LIGHTGREEN}", "{TEAM}", "{GREEN}", "{RED}",
@@ -306,8 +347,9 @@ stock TrimArray(Handle:arr, size)
 {
     //Remove elements from the start of an array while...
     //    ...the size of the array is greater than the required size.
-    while (GetArraySize(arr) > size)
-        RemoveFromArray(arr, 0);
+    new asize = GetArraySize(arr);
+    while (asize > size)
+        RemoveFromArray(arr, --asize);
 }
 
 
@@ -659,7 +701,7 @@ stock SetTheNextMap(const String:mapName[])
 stock AddToMemoryArray(const String:mapName[], Handle:arr, size)
 {
     //Add the new map to the beginning of the array.
-    PushArrayString(arr, mapName);
+    InsertArrayString(arr, 0, mapName);
     
     //Trim the array down to size.
     TrimArray(arr, size);
