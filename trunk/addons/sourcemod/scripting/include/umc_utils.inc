@@ -342,17 +342,6 @@ stock ResetArray(bool:arr[], size)
 }
 
 
-//Deletes values off the beginning of an array until it is down to the given size.
-stock TrimArray(Handle:arr, size)
-{
-    //Remove elements from the start of an array while...
-    //    ...the size of the array is greater than the required size.
-    new asize = GetArraySize(arr);
-    while (asize > size)
-        RemoveFromArray(arr, --asize);
-}
-
-
 //Utility function to cache a sound.
 stock CacheSound(const String:sound[])
 {
@@ -420,6 +409,31 @@ stock InsertArrayCell(Handle:arr, index, any:cell)
     }
     else
         PushArrayCell(arr, cell);
+}
+
+
+//Deletes values off the beginning of an array until it is down to the given size.
+stock TrimArray(Handle:arr, size)
+{
+    //Remove elements from the start of an array while...
+    //    ...the size of the array is greater than the required size.
+    new asize = GetArraySize(arr);
+    while (asize > size)
+        RemoveFromArray(arr, --asize);
+}
+
+
+//Adds the given map to the given memory array.
+//    mapName: the name of the map
+//    arr:     the memory array we're adding to
+//    size:    the maximum size of the memory array
+stock AddToMemoryArray(const String:mapName[], Handle:arr, size)
+{
+    //Add the new map to the beginning of the array.
+    InsertArrayString(arr, 0, mapName);
+    
+    //Trim the array down to size.
+    TrimArray(arr, size);
 }
 
 
@@ -691,20 +705,6 @@ stock SetTheNextMap(const String:mapName[])
 {
     LogMessage("Setting nextmap to: %s", mapName);
     SetNextMap(mapName);
-}
-
-
-//Adds the given map to the given memory array.
-//    mapName: the name of the map
-//    arr:     the memory array we're adding to
-//    size:    the maximum size of the memory array
-stock AddToMemoryArray(const String:mapName[], Handle:arr, size)
-{
-    //Add the new map to the beginning of the array.
-    InsertArrayString(arr, 0, mapName);
-    
-    //Trim the array down to size.
-    TrimArray(arr, size);
 }
 
 

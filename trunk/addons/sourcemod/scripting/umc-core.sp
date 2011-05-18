@@ -1019,6 +1019,17 @@ public Native_UMCGetRandomMap(Handle:plugin, numParams)
     
     FilterMapcycle(filtered, kv, exMaps, exGroups, numEGroups, isNom, forMapChange);
     
+#if UMC_DEBUG
+    PrintKv(filtered);
+    decl String:emap[MAP_LENGTH], String:egroup[MAP_LENGTH];
+    for (new i = 0; i < GetArraySize(exGroups); i++)
+    {
+        GetArrayString(exGroups, i, egroup, sizeof(egroup));
+        GetArrayString(exMaps, i, emap, sizeof(emap));
+        LogMessage("%2s   |    %2s", emap, egroup);
+    }
+#endif
+    
     decl String:map[MAP_LENGTH], String:groupResult[MAP_LENGTH];
     new bool:result = GetRandomMapFromCycle(filtered, group, map, sizeof(map), groupResult,
                                             sizeof(groupResult), kv);
