@@ -4,7 +4,7 @@
  
 #pragma semicolon 1
 
-#define PL_VERSION "3.0"
+#define PL_VERSION "3.0.1"
 
 #define RUNTESTS 0
 
@@ -38,6 +38,11 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
+3.0.1 (5/--/11)
+Added extra argument to sm_setnextmap that specifies when the map will be changed.
+Added response to the reload mapcycles command.
+Fixed bug with map exclusion in tiered votes.
+
 3.0 (5/16/11)
 Near-complete rewrite of UMC. Divided up plugin into separate modules which operate independently. These modules are linked together through UMC's Core (this file).
 Fixed many, many bugs with the rewrite. I will only be listing the ones I know have been fixed.
@@ -281,7 +286,6 @@ Initial Release
 */
 
 //TODO:
-//  Search for the current group if it's not defined ("") [NATIVE]
 //  Take nominations into account when selecting a random map.
 //  Add cvar to control where nominations are placed in the vote (on top vs. scrambled)
 //  Possible Bug: map change (sm_map or changelevel) after a vote completes can set the wrong 
@@ -1084,7 +1088,10 @@ public Action:Command_SetNextmap(client, args)
 {
     if (args < 1)
     {
-        ReplyToCommand(client, "\x03[UMC]\x01 Usage: sm_setnextmap <map>");
+        ReplyToCommand(
+            client,
+            "\x03[UMC]\x01 Usage: sm_setnextmap <map> <0|1|2>\n 0 - Change Now\n 1 - Change at end of round\n 2 - Change at end of map."
+        );
         return Plugin_Handled;
     }
     
@@ -1097,12 +1104,20 @@ public Action:Command_SetNextmap(client, args)
         return Plugin_Handled;
     }
     
+    new UMC_ChangeMapTime:when = ChangeMapTime_MapEnd;
+    if (args > 1)
+    {
+        decl String:whenArg[2];
+        GetCmdArg(2, whenArg, sizeof(whenArg));
+        when = UMC_ChangeMapTime:StringToInt(whenArg);
+    }
+    
+    //SetNextMap(map);
+    DoMapChange(when, INVALID_HANDLE, map, INVALID_GROUP, "sm_setnextmap");
+    
     //TODO: Make this a translation
     ShowActivity(client, "Changed nextmap to \"%s\".", map);
     LogMessage("%L changed nextmap to \"%s\"", client, map);
-    
-    //SetNextMap(map);
-    DoMapChange(ChangeMapTime_MapEnd, INVALID_HANDLE, map, INVALID_GROUP, "sm_setnextmap");
     
     //vote_completed = true;
     
@@ -1116,6 +1131,8 @@ public Action:Command_Reload(client, args)
     //Call the reload forward.
     Call_StartForward(reload_forward);
     Call_Finish();
+    
+    ReplyToCommand(client, "\x03[UMC]\x01 UMC Mapcycles Reloaded.");    
     
     //Return success
     return Plugin_Handled;
@@ -3216,13 +3233,23 @@ bool:IsValidCat(Handle:kv, Handle:mapcycle, Handle:excludedCats, numExcludedCats
     DebugMessage("IsValidCat: numEC - %i, sizeEC - %i, sizeEM - %i", numExcludedCats,
                  GetArraySize(excludedCats), GetArraySize(excludedMaps));
 
-    //Return false if...
-    //  ...the category is in the excluded array.
+                 
+    //Check if the map group is in the excluded array.
     if (excludedCats != INVALID_HANDLE && numExcludedCats > 0)
     {
-        new index = FindStringInArray(excludedCats, catName);
-        DebugMessage("Checking group exclusion. CIndex: %i", index);
-        if (index != -1 && GetArraySize(excludedCats) - index <= numExcludedCats)
+        new bool:excludeGroup = false;
+        decl String:temp[MAP_LENGTH];
+        for (new i = 0; i < numExcludedCats; i++)
+        {
+            GetArrayString(excludedCats, i, temp, sizeof(temp));
+            if (StrEqual(temp, catName, false))
+            {
+                excludeGroup = true;
+                break;
+            }
+        }
+        
+        if (excludeGroup)
             return false;
     }
     
@@ -3329,9 +3356,7 @@ FilterMapcycle(Handle:kv, Handle:originalMapcycle, Handle:exMaps, Handle:exGroup
     
     decl String:group[MAP_LENGTH];
     decl String:temp[MAP_LENGTH];
-    new bool:checkGrEx = numExGroups > 0;
-    new egSize = GetArraySize(exGroups);
-    new exGBounds = egSize - numExGroups;
+    new bool:checkGrEx = exGroups != INVALID_HANDLE && numExGroups > 0;
     new bool:excludeGroup = false;
     for ( ; ; )
     {    
@@ -3341,7 +3366,7 @@ FilterMapcycle(Handle:kv, Handle:originalMapcycle, Handle:exMaps, Handle:exGroup
             KvGetSectionName(kv, group, sizeof(group));
             excludeGroup = false;
             
-            for (new i = egSize - 1; i >= exGBounds; i--)
+            for (new i = 0; i < numExGroups; i++)
             {
                 GetArrayString(exGroups, i, temp, sizeof(temp));
                 if (StrEqual(temp, group, false))

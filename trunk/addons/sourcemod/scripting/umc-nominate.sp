@@ -399,7 +399,7 @@ Handle:BuildTieredNominationMenu()
     //    ...the number of maps available to be nominated
     if (size == 0)
     {
-        LogError("NOMINATIONS: No maps available to be nominated.");
+        LogError("No maps available to be nominated.");
         CloseHandle(menu);
         CloseHandle(groupArray);
         return INVALID_HANDLE;
