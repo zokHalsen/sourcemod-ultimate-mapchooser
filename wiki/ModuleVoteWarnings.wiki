@@ -81,7 +81,7 @@
 
   For example:
   {{{
-"5...1"
+"5-1"
 {
     "message"  "{TIME} seconds until vote."
     "sound"  "warning{TIME}.wav"
