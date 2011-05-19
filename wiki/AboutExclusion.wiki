@@ -10,6 +10,8 @@
 = Special Cases =
   The Exclusion system has two special cases: one for nominated maps, and one for maps that are just being used for display, but not for an immediate map change.
 
+==Nominated Maps==
   Nominated maps are considered different because a lot of times server operators want to make special cases for them. Usually, modules which extend the Exclusion system have cvars to control whether or not nominations should be treated differently (the Player Limits and Time Limits modules have this).
 
+==Display Maps==
   Maps which are just being selected for display can also be treated specially (again, most modules have a cvar to control this). An example of such a situation is in the [ModuleNominate Nominations module] when a nomination menu is displayed: the items in the menu are not being used for an immediate map change, so they are treated as "display" maps.
