@@ -3,7 +3,6 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
  
 #pragma semicolon 1
-#define PL_VERSION "3.0"
 
 #include <sourcemod>
 #include <umc-core>
@@ -331,6 +330,11 @@ public OnConfigsExecuted()
     
     decl String:groupName[MAP_LENGTH];
     UMC_GetCurrentMapGroup(groupName, sizeof(groupName));
+    
+    if (StrEqual(groupName, INVALID_GROUP, false))
+    {
+        KvFindGroupOfMap(map_kv, mapName, groupName, sizeof(groupName));
+    }
     
     //Add the map to all the memory queues.
     new mapmem = GetConVarInt(cvar_rtv_mem) + 1;

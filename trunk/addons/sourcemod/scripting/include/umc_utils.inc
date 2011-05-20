@@ -3,6 +3,8 @@
 #endif
 #define _umc_utils_included
 
+#pragma semicolon 1
+
 #include <sourcemod>
 
 #include <umc-core>
@@ -77,7 +79,7 @@ stock bool:KvJumpToMap(Handle:kv, const String:map[])
 //  map: Map whose group we're looking for.
 //  buffer: Buffer to store the found group name.
 //  maxlen: Maximum length of the buffer.
-stock bool:KvFindGroupOfMap(Handle:kv, const String:map[], String:buffer, maxlen)
+stock bool:KvFindGroupOfMap(Handle:kv, const String:map[], String:buffer[], maxlen)
 {
     if (!KvGotoFirstSubKey(kv))
         return false;
@@ -92,7 +94,7 @@ stock bool:KvFindGroupOfMap(Handle:kv, const String:map[], String:buffer, maxlen
         
         do
         {
-            KvGetSectionName(kv, mapName, sizeo(mapName));
+            KvGetSectionName(kv, mapName, sizeof(mapName));
             if (StrEqual(mapName, map, false))
             {
                 KvGoBack(kv);
@@ -791,7 +793,7 @@ stock CloseHandleEx(&Handle:handle)
 //Prints a debug message if the DEBUG flag is on.
 stock DebugMessage(const String:message[], any:...)
 {
-    #if UMC_DEBUG
+#if UMC_DEBUG
     
     new size = strlen(message) + 255;
     decl String:fMessage[size];
@@ -799,7 +801,7 @@ stock DebugMessage(const String:message[], any:...)
     
     LogMessage("DEBUG: %s", fMessage);
     
-    #endif
+#endif
 }
 
 

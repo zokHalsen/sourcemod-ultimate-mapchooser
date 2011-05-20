@@ -5,7 +5,11 @@
 #endif
 #define _umc_core_included
 
-#define UMC_DEBUG 0
+#pragma semicolon 1
+
+#define PL_VERSION "3.0.2"
+
+#define UMC_DEBUG 1
 
 #define INVALID_GROUP ""
 #define MAP_LENGTH 64

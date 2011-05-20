@@ -3,7 +3,6 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
  
 #pragma semicolon 1
-#define PL_VERSION "3.0"
 
 #include <sourcemod>
 #include <regex>
@@ -197,7 +196,8 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
     //Regex to store sequence pattern in.
     static Handle:re = INVALID_HANDLE;
     if (re == INVALID_HANDLE)
-        re = CompileRegex("^([0-9]+)\\.\\.\\.([0-9]+)$");
+        re = CompileRegex("^([0-9]+)\\s*(?:(?:\\.\\.\\.)|-)\\s*([0-9]+)$");
+                        //"^([0-9]+)\\.\\.\\.([0-9]+)$");
     
     //Variables to store sequence definition
     decl String:sequence_start[10], String:sequence_end[10];

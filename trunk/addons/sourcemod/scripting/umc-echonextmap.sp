@@ -3,10 +3,10 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
  
 #pragma semicolon 1
-#define PL_VERSION "3.0"
 
 #include <sourcemod>
 #include <umc-core>
+#include <umc_utils>
 
 public Plugin:myinfo =
 {
@@ -52,7 +52,10 @@ public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[])
 {
     if (GetConVarBool(cvar_center))
     {
-        PrintCenterTextAll("[UMC] %t", "Next Map", map);
+        decl String:msg[256];
+        Format(msg, sizeof(msg), "[UMC] %t", "Next Map", map);
+        DisplayServerMessage(msg, "C");
+        //PrintCenterTextAll("[UMC] %t", "Next Map", map);
     }
     if (GetConVarBool(cvar_hint))
     {
