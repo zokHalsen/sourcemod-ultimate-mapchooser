@@ -3,7 +3,6 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #pragma semicolon 1
-#define PL_VERSION "3.0"
 
 #include <sourcemod>
 #include <umc-core>
@@ -29,6 +28,7 @@ public Plugin:myinfo =
 
 //Cvar
 new Handle:cvar_min_votes = INVALID_HANDLE;
+new Handle:cvar_scale     = INVALID_HANDLE;
 
 //Our SQL information
 new String:table_name[255];
@@ -52,6 +52,13 @@ public OnPluginStart()
         "5",
         "Minimum number of ratings required for a map in order for it to be reweighted.",
         0, true, 0.0
+    );
+    
+    cvar_scale = CreateConVar(
+        "sm_umc_maprate_expscale",
+        "1.0",
+        "Average rating for a map is scaled by this value before being used as a weight. Scaling is calculated using the following formula: weight(map) = avg_rating(map) ^ scale",
+        0, true, 1.0
     );
 
     AutoExecConfig(true, "umc-maprate-reweight");
@@ -191,7 +198,7 @@ public UMC_OnReweightMap(Handle:kv, const String:map[], const String:group[])
     new Float:weight;
     if (FetchMapWeight(map, weight))
     {
-        UMC_AddWeightModifier(weight);
+        UMC_AddWeightModifier(Pow(weight, GetConVarFloat(cvar_scale)));
 #if UMC_DEBUG
         LogMessage("Map %s was reweighted!", map);
 #endif

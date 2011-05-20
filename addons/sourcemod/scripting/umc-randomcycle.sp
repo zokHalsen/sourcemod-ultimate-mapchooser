@@ -3,7 +3,6 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
  
 #pragma semicolon 1
-#define PL_VERSION "3.0"
 
 #include <sourcemod>
 #include <umc-core>
@@ -135,6 +134,11 @@ public OnConfigsExecuted()
     decl String:groupName[MAP_LENGTH];
     UMC_GetCurrentMapGroup(groupName, sizeof(groupName));
     
+    if (StrEqual(groupName, INVALID_GROUP, false))
+    {
+        KvFindGroupOfMap(map_kv, mapName, groupName, sizeof(groupName));
+    }
+    
     SetupNextRandGroup(mapName, groupName);
     
     //Add the map to all the memory queues.
@@ -188,7 +192,7 @@ SetupNextRandGroup(const String:map[], const String:group[])
 {
     decl String:gNextGroup[MAP_LENGTH];
     
-    if (map_kv == INVALID_HANDLE)
+    if (map_kv == INVALID_HANDLE || StrEqual(group, INVALID_GROUP, false))
     {
         strcopy(next_rand_cat, sizeof(next_rand_cat), INVALID_GROUP);
         return;

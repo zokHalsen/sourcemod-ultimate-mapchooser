@@ -3,7 +3,6 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
  
 #pragma semicolon 1
-#define PL_VERSION "3.0"
 
 #include <sourcemod>
 #include <umc-core>
@@ -47,7 +46,7 @@ new bool:can_nominate;
 
 //TODO: Add cvar for enable/disable exclusion from prev. maps.
 //      Possible bug: nomination menu doesn't want to display twice for a client in a map.
-//      Alphebetize based off of display, not actual map name.
+//      Alphabetize based off of display, not actual map name.
 
 //************************************************************************************************//
 //                                        SOURCEMOD EVENTS                                        //
@@ -152,6 +151,11 @@ public OnConfigsExecuted()
     
     decl String:groupName[MAP_LENGTH];
     UMC_GetCurrentMapGroup(groupName, sizeof(groupName));
+    
+    if (StrEqual(groupName, INVALID_GROUP, false))
+    {
+        KvFindGroupOfMap(map_kv, mapName, groupName, sizeof(groupName));
+    }
     
     //Add the map to all the memory queues.
     new mapmem = GetConVarInt(cvar_vote_mem) + 1;

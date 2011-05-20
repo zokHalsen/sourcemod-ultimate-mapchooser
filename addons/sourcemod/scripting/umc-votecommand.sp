@@ -4,8 +4,6 @@
  
 #pragma semicolon 1
 
-#define PL_VERSION "3.0"
-
 #include <sourcemod>
 #include <umc-core>
 #include <umc_utils>
@@ -98,7 +96,7 @@ public OnPluginStart()
         "sm_umc_vc_allowduplicates",
         "1",
         "Allows a map to appear in the vote more than once. This should be enabled if you want the same map in different categories to be distinct.",
-        0, true, 0.0, true, 0.5
+        0, true, 0.0, true, 1.0
     );
     
     cvar_vote_threshold = CreateConVar(
@@ -258,6 +256,11 @@ public OnConfigsExecuted()
     
     decl String:groupName[MAP_LENGTH];
     UMC_GetCurrentMapGroup(groupName, sizeof(groupName));
+    
+    if (StrEqual(groupName, INVALID_GROUP, false))
+    {
+        KvFindGroupOfMap(map_kv, mapName, groupName, sizeof(groupName));
+    }
     
     //Add the map to all the memory queues.
     new mapmem = GetConVarInt(cvar_vote_mem) + 1;
