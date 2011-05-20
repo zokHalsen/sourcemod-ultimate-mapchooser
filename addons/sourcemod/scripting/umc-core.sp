@@ -15,9 +15,9 @@
 #undef REQUIRE_PLUGIN
 
 //Auto update
-#include <autoupdate.inc>
-#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser"
-#define UPDATE_XML "/plugins.xml"
+//#include <autoupdate.inc>
+//#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser"
+//#define UPDATE_XML "/plugins.xml"
 
 //Some definitions
 #define DONT_CHANGE_OPTION "?DontChange?"
@@ -37,7 +37,7 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
-3.0.2 (5/--/11)
+3.0.2 (5/20/11)
 Optimized map weight system so each map is only weighted once.
 Made modules with previous map exclusions search for the current group if core reports it as INVALID_GROUP.
 Added ability to specify a scale for umc-maprate-reweight
@@ -449,34 +449,6 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
     CreateNative("UMC_CreateValidMapArray", Native_UMCCreateMapArray);
     CreateNative("UMC_CreateValidMapGroupArray", Native_UMCCreateGroupArray);
     
-    //Setup our forward for when a nomination is removed
-    nomination_reset_forward = CreateGlobalForward(
-        "OnNominationRemoved", ET_Ignore, Param_String, Param_Cell
-    );
-    
-    reweight_forward = CreateGlobalForward(
-        "UMC_OnReweightMap", ET_Ignore, Param_Cell, Param_String, Param_String
-    );
-    
-    reweight_group_forward = CreateGlobalForward(
-        "UMC_OnReweightGroup", ET_Ignore, Param_Cell, Param_String
-    );
-    
-    exclude_forward = CreateGlobalForward(
-        "UMC_OnDetermineMapExclude",
-        ET_Hook, Param_Cell, Param_String, Param_String, Param_Cell, Param_Cell
-    );
-    
-    reload_forward = CreateGlobalForward("UMC_RequestReloadMapcycle", ET_Ignore);
-    
-    extend_forward = CreateGlobalForward("UMC_OnMapExtended", ET_Ignore);
-    
-    nextmap_forward = CreateGlobalForward(
-        "UMC_OnNextmapSet", ET_Ignore, Param_Cell, Param_String, Param_String
-    );
-    
-    failure_forward = CreateGlobalForward("UMC_OnVoteFailed", ET_Ignore);
-
     return APLRes_Success;
 }
 
@@ -587,6 +559,34 @@ public OnPluginStart()
     //Load the translations file
     LoadTranslations("ultimate-mapchooser.phrases");
     
+    //Setup our forward for when a nomination is removed
+    nomination_reset_forward = CreateGlobalForward(
+        "OnNominationRemoved", ET_Ignore, Param_String, Param_Cell
+    );
+    
+    reweight_forward = CreateGlobalForward(
+        "UMC_OnReweightMap", ET_Ignore, Param_Cell, Param_String, Param_String
+    );
+    
+    reweight_group_forward = CreateGlobalForward(
+        "UMC_OnReweightGroup", ET_Ignore, Param_Cell, Param_String
+    );
+    
+    exclude_forward = CreateGlobalForward(
+        "UMC_OnDetermineMapExclude",
+        ET_Hook, Param_Cell, Param_String, Param_String, Param_Cell, Param_Cell
+    );
+    
+    reload_forward = CreateGlobalForward("UMC_RequestReloadMapcycle", ET_Ignore);
+    
+    extend_forward = CreateGlobalForward("UMC_OnMapExtended", ET_Ignore);
+    
+    nextmap_forward = CreateGlobalForward(
+        "UMC_OnNextmapSet", ET_Ignore, Param_Cell, Param_String, Param_String
+    );
+    
+    failure_forward = CreateGlobalForward("UMC_OnVoteFailed", ET_Ignore);
+
     #if RUNTESTS
     RunTests();
     #endif
@@ -1253,7 +1253,6 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     new Handle:kv = CreateKeyValues("umc_rotation"); //new handle
     KvCopySubkeys(stored_kv, kv); //copy everything to the new handle
     FilterMapcycle(kv, stored_kv, excluded, excludedCats, numExcludedCats);
-    WeightMapcycle(kv, stored_kv);
     
 #if UMC_DEBUG
     PrintKv(kv);
@@ -1310,6 +1309,8 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     //Add maps to vote array from current category.
     do
     {
+        WeightMapGroup(kv, stored_kv);
+    
         //Store the name of the current category.
         KvGetSectionName(kv, catName, sizeof(catName));
         
@@ -2789,7 +2790,7 @@ public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:perce
                 percentage,
                 total_votes
         );
-        LogMessage("MAPVOTE: Players voted to extend the map.");
+        LogMessage("Players voted to extend the map.");
         ExtendMap();
     }
     else if (StrEqual(cat, DONT_CHANGE_OPTION))
@@ -2817,6 +2818,11 @@ public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:perce
         KvRewind(stored_kv); //rewind original
         new Handle:kv = CreateKeyValues("umc_rotation");
         KvCopySubkeys(stored_kv, kv);
+                    
+        //Jump to the category in the mapcycle.
+        KvJumpToKey(kv, cat);
+        FilterMapGroup(kv, stored_kv, stored_exmaps, stored_exgroups);
+        WeightMapGroup(kv, stored_kv);
         
         //An adt_array of nominations from the given category.
         new Handle:tempCatNoms = GetCatNominations(cat);
@@ -2838,11 +2844,6 @@ public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:perce
             
             //A nomination.
             new Handle:trie = INVALID_HANDLE;
-            
-            //Jump to the category in the mapcycle.
-            KvJumpToKey(kv, cat);
-            FilterMapGroup(kv, stored_kv, stored_exmaps, stored_exgroups);
-            WeightMapGroup(kv, stored_kv);
             
             //Add nomination to name and weight array for...
             //    ...each nomination in the nomination array for this category.
