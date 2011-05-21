@@ -18,4 +18,5 @@
     * [ModuleVoteWarnings Vote Warnings]
     * [ModulePlayerCountMonitor Player Count Monitor]
     * [ModuleMapRateReweight Map Rate Map-Reweighting]
+    * [ModulePrefixExclude Map Prefix Exclusion]
   * [Development Development]
