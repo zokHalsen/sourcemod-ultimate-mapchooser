@@ -1,4 +1,4 @@
-#summary Documentation for the Map Prefix Exclusion module.
+#summary Documentation for the Map Prefix Exclusion (umc-prefixexclude) module.
 
 = Introduction =
 
