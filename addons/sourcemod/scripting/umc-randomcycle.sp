@@ -271,7 +271,11 @@ public Handle_RandNextMemoryChange(Handle:convar, const String:oldValue[], const
 //Called when the command to pick a random nextmap is called
 public Action:Command_Random(client, args)
 {
-    DoRandomNextMap();
+    if (setting_map || map_kv != INVALID_HANDLE)
+        DoRandomNextMap();
+    else
+        ReplyToCommand(client, "\x03[UMC]\x01 Mapcycle is invalid, cannot pick a map.");
+        
     return Plugin_Handled;
 }
 

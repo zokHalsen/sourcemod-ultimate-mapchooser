@@ -127,31 +127,6 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
     
     RegPluginLibrary("umc-endvote");
     
-    time_update_forward = CreateGlobalForward(
-        "UMC_EndVote_OnTimeTimerUpdated", ET_Ignore, Param_Cell
-    );
-    round_update_forward = CreateGlobalForward(
-        "UMC_EndVote_OnRoundTimerUpdated", ET_Ignore, Param_Cell
-    );
-    win_update_forward = CreateGlobalForward(
-        "UMC_EndVote_OnWinTimerUpdated", ET_Ignore, Param_Cell, Param_Cell
-    );
-    frag_update_forward = CreateGlobalForward(
-        "UMC_EndVote_OnFragTimerUpdated", ET_Ignore, Param_Cell, Param_Cell
-    );
-    time_tick_forward = CreateGlobalForward(
-        "UMC_EndVote_OnTimeTimerTicked", ET_Ignore, Param_Cell
-    );
-    round_tick_forward = CreateGlobalForward(
-        "UMC_EndVote_OnRoundTimerTicked", ET_Ignore, Param_Cell
-    );
-    win_tick_forward = CreateGlobalForward(
-        "UMC_EndVote_OnWinTimerTicked", ET_Ignore, Param_Cell, Param_Cell
-    );
-    frag_tick_forward = CreateGlobalForward(
-        "UMC_EndVote_OnFragTimerTicked", ET_Ignore, Param_Cell, Param_Cell
-    );
-    
     return APLRes_Success;
 }
 
@@ -377,6 +352,32 @@ public OnPluginStart()
     
     //Load the translations file
     LoadTranslations("ultimate-mapchooser.phrases");
+
+    time_update_forward = CreateGlobalForward(
+        "UMC_EndVote_OnTimeTimerUpdated", ET_Ignore, Param_Cell
+    );
+    round_update_forward = CreateGlobalForward(
+        "UMC_EndVote_OnRoundTimerUpdated", ET_Ignore, Param_Cell
+    );
+    win_update_forward = CreateGlobalForward(
+        "UMC_EndVote_OnWinTimerUpdated", ET_Ignore, Param_Cell, Param_Cell
+    );
+    frag_update_forward = CreateGlobalForward(
+        "UMC_EndVote_OnFragTimerUpdated", ET_Ignore, Param_Cell, Param_Cell
+    );
+    time_tick_forward = CreateGlobalForward(
+        "UMC_EndVote_OnTimeTimerTicked", ET_Ignore, Param_Cell
+    );
+    round_tick_forward = CreateGlobalForward(
+        "UMC_EndVote_OnRoundTimerTicked", ET_Ignore, Param_Cell
+    );
+    win_tick_forward = CreateGlobalForward(
+        "UMC_EndVote_OnWinTimerTicked", ET_Ignore, Param_Cell, Param_Cell
+    );
+    frag_tick_forward = CreateGlobalForward(
+        "UMC_EndVote_OnFragTimerTicked", ET_Ignore, Param_Cell, Param_Cell
+    );
+    
 }
 
 
