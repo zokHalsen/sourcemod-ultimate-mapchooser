@@ -22,15 +22,23 @@ public Plugin:myinfo =
 new Handle:cvar_nom_ignore = INVALID_HANDLE;
 new Handle:cvar_display_ignore = INVALID_HANDLE;
 new Handle:cvar_prev = INVALID_HANDLE;
+new Handle:cvar_amt = INVALID_HANDLE;
 
 new Handle:prefix_array = INVALID_HANDLE;
 
 public OnPluginStart()
 {
+    cvar_amt = CreateConVar(
+        "sm_umc_prefixexclude_amount",
+        "1",
+        "Specifies how many times the prefix can be in the memory before it is excluded.",
+        0, true, 1.0
+    );
+
     cvar_prev = CreateConVar(
         "sm_umc_prefixexclude_memory",
         "1",
-        "Specifies how many previously played prefixes to exclude. 1 = Current Only",
+        "Specifies how many previously played prefixes to remember. 1 = Current Only",
         0, true, 0.0
     );
 
@@ -67,11 +75,17 @@ GetCurrentMapPrefix(String:buffer[], maxlen)
     decl String:currentMap[MAP_LENGTH];
     GetCurrentMap(currentMap, sizeof(currentMap));
     
+    GetMapPrefix(currentMap, buffer, maxlen);
+}
+
+
+stock GetMapPrefix(const String:map[], String:buffer[], maxlen)
+{
     static Handle:re = INVALID_HANDLE;
     if (re == INVALID_HANDLE)
         re = CompileRegex("^([a-zA-Z0-9]*)_(.*)$");
         
-    if (MatchRegex(re, currentMap) > 1)
+    if (MatchRegex(re, map) > 1)
         GetRegexSubString(re, 1, buffer, maxlen);
     else
         strcopy(buffer, maxlen, "");
@@ -88,12 +102,20 @@ public Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const Str
     if (!forMapChange && GetConVarBool(cvar_display_ignore))
         return Plugin_Continue;
     
+    decl String:mapPrefix[MAP_LENGTH];
+    GetMapPrefix(map, mapPrefix, sizeof(mapPrefix));
+    
+    new amt = GetConVarInt(cvar_amt);
+    
     decl String:prefix[MAP_LENGTH];
     new size = GetArraySize(prefix_array);
     for (new i = 0; i < size; i++)
     {
         GetArrayString(prefix_array, i, prefix, sizeof(prefix));
-        if (StrContains(map, prefix, false) == 0)
+        if (StrEqual(mapPrefix, prefix, false))
+            amt--;
+        
+        if (amt == 0)
             return Plugin_Stop;
     }
     
