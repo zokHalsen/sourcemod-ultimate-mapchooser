@@ -38,6 +38,9 @@ public Plugin:myinfo =
 //Changelog:
 /*
 3.0.2 (5/20/11)
+Fixed bug with previously played map exclusion in second stage tiered vote.
+Fixed bug where nominated maps were not being excluded from votes properly.
+Fixed bug where group votes would pick a random map group to be the next map.
 Optimized map weight system so each map is only weighted once.
 Made modules with previous map exclusions search for the current group if core reports it as INVALID_GROUP.
 Added ability to specify a scale for umc-maprate-reweight
@@ -301,6 +304,7 @@ Initial Release
 //                current_cat. I'm not exactly sure how to fix this.
 //  New mapexclude_strict cvar that doesn't take map group into account when excluding previously played maps.
 //  Nominations should also store the kv used for the nomination. (we will need to use CloneHandle)
+//      -used to calculate the weight of the nomination / other things?
 
 //************************************************************************************************//
 //                                        GLOBAL VARIABLES                                        //
@@ -459,7 +463,7 @@ public OnPluginStart()
     cvar_valvemenu = CreateConVar(
         "sm_umc_menu_esc",
         "0",
-        "If enabled, votes will use Valve-Stlye menus (players will be required to press ESC in order to vote).",
+        "If enabled, votes will use Valve-Stlye menus (players will be required to press ESC in order to vote). NOTE: this may not work in TF2!",
         0, true, 0.0, true, 1.0
     );
 
@@ -1254,6 +1258,9 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     KvCopySubkeys(stored_kv, kv); //copy everything to the new handle
     FilterMapcycle(kv, stored_kv, excluded, excludedCats, numExcludedCats);
     
+    new Handle:nomKV = CreateKeyValues("umc_rotation");
+    KvCopySubkeys(stored_kv, nomKV);
+    
 #if UMC_DEBUG
     PrintKv(kv);
     decl String:emap[MAP_LENGTH], String:egroup[MAP_LENGTH];
@@ -1323,7 +1330,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
         
         //Get all nominations for the current category.
         tempCatNoms = GetCatNominations(catName);
-        nominationsFromCat = FilterNominationsArray(tempCatNoms, stored_kv, stored_kv);
+        nominationsFromCat = FilterNominationsArray(tempCatNoms, nomKV, stored_kv);
         CloseHandle(tempCatNoms);
         
         //Get the amount of nominations for the current category.
@@ -1715,6 +1722,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     
     //We no longer need the copy of the mapcycle
     CloseHandle(kv);
+    CloseHandle(nomKV);
     
     DebugMessage("Initializing vote menu.");
     
@@ -1872,7 +1880,7 @@ Handle:BuildCatVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
             if (verboseLogs)
             {
                 LogMessage(
-                    "VOTE MENU: (Verbose) Skipping map group '%s' due to invalid server player count or server time.",
+                    "VOTE MENU: (Verbose) Skipping excluded map group '%s'.",
                     catName
                 );
             }
@@ -1904,7 +1912,11 @@ Handle:BuildCatVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     CloseHandle(kv);
     
     //Begin creating menu
-    new Handle:menu = CreateMenu(Handle_VoteMenu, MenuAction_DisplayItem|MenuAction_Display);
+    new Handle:menu = (GetConVarBool(cvar_valvemenu))
+        ? CreateMenuEx(GetMenuStyleHandle(MenuStyle_Valve), Handle_VoteMenu,
+                       MenuAction_DisplayItem|MenuAction_Display)
+        : CreateMenu(Handle_VoteMenu, MenuAction_DisplayItem|MenuAction_Display);
+    
     SetVoteResultCallback(menu, callback);    //Set callback
     SetMenuExitButton(menu, false); //Disable exit button
     
@@ -3066,13 +3078,31 @@ public Action:Handle_TieredVoteTimer(Handle:timer, Handle:exGroups)
     
     //Log a message
     LogMessage("MAPVOTE (Tiered): Starting second stage of tiered vote.");
-        
+    
+    new blocksize = ByteCountToCells(MAP_LENGTH);
+    new Handle:exMaps = CopyStringArray(stored_exmaps, blocksize);
+
+    new size = GetArraySize(exGroups);
+    for (new i = 0; i < size; i++)
+    {
+        InsertArrayString(exMaps, 0, "");
+    }
+    
+    new size2 = GetArraySize(stored_exgroups);
+    decl String:eG[MAP_LENGTH];
+    for (new i = 0; i < size2; i++)
+    {
+        GetArrayString(stored_exgroups, i, eG, sizeof(eG));
+        PushArrayString(exGroups, eG);
+    }
+    
     //Initialize the menu.
     new Handle:menu = BuildMapVoteMenu(Handle_MapVoteResults, stored_scramble, false, false,
-                                       stored_blockslots, stored_exmaps, exGroups,
-                                       GetArraySize(exGroups), stored_ignoredupes,
-                                       stored_strictnoms, true);
-                                     
+                                       stored_blockslots, exMaps, exGroups, size,
+                                       stored_ignoredupes, stored_strictnoms, true);
+    
+    CloseHandle(exMaps);
+    
     if (menu != INVALID_HANDLE)
     {
         //Play the vote start sound if...
@@ -3310,7 +3340,8 @@ bool:IsValidCat(Handle:kv, Handle:mapcycle, Handle:excludedCats, numExcludedCats
             KvGoBack(kv);
             return true;
         }
-    } while(KvGotoNextKey(kv)); //Goto the next map in the category.
+    }
+    while (KvGotoNextKey(kv)); //Goto the next map in the category.
 
     //Return to the category level.
     KvGoBack(kv);
