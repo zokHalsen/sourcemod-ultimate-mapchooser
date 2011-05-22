@@ -37,7 +37,11 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
-3.0.2 (5/20/11)
+3.0.3 (5/--/11)
+Added ability to specify amount of times a prefix can be in the previously played prefixes before it is excluded.
+-New cvar "sm_umc_prefixexclude_amount" in umc-prefixexclude to control this feature.
+
+3.0.2 (5/22/11)
 Fixed bug with previously played map exclusion in second stage tiered vote.
 Fixed bug where nominated maps were not being excluded from votes properly.
 Fixed bug where group votes would pick a random map group to be the next map.
@@ -49,6 +53,7 @@ Added ability to make all votes use valve-syle menus (users press ESC to vote).
 -New cvar "sm_umc_menu_esc" in umc-core to control this feature.
 Made center message in umc-echonextmap last for at least 3 seconds.
 Sequences of warnings can now be defined using a dash (-) as well as an elipses (...).
+Added new Map Prefix Exclusion module (umc-prefixexclude).
 
 3.0.1 (5/18/11)
 Added extra argument to sm_setnextmap that specifies when the map will be changed.
