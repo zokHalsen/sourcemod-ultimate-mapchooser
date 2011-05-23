@@ -66,7 +66,7 @@
 //              //Note: The string "{MAP}" will be replaced by the map's     //
 //              //      name.                                                //
 //              // (Default value: "{MAP}")                                  //
-//              "display-template"      "any value"                          //
+//              "display"       "any value"                                  //
 //                //Defined in "umc-core.smx"                                //
 //                                                                           //
 //              //The weight of this map with reference to other maps        //

@@ -9,7 +9,7 @@
 
 #define PL_VERSION "3.0.3"
 
-#define UMC_DEBUG 0
+#define UMC_DEBUG 1
 
 #define INVALID_GROUP ""
 #define MAP_LENGTH 64
