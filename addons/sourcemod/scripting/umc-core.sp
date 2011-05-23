@@ -12,7 +12,7 @@
 #include <sourcemod>
 #include <sdktools_sound>
 
-#undef REQUIRE_PLUGIN
+//#undef REQUIRE_PLUGIN
 
 //Auto update
 //#include <autoupdate.inc>
@@ -40,6 +40,7 @@ public Plugin:myinfo =
 3.0.3 (5/--/11)
 Added ability to specify amount of times a prefix can be in the previously played prefixes before it is excluded.
 -New cvar "sm_umc_prefixexclude_amount" in umc-prefixexclude to control this feature.
+Fixed bug where endvotes would not appear after a map was extended. [ENDVOTE]
 
 3.0.2 (5/22/11)
 Fixed bug with previously played map exclusion in second stage tiered vote.
