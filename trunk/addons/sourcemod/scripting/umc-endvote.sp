@@ -1152,7 +1152,10 @@ SetupMapVote()
 public StartMapVote()
 {
     if (!vote_enabled)
+    {
+        LogMessage("Cancelling map vote.");
         return;
+    }
 
     //Log a message
     LogMessage("Starting an end of map vote.");
@@ -1210,6 +1213,7 @@ public UMC_OnMapExtended()
     UpdateTimers();
     extend_counter++;
     vote_completed = false;
+    vote_enabled = true;
 }
 
 
