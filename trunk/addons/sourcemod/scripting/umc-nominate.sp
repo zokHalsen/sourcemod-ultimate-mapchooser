@@ -294,7 +294,7 @@ Handle:BuildNominationMenu(client, const String:cat[]=INVALID_GROUP)
     //Set the title.
     SetMenuTitle(menu, "%T", "Nomination Menu Title", LANG_SERVER);
     
-    if (strlen(cat) > 0)
+    if (!StrEqual(cat, INVALID_GROUP))
     {
         //Make it so we can return to the previous menu.
         SetMenuExitBackButton(menu, true);
@@ -379,7 +379,7 @@ Handle:BuildTieredNominationMenu()
     new Handle:menu = CreateMenu(Handle_TieredNominationMenu, MenuAction_Display);
     
     //Get the current map.
-    decl String:currentMap[MAP_LENGTH], String:currentGroup[MAP_LENGTH];
+    /*decl String:currentMap[MAP_LENGTH], String:currentGroup[MAP_LENGTH];
     GetCurrentMap(currentMap, sizeof(currentMap));
     UMC_GetCurrentMapGroup(currentGroup, sizeof(currentGroup));
     
@@ -387,15 +387,17 @@ Handle:BuildTieredNominationMenu()
     PushArrayString(exMaps, currentMap);
     
     new Handle:exGroups = CreateArray(ByteCountToCells(sizeof(currentGroup)));
-    PushArrayString(exGroups, currentGroup);
+    PushArrayString(exGroups, currentGroup);*/
 
     KvRewind(map_kv);
     
     //Get group array.
-    new Handle:groupArray = UMC_CreateValidMapGroupArray(map_kv, exMaps, exGroups, 0, true, false);
+    //new Handle:groupArray = UMC_CreateValidMapGroupArray(map_kv, exMaps, exGroups, 0, true, false);
+    new Handle:groupArray = UMC_CreateValidMapGroupArray(map_kv, vote_mem_arr, vote_catmem_arr, 0,
+                                                         true, false);
     
-    CloseHandle(exMaps);
-    CloseHandle(exGroups);
+    /*CloseHandle(exMaps);
+    CloseHandle(exGroups);*/
 
     new size = GetArraySize(groupArray);
     
@@ -432,6 +434,9 @@ Handle:BuildTieredNominationMenu()
         
         if (!excluded)
             PushArrayString(menuItems, groupName);
+            
+        KvGoBack(map_kv);
+        KvGoBack(map_kv);
     }
     
     //Add all maps from the nominations array to the menu.

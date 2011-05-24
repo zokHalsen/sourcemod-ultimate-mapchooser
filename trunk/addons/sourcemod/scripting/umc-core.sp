@@ -37,7 +37,7 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
-3.0.3 (5/--/11)
+3.0.3 (5/23/11)
 Added ability to specify amount of times a prefix can be in the previously played prefixes before it is excluded.
 -New cvar "sm_umc_prefixexclude_amount" in umc-prefixexclude to control this feature.
 Fixed bug where endvotes would not appear after a map was extended. [ENDVOTE]
@@ -2090,6 +2090,7 @@ FindStringInVoteArray(const String:target[], const String:val[], Handle:arr)
 //Called when a vote has finished.
 public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
 {
+    
     //LogMessage("DEBUG: Vote Handler Called.");
     //Cleanup the memory taken by the vote if...
     //    ...the vote is actually over.
@@ -2098,12 +2099,23 @@ public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
         //LogMessage("DEBUG: End");
     
         CloseHandle(menu);
-        VoteCompleted(); //Called when vote menu has been closed.
+        //VoteCompleted(); //Called when vote menu has been closed.
+    }
+    if (action == MenuAction_VoteCancel || action == MenuAction_Cancel)
+    {
+        //Reset flags
+        vote_active = false;
+        
+        //Cleanup the vote
+        EmptyStorage();
+        DeleteVoteParams();
+        ClearVoteArrays();
+        
+        VoteFailed();
     }
     if (action == MenuAction_Display)
     {
         //LogMessage("DEBUG: Display");
-        
         new Handle:panel = Handle:param2;
         
         decl String:phrase[255];
@@ -2117,7 +2129,6 @@ public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
     if (action == MenuAction_DisplayItem)
     {
         //LogMessage("DEBUG: DisplayItem");
-        
         decl String:map[MAP_LENGTH], String:display[MAP_LENGTH];
         GetMenuItem(menu, param2, map, sizeof(map), _, display, sizeof(display));
         
@@ -2135,7 +2146,7 @@ public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
 
 
 //Called right after the vote menu is destroyed.
-VoteCompleted()
+/*VoteCompleted()
 {
     //Catches the case where a vote occurred but nobody voted.
     if (vote_active)
@@ -2150,7 +2161,7 @@ VoteCompleted()
         
         VoteFailed();
     }
-}
+}*/
 
 
 //Utility function to clear all the voting storage arrays.
