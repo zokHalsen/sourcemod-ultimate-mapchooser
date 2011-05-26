@@ -138,7 +138,7 @@ public OnPluginStart()
     );
 
     /*cvar_vote_flags = CreateConVar(
-        "sm_umc_vc_adminflags",
+        "sm_umc_am_adminflags",
         "",
         "String of admin flags required for players to be able to vote in end-of-map\nvotes. If no flags are specified, all players can vote."
     );*/
@@ -174,7 +174,7 @@ public OnPluginStart()
         "sm_umc_am_groupexclude",
         "0",
         "Specifies how many past map groups to exclude from votes.",
-        0, true, 0.0
+        0, true, 0.0, true, 10.0
     );
     
     cvar_vote_startsound = CreateConVar(
@@ -255,7 +255,7 @@ public OnPluginStart()
         "sm_umc_am_mapexclude",
         "3",
         "Specifies how many past maps to exclude from votes.",
-        0, true, 0.0
+        0, true, 0.0, true, 10.0
     );
 
     cvar_scramble = CreateConVar(
@@ -309,10 +309,10 @@ public OnConfigsExecuted()
     }
     
     //Add the map to all the memory queues.
-    new mapmem = GetConVarInt(cvar_vote_mem) + 1;
-    new catmem = GetConVarInt(cvar_vote_catmem);
-    AddToMemoryArray(mapName, vote_mem_arr, mapmem);
-    AddToMemoryArray(groupName, vote_catmem_arr, (mapmem > catmem) ? mapmem : catmem);
+    //new mapmem = GetConVarInt(cvar_vote_mem) + 1;
+    //new catmem = GetConVarInt(cvar_vote_catmem);
+    AddToMemoryArray(mapName, vote_mem_arr, 11); //mapmem);
+    AddToMemoryArray(groupName, vote_catmem_arr, 11); //(mapmem > catmem) ? mapmem : catmem);
 }
 
 
@@ -386,10 +386,10 @@ public OnAdminMenuReady(Handle:topmenu)
         umc_menu, "sm_umc_setnextmap", ADMFLAG_CHANGEMAP
     );
     
-    /*AddToTopMenu(
+    AddToTopMenu(
         admin_menu, "umc_mapvote", TopMenuObject_Item, UMCMenu_MapVote,
         umc_menu, "sm_umc_startmapvote", ADMFLAG_CHANGEMAP
-    );*/
+    );
 }
 
 
@@ -414,13 +414,7 @@ public UMCMenu_ChangeMap(Handle:topmenu, TopMenuAction:action, TopMenuObject:obj
     }
     else if (action == TopMenuAction_SelectOption)
     {
-        //Make and display Change Map menu
-        //...
-        // 1. Auto Select   (Random using limits)
-        // 2. Manual Select (Pick from a list)
-        
-        new Handle:menu = CreateAutoManualMenu(HandleAM_ChangeMap, "Select a Map");
-        DisplayMenu(menu, param, 0);
+        CreateAMChangeMap(param);
     }
 }
 
@@ -435,14 +429,13 @@ public UMCMenu_NextMap(Handle:topmenu, TopMenuAction:action, TopMenuObject:objec
     }
     else if (action == TopMenuAction_SelectOption)
     {
-        new Handle:menu = CreateAutoManualMenu(HandleAM_NextMap, "Select a Map");
-        DisplayMenu(menu, param, 0);
+        CreateAMNextMap(param);
     }
 }
 
 
 //Handles the Change Map option in the menu.
-/*public UMCMenu_MapVote(Handle:topmenu, TopMenuAction:action, TopMenuObject:objectID, param,
+public UMCMenu_MapVote(Handle:topmenu, TopMenuAction:action, TopMenuObject:objectID, param,
                        String:buffer[], maxlength)
 {
     if (action == TopMenuAction_DisplayOption)
@@ -451,10 +444,111 @@ public UMCMenu_NextMap(Handle:topmenu, TopMenuAction:action, TopMenuObject:objec
     }
     else if (action == TopMenuAction_SelectOption)
     {
-        new Handle:menu = CreateAutoManualMenu(HandleAM_MapVote, "Populate Vote");
-        DisplayMenu(menu, param, 0);
+        //new Handle:menu = CreateAutoManualMenu(HandleAM_MapVote, "Populate Vote");
+        //DisplayMenu(menu, param, 0);
+        
+        /*
+        Order:
+            1. Vote Type
+            2. Auto/Manual
+            --IF MANUAL--
+                A. Pick Group/END
+                --IF END--
+                    I. Goto 3
+                B. Pick Map
+                C. Goto A
+            3. Defaults/Override
+            --IF OVERRIDE--
+                A. Scramble
+                B. Threshold
+                C. Fail Action
+                --IF RUNOFF--
+                    I. Max Runoffs
+                    II. Runoff Fail Action
+                D. Extend Option
+                E. Don't Change Option
+        */
+        
+        menu_tries[param] = CreateTrie();
+        DisplayVoteTypeMenu(param);
     }
-}*/
+}
+
+
+DisplayVoteTypeMenu(client)
+{
+}
+
+
+DisplayAutoManualMenu(client)
+{
+}
+
+
+DisplayGroupSelectMenu(client)
+{
+}
+
+
+DisplayMapSelectMenu(client)
+{
+}
+
+
+DisplayDefaultsMenu(client)
+{
+}
+
+
+DisplayScrambleMenu(client)
+{
+}
+
+
+DisplayThresholdMenu(client)
+{
+}
+
+
+DisplayFailActionMenu(client)
+{
+}
+
+
+DisplayMaxRunoffMenu(client)
+{
+}
+
+
+DisplayRunoffFailActionMenu(client)
+{
+}
+
+
+DisplayExtendMenu(client)
+{
+}
+
+
+DisplayDontChangeMenu(client)
+{
+}
+
+
+//
+CreateAMNextMap(client)
+{
+    new Handle:menu = CreateAutoManualMenu(HandleAM_NextMap, "Select a Map");
+    DisplayMenu(menu, client, 0);
+}
+
+
+//
+CreateAMChangeMap(client)
+{
+    new Handle:menu = CreateAutoManualMenu(HandleAM_ChangeMap, "Select a Map");
+    DisplayMenu(menu, client, 0);
+}
 
 
 //
@@ -511,7 +605,14 @@ public HandleGM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
         }
         case MenuAction_Cancel:
         {
-            CloseHandle(menu_tries[param1]);
+            if (param2 == MenuCancel_ExitBack)
+            {
+                CreateAMChangeMap(param1);
+            }
+            else
+            {
+                CloseHandle(menu_tries[param1]);
+            }
         }
         case MenuAction_End:
         {
@@ -560,6 +661,8 @@ ManualChangeMapWhen(client)
 {
     new Handle:menu = CreateMenu(Handle_ManualChangeWhenMenu);
     SetMenuTitle(menu, "Change Map When?");
+    
+    SetMenuExitBackButton(menu, true);
 
     decl String:info1[2];
     Format(info1, sizeof(info1), "%i", ChangeMapTime_Now);
@@ -589,7 +692,15 @@ public Handle_ManualChangeWhenMenu(Handle:menu, MenuAction:action, param1, param
         }
         case MenuAction_Cancel:
         {
-            CloseHandle(menu_tries[param1]);
+            if (param2 == MenuCancel_ExitBack)
+            {
+                new Handle:newMenu = CreateGroupMenu(HandleGM_ChangeMap);    
+                DisplayMenu(newMenu, param1, 0);
+            }
+            else
+            {
+                CloseHandle(menu_tries[param1]);
+            }
         }
         case MenuAction_End:
         {
@@ -611,6 +722,7 @@ DoManualMapChange(client)
     GetTrieString(trie, "group", nextGroup, sizeof(nextGroup));
     GetTrieValue(trie, "when", when);
     
+    CloseHandle(trie);
     
     DoMapChange(client, UMC_ChangeMapTime:when, nextMap, nextGroup);
 }
@@ -621,6 +733,8 @@ AutoChangeMap(client)
 {
     new Handle:menu = CreateMenu(Handle_AutoChangeWhenMenu);
     SetMenuTitle(menu, "Change Map When?");
+    
+    SetMenuExitBackButton(menu, true);
 
     decl String:info1[2];
     Format(info1, sizeof(info1), "%i", ChangeMapTime_Now);
@@ -648,6 +762,10 @@ public Handle_AutoChangeWhenMenu(Handle:menu, MenuAction:action, param1, param2)
         }
         case MenuAction_Cancel:
         {
+            if (param2 == MenuCancel_ExitBack)
+            {
+                CreateAMChangeMap(param1);
+            }
         }
         case MenuAction_End:
         {
@@ -735,7 +853,14 @@ public HandleGM_NextMap(Handle:menu, MenuAction:action, param1, param2)
         }
         case MenuAction_Cancel:
         {
-            CloseHandle(menu_tries[param1]);
+            if (param2 == MenuCancel_ExitBack)
+            {
+                CreateAMNextMap(param1);
+            }
+            else
+            {
+                CloseHandle(menu_tries[param1]);
+            }
         }
         case MenuAction_End:
         {
@@ -787,6 +912,8 @@ DoManualNextMap(client)
     decl String:nextMap[MAP_LENGTH], String:nextGroup[MAP_LENGTH];
     GetTrieString(trie, "map", nextMap, sizeof(nextMap));
     GetTrieString(trie, "group", nextGroup, sizeof(nextGroup));
+    
+    CloseHandle(trie);
     
     DoMapChange(client, ChangeMapTime_MapEnd, nextMap, nextGroup);
 }
@@ -843,6 +970,8 @@ Handle:CreateGroupMenu(MenuHandler:handler, bool:limits=false)
     new Handle:menu = CreateMenu(handler);
     SetMenuTitle(menu, "Select a Group");
     
+    SetMenuExitBackButton(menu, true);
+    
     KvRewind(map_kv);
     
     //Get group array.
@@ -883,11 +1012,7 @@ Handle:CreateMapMenu(MenuHandler:handler, const String:group[]=INVALID_GROUP, bo
     //Set the title.
     SetMenuTitle(menu, "Select a Map");
     
-    if (!StrEqual(group, INVALID_GROUP))
-    {
-        //Make it so we can return to the previous menu.
-        SetMenuExitBackButton(menu, true);
-    }
+    SetMenuExitBackButton(menu, true);
     
     KvRewind(map_kv);
 

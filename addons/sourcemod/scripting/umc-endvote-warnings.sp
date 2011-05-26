@@ -482,6 +482,13 @@ DisplayVoteWarning(Handle:warning, param=0)
 //                                   UMC END OF MAP VOTE EVENTS                                   //
 //************************************************************************************************//
 
+public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[])
+{
+    //Stop displaying any warnings.
+    DisplayServerMessage("", "");
+}
+
+
 public UMC_EndVote_OnTimeTimerUpdated(timeleft)
 {
     UpdateTimeWarnings(timeleft);

@@ -20,6 +20,30 @@ public Plugin:myinfo =
 #define WEIGHT_KEY_GROUP "group_weight"
 
 
+//Excludes maps with a set weight of 0
+public Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const String:group[], bool:isNom, bool:forMapChange)
+{
+    KvRewind(kv);
+    
+    if (KvJumpToKey(kv, group))
+    {
+        if (KvJumpToKey(kv, map))
+        {
+            if (KvGetFloat(kv, WEIGHT_KEY_MAP, 1.0) == 0.0)
+            {
+                KvGoBack(kv);
+                KvGoBack(kv);
+                return Plugin_Stop;
+            }
+            KvGoBack(kv);
+        }
+        KvGoBack(kv);
+    }
+    return Plugin_Continue;
+}
+
+
+
 //Reweights a map when UMC requests.
 public UMC_OnReweightMap(Handle:kv, const String:map[], const String:group[])
 {
