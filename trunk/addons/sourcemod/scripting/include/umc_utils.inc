@@ -150,6 +150,9 @@ stock DisplayServerMessage(const String:msg[], const String:type[])
         TriggerTimer(center_message_timer);
     }
     
+    if (strlen(msg) == 0)
+        return;
+    
     decl String:message[255];
     strcopy(message, sizeof(message), msg);
     
