@@ -377,7 +377,6 @@ public OnPluginStart()
     frag_tick_forward = CreateGlobalForward(
         "UMC_EndVote_OnFragTimerTicked", ET_Ignore, Param_Cell, Param_Cell
     );
-    
 }
 
 
@@ -420,10 +419,6 @@ public OnConfigsExecuted()
     //Set initial values for cvar value storage.
     //maxrounds_mem = GetConVarInt(cvar_maxrounds);
     //fraglimit_mem = GetConVarInt(cvar_fraglimit);
-    
-    //Vote timer is not running
-    timer_alive = false;
-    vote_timer = INVALID_HANDLE;
     
     //Votes are not enabled.
     vote_enabled = false;
@@ -622,13 +617,13 @@ public Event_TFRestartRound(Handle:evnt, const String:name[], bool:dontBroadcast
 }
 
 
-//Called at the end of a map. Basically disables the plugin before it is reset at the start of the
-//next map.
-/*public OnMapEnd()
+//Called at the end of a map.
+public OnMapEnd()
 {
-    //Restore limit cvars to their original values.
-    //RestoreCvars();
-}*/
+    //Vote timer is not running
+    timer_alive = false;
+    vote_timer = INVALID_HANDLE;
+}
 
 
 //************************************************************************************************//
@@ -695,41 +690,50 @@ MakeVoteTimer()
     //Log
     new start;
     
-    start = GetConVarInt(cvar_maxrounds) - GetConVarInt(cvar_start_rounds) - round_counter;
-    if (start > 0)
-        LogMessage("End of map vote will appear after %i more rounds.", start);
+    if (cvar_maxrounds != INVALID_HANDLE)
+    {
+        start = GetConVarInt(cvar_maxrounds) - GetConVarInt(cvar_start_rounds) - round_counter;
+        if (start > 0)
+            LogMessage("End of map vote will appear after %i more rounds.", start);
+            
+        //Update our vote warnings.
+        //UpdateVoteWarnings(.round=warnings_round_enabled, .frag=warnings_frag_enabled);
+        Call_StartForward(round_update_forward);
+        Call_PushCell(start);
+        Call_Finish();
+    }
+    
+    if (cvar_winlimit != INVALID_HANDLE)
+    {
+        new winScore;
+        new winTeam = GetWinningTeam(winScore);
+        start = GetConVarInt(cvar_winlimit) - GetConVarInt(cvar_start_rounds) - winScore;
+        if (start > 0)
+            LogMessage("End of map vote will appear after %i more wins.", start);
         
-    //Update our vote warnings.
-    //UpdateVoteWarnings(.round=warnings_round_enabled, .frag=warnings_frag_enabled);
-    Call_StartForward(round_update_forward);
-    Call_PushCell(start);
-    Call_Finish();
+        //Update our vote warnings.
+        //UpdateVoteWarnings(.round=warnings_round_enabled, .frag=warnings_frag_enabled);
+        Call_StartForward(win_update_forward);
+        Call_PushCell(start);
+        Call_PushCell(winTeam);
+        Call_Finish();
+    }
     
-    new winScore;
-    new winTeam = GetWinningTeam(winScore);
-    start = GetConVarInt(cvar_winlimit) - GetConVarInt(cvar_start_rounds) - winScore;
-    if (start > 0)
-        LogMessage("End of map vote will appear after %i more wins.", start);
-    
-    //Update our vote warnings.
-    //UpdateVoteWarnings(.round=warnings_round_enabled, .frag=warnings_frag_enabled);
-    Call_StartForward(win_update_forward);
-    Call_PushCell(start);
-    Call_PushCell(winTeam);
-    Call_Finish();
-    
-    new fragCount;
-    new topFragger = GetTopFragger(fragCount);
-    start = GetConVarInt(cvar_fraglimit) - GetConVarInt(cvar_start_frags) - fragCount;
-    if (start > 0)
-        LogMessage("End of map vote will appear after %i more frags.", start);
-        
-    //Update our vote warnings.
-    //UpdateVoteWarnings(.round=warnings_round_enabled, .frag=warnings_frag_enabled);
-    Call_StartForward(frag_update_forward);
-    Call_PushCell(start);
-    Call_PushCell(topFragger);
-    Call_Finish();
+    if (cvar_fraglimit != INVALID_HANDLE)
+    {
+        new fragCount;
+        new topFragger = GetTopFragger(fragCount);
+        start = GetConVarInt(cvar_fraglimit) - GetConVarInt(cvar_start_frags) - fragCount;
+        if (start > 0)
+            LogMessage("End of map vote will appear after %i more frags.", start);
+            
+        //Update our vote warnings.
+        //UpdateVoteWarnings(.round=warnings_round_enabled, .frag=warnings_frag_enabled);
+        Call_StartForward(frag_update_forward);
+        Call_PushCell(start);
+        Call_PushCell(topFragger);
+        Call_Finish();
+    }
 }
 
 
