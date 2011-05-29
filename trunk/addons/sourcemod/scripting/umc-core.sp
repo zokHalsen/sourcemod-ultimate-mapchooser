@@ -37,6 +37,15 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
+3.0.4 (5/27/11)
+Added experimental admin menu module. [ADMINMENU]
+Fixed rare bug with tiered nomination menus displaying groups with no maps in it. [NOMINATIONS]
+Fixed bug where error log would be spammed with KillTimer errors (finally). [ENDVOTE]
+Fixed bug where endvotes would not work in games without certain cvars. [ENDVOTE]
+Made map weights of 0 automatically exclude maps from selection. [WEIGHT]
+Updated various documentation.
+Minor Optimizations.
+
 3.0.3 (5/23/11)
 Added ability to specify amount of times a prefix can be in the previously played prefixes before it is excluded.
 -New cvar "sm_umc_prefixexclude_amount" in umc-prefixexclude to control this feature.
@@ -1031,7 +1040,7 @@ public Native_UMCGetRandomMap(Handle:plugin, numParams)
     new Handle:kv = Handle:GetNativeCell(1);
     new Handle:filtered = CreateKeyValues("umc_rotation");
     KvCopySubkeys(kv, filtered);
-   
+
     new len;
     GetNativeStringLength(2, len);
     new String:group[len+1];
@@ -1089,11 +1098,14 @@ public Native_UMCSetNextMap(Handle:plugin, numParams)
     new String:group[len+1];
     if (len > 0)
         GetNativeString(3, group, len+1);
-    
+
     if (!IsMapValid(map))
+
     {
+
         LogError("SETMAP: Map %s is invalid!", map);
         return;
+
     }
   
     new UMC_ChangeMapTime:when = UMC_ChangeMapTime:GetNativeCell(4);
@@ -2042,9 +2054,11 @@ bool:GetRandomMap(Handle:kv, String:buffer[], size)
         
         //One more map in the pool.
         index++;
-    } while (KvGotoNextKey(kv)); //Do this for each map.
+    }
+    while (KvGotoNextKey(kv)); //Do this for each map.
     
     DebugMessage("Finished populating random pool.");
+    
     //Go back to the category level.
     KvGoBack(kv);
 
@@ -3787,7 +3801,8 @@ bool:GetRandomMapFromCycle(Handle:kv, const String:group[], String:buffer[], siz
         );
         return false;
     }
-    
+
+
     KvGoBack(kv);
     
     //Copy results into the buffers.
