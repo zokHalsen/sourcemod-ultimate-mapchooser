@@ -1077,7 +1077,7 @@ bool:SetTimerTriggerTime()
     if (timeleft >= 0 && starttime > 0 && triggertime > 0)
     {
         //Setup counter until the end-of-map vote triggers.
-        vote_delaystart = float(timeleft - RoundToNearest(GetConVarFloat(cvar_start_time) * 60));
+        vote_delaystart = float(timeleft - RoundToNearest(GetConVarFloat(cvar_start_time) * 60)) - 1;
         result = true;
     }
     else //Otherwise...

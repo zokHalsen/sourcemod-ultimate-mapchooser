@@ -37,7 +37,7 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
-3.0.4 (5/27/11)
+3.0.4 (5/28/11)
 Added experimental admin menu module. [ADMINMENU]
 Fixed rare bug with tiered nomination menus displaying groups with no maps in it. [NOMINATIONS]
 Fixed bug where error log would be spammed with KillTimer errors (finally). [ENDVOTE]
@@ -2104,28 +2104,14 @@ FindStringInVoteArray(const String:target[], const String:val[], Handle:arr)
 //Called when a vote has finished.
 public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
 {
-    
-    //LogMessage("DEBUG: Vote Handler Called.");
+    DebugMessage("Vote Handler Called");
     //Cleanup the memory taken by the vote if...
     //    ...the vote is actually over.
     if (action == MenuAction_End)
     {
-        //LogMessage("DEBUG: End");
-    
+        DebugMessage("MenuAction_End");
         CloseHandle(menu);
-        //VoteCompleted(); //Called when vote menu has been closed.
-    }
-    if (action == MenuAction_VoteCancel || action == MenuAction_Cancel)
-    {
-        //Reset flags
-        vote_active = false;
-        
-        //Cleanup the vote
-        EmptyStorage();
-        DeleteVoteParams();
-        ClearVoteArrays();
-        
-        VoteFailed();
+        VoteCompleted(); //Called when vote menu has been closed.
     }
     if (action == MenuAction_Display)
     {
@@ -2160,7 +2146,7 @@ public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
 
 
 //Called right after the vote menu is destroyed.
-/*VoteCompleted()
+VoteCompleted()
 {
     //Catches the case where a vote occurred but nobody voted.
     if (vote_active)
@@ -2175,7 +2161,7 @@ public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
         
         VoteFailed();
     }
-}*/
+}
 
 
 //Utility function to clear all the voting storage arrays.
@@ -3020,7 +3006,7 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
         new Handle:kv = CreateKeyValues("umc_rotation");
         KvCopySubkeys(stored_kv, kv);
         
-        DebugMessage("Counting the number nominations from the winning group.");
+        DebugMessage("Counting the number of nominations from the winning group.");
         //Get the number of valid nominations from the group
         new Handle:tempNoms = GetCatNominations(cat);
         new Handle:catNoms = FilterNominationsArray(tempNoms, kv, stored_kv);
