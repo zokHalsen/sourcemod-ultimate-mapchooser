@@ -273,7 +273,7 @@ public OnPluginStart()
     );
 
     //Create the config if it doesn't exist, and then execute it.
-    AutoExecConfig(true, "umc-votecommand");
+    AutoExecConfig(true, "umc-adminmenu");
     
     //Initialize our memory arrays
     new numCells = ByteCountToCells(MAP_LENGTH);
