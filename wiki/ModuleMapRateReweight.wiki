@@ -1,20 +1,19 @@
 #summary Documentation for the Map Rate Map-Reweighting (umc-maprate-reweight) module.
 
 = Purpose =
-
   The Map Rate Map-Reweighting module will take the average rating of a map from the [http://forums.alliedmods.net/showthread.php?t=69593 Map Rate] SourceMod plugin and use that value to modify the weights of maps in Ultimate Mapchooser. This module requires the Map Rate plugin to be present in order to work.
 
   This module will modify the calculated weight of a map by multiplying it's weight value by the calculated average rating from Map Rate. Therefore, maps can be made up to five times more likely to be randomly selected by Ultimate Mapchooser.
 
-=Modifying Reweight Scale=
+=Modifying The Reweight Scale=
   The _sm_umc_maprate_expscale_ cvar can be used to modify how the module will scale the average rating for each map to determine the weight.
   {{{
-AVG = Average Rating
-SCALE = Value of "sm_umc_maprate_expscale"
-W = Calculated weight
+AVG = average rating
+SCALE = value of "sm_umc_maprate_expscale"
+W = calculated weight
 
 W = AVG ^ SCALE
-(Average rating is raised to the power of the expscale cvar)
+(average rating is raised to the power of the expscale cvar)
 }}}
   By default, this cvar is set to 1, which creates a linear scale:
   {{{
