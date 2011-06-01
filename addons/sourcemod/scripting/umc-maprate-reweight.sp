@@ -58,7 +58,7 @@ public OnPluginStart()
         "sm_umc_maprate_expscale",
         "1.0",
         "Average rating for a map is scaled by this value before being used as a weight. Scaling is calculated using the following formula: weight(map) = avg_rating(map) ^ scale",
-        0, true, 1.0
+        0, true, 0.0
     );
 
     AutoExecConfig(true, "umc-maprate-reweight");
@@ -200,7 +200,7 @@ public UMC_OnReweightMap(Handle:kv, const String:map[], const String:group[])
     {
         UMC_AddWeightModifier(Pow(weight, GetConVarFloat(cvar_scale)));
 #if UMC_DEBUG
-        LogMessage("Map %s was reweighted!", map);
+        LogMessage("Map %s was reweighted by %f", map, Pow(weight, GetConVarFloat(cvar_scale)));
 #endif
     }
 }
