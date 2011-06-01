@@ -113,7 +113,6 @@ new Handle:cvar_extend_frags         = INVALID_HANDLE;
 new Handle:cvar_extend_time          = INVALID_HANDLE;
 new Handle:cvar_extensions           = INVALID_HANDLE;
 new Handle:cvar_vote_mem             = INVALID_HANDLE;
-new Handle:cvar_vote_type            = INVALID_HANDLE;
 new Handle:cvar_vote_startsound      = INVALID_HANDLE;
 new Handle:cvar_vote_endsound        = INVALID_HANDLE;
 new Handle:cvar_vote_catmem          = INVALID_HANDLE;
@@ -147,7 +146,9 @@ new bool:runoff_menu_trigger[MAXPLAYERS];
 new bool:threshold_trigger[MAXPLAYERS];
 new bool:threshold_menu_trigger[MAXPLAYERS];
 
-
+//Regex objects for chat triggers
+new Handle:runoff_regex = INVALID_HANDLE;
+new Handle:threshold_regex = INVALID_HANDLE;
 
 //************************************************************************************************//
 //                                        SOURCEMOD EVENTS                                        //
@@ -271,13 +272,6 @@ public OnPluginStart()
         0, true, 0.0, true, 1.0
     );
 
-    cvar_vote_type = CreateConVar(
-        "sm_umc_am_type",
-        "0",
-        "Controls vote type:\n 0 - Maps,\n 1 - Groups,\n 2 - Tiered Vote (vote for a group, then vote for a map from the group).",
-        0, true, 0.0, true, 2.0
-    );
-
     cvar_vote_time = CreateConVar(
         "sm_umc_am_duration",
         "20",
@@ -329,6 +323,9 @@ public OnPluginStart()
     new Handle:topmenu;
     if ((topmenu = GetAdminTopMenu()) != INVALID_HANDLE)
         OnAdminMenuReady(topmenu);
+        
+    runoff_regex    = CompileRegex("^([0-9]+)\\s*$");
+    threshold_regex = CompileRegex("^([0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)%?\\s*$");
 }
 
 
@@ -864,7 +861,6 @@ UseVoteDefaults(client)
     
     SetTrieValue(trie, "defaults", true);
     
-    SetTrieValue(trie, "type",               GetConVarInt(cvar_vote_type));
     SetTrieValue(trie, "scramble",           GetConVarBool(cvar_scramble));
     SetTrieValue(trie, "extend",             GetConVarBool(cvar_extensions));
     SetTrieValue(trie, "dont_change",        GetConVarBool(cvar_dontchange));
@@ -1016,15 +1012,11 @@ public HandleMV_Threshold(Handle:menu, MenuAction:action, param1, param2)
 //
 bool:ProcessThresholdText(client, const String:text[])
 {
-    static Handle:re = INVALID_HANDLE;
-    if (re == INVALID_HANDLE)
-        re = CompileRegex("^([0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)%%?\\s*$");
-    
     decl String:num[20];
     new Float:percent;
-    if (MatchRegex(re, text))
+    if (MatchRegex(threshold_regex, text))
     {
-        GetRegexSubString(re, 1, num, sizeof(num));
+        GetRegexSubString(threshold_regex, 1, num, sizeof(num));
         percent = StringToFloat(num);
         
         if (percent <= 100.0 && percent >= 0.0)
@@ -1190,15 +1182,11 @@ public HandleMV_MaxRunoff(Handle:menu, MenuAction:action, param1, param2)
 //
 bool:ProcessRunoffText(client, const String:text[])
 {
-    static Handle:re = INVALID_HANDLE;
-    if (re == INVALID_HANDLE)
-        re = CompileRegex("^([0-9]+)\\s*$");
-    
     decl String:num[20];
     new amt;
-    if (MatchRegex(re, text))
+    if (MatchRegex(runoff_regex, text))
     {
-        GetRegexSubString(re, 1, num, sizeof(num));
+        GetRegexSubString(runoff_regex, 1, num, sizeof(num));
         amt = StringToInt(num);
         
         if (amt >= 0)
@@ -1408,11 +1396,11 @@ DisplayChangeWhenMenu(client)
     
     decl String:info2[2];
     Format(info2, sizeof(info2), "%i", ChangeMapTime_RoundEnd);
-    AddMenuItem(menu, info2, "End of this round");
+    AddMenuItem(menu, info2, "End of Round");
     
     decl String:info3[2];
     Format(info3, sizeof(info3), "%i", ChangeMapTime_MapEnd);
-    AddMenuItem(menu, info2, "End of this map");
+    AddMenuItem(menu, info3, "End of Map");
     
     DisplayMenu(menu, client, 0);
 }
@@ -1477,7 +1465,8 @@ DoMapVote(client)
         
     GetTrieValue(trie, "maps", selectedMaps);
     
-    new Handle:mapcycle = VoteAutoPopulated(client)
+    new bool:autoPop = VoteAutoPopulated(client);
+    new Handle:mapcycle = autoPop
         ? map_kv
         : CreateVoteKV(selectedMaps);
     
@@ -1502,7 +1491,8 @@ DoMapVote(client)
         GetConVarBool(cvar_strict_noms), GetConVarBool(cvar_vote_allowduplicates)
     );
     
-    CloseHandle(mapcycle);
+    if (!autoPop)
+        CloseHandle(mapcycle);
 }
 
 

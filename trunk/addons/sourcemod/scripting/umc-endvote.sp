@@ -10,7 +10,7 @@
 #include <umc-endvote>
 
 #undef REQUIRE_PLUGIN
-#include <mapchooser.inc>
+#include <mapchooser>
 
 //Plugin Information
 public Plugin:myinfo =

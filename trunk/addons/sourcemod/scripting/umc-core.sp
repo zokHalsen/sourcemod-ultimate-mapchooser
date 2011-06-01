@@ -312,7 +312,7 @@ Modified nominations
 Initial Release
 */
 
-//TODO /IDEAS:
+//TODO / IDEAS:
 //  Take nominations into account when selecting a random map.
 //  Add cvar to control where nominations are placed in the vote (on top vs. scrambled)
 //  Possible Bug: map change (sm_map or changelevel) after a vote completes can set the wrong 
@@ -320,6 +320,9 @@ Initial Release
 //  New mapexclude_strict cvar that doesn't take map group into account when excluding previously played maps.
 //  Nominations should also store the kv used for the nomination. (we will need to use CloneHandle)
 //      -used to calculate the weight of the nomination / other things?
+//  In situations where we're filtering a list of map tries (map/group tries) for a specific
+//      group, it may be easier to store it instead as a trie of groups, where each group points
+//      to a list of maps.
 
 //************************************************************************************************//
 //                                        GLOBAL VARIABLES                                        //
@@ -2112,6 +2115,10 @@ public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
         DebugMessage("MenuAction_End");
         CloseHandle(menu);
         VoteCompleted(); //Called when vote menu has been closed.
+    }
+    if (action == VoteAction_Cancel)
+    {
+        DebugMessage("Vote Cancelled");
     }
     if (action == MenuAction_Display)
     {
