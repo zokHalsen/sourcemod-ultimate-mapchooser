@@ -2,13 +2,13 @@
 #labels Featured
 
 =Installation=
-  Ultimate Mapchooser's Core and Modules are installed like any other SourceMod plugin; just move the compiled .smx file into the addons/sourcemod/plugins folder. SourceMod will then load them on map change, or they can be loaded manually via the "sm plugins load _name_" command in the server console (where _name_ is the file name of the compiled plugin, without the .smx extension).
+  Ultimate Mapchooser's Core and Modules are installed like any other SourceMod plugin; just move the compiled .smx file into the *addons/sourcemod/plugins* folder. SourceMod will then load them on map change, or they can be loaded manually via the "sm plugins load _name_" command in the server console (where _name_ is the file name of the compiled plugin, without the .smx extension).
 
-  Ultimate Mapchooser also has several translation files, which should be placed in the addons/sourcemod/translations folder following the directory structure outlined in the SourceMod documentation [http://wiki.alliedmods.net/Translations_(SourceMod_Scripting)#Distributing_Language_Files here].
+  Ultimate Mapchooser also has several translation files, which should be placed in the *addons/sourcemod/translations* folder following the directory structure outlined [http://wiki.alliedmods.net/Translations_(SourceMod_Scripting)#Distributing_Language_Files here] in the SourceMod documentation.
 
 
 =Configuration=
-  All of Ultimate Mapchooser's behavioral settings are controlled by cvars, defined in configuration files located in cfg/sourcemod. If you are not using a pre-packaged release of Ultimate Mapchooser, these configuration files will be auto-generated the first time each module is run. For detailed instructions on the options in these configuration files, see the documentation for each specific Ultimate Mapchooser module in the wiki.
+  All of Ultimate Mapchooser's behavioral settings are controlled by cvars, defined in configuration files located in *cfg/sourcemod*. If you are not using a pre-packaged release of Ultimate Mapchooser, these configuration files will be auto-generated the first time each module is run. For detailed instructions on the options in these configuration files, see the documentation for each specific Ultimate Mapchooser module in the wiki.
 
 ==Creating a UMC-Mapcycle==
   All modules released with Ultimate Mapchooser that can manipulate the mapcycle in some way require a UMC-Mapcycle definition. The format for this file is defined as follows:
