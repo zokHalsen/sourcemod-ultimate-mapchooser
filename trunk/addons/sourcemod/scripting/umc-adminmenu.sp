@@ -65,17 +65,6 @@ public Plugin:myinfo =
         Votes Can be manually populated (choose maps/groups from a menu) or
         automatically populated (random w/ weight and exclusion).
         
-        All settings are defined in cvars as "defaults." Admins are given the
-        option to use these defaults or manually set each option. If manual,
-        present series of menus for admin to set each option.
-            -Options which can be set via the admin menu:
-                *Scramble (auto-vote only)
-                *Fail Action
-                *Runoff (and Fail Action if enabled)
-                *Extend Option
-                *Don't Change Option
-                *Type (Should come before picking maps/groups)
-        
         When populating a manual vote, just build a new KV containing all of
         the selected maps, with an appropriate "maps_invote" setting. There is
         no need to take into account exclusions/weighting since it's not random
@@ -1510,8 +1499,10 @@ Handle:CreateVoteKV(Handle:maps)
     decl String:map[MAP_LENGTH];
     new bool:goBackMap;
     new bool:goBackGroup = true;
+    new groupMapCount;
     for ( ; ; )
     {
+        groupMapCount = 0;
         goBackMap = true;
     
         KvGetSectionName(result, group, sizeof(group));
@@ -1531,6 +1522,10 @@ Handle:CreateVoteKV(Handle:maps)
                     break;
                 }
             }
+            else
+            {
+                groupMapCount++;
+            }
             
             KvGotoNextKey(result);
         }
@@ -1547,7 +1542,10 @@ Handle:CreateVoteKV(Handle:maps)
             }
         }
         else
+        {
             KvGoBack(result);
+            KvSetNum(result, "maps_invote", groupMapCount);
+        }
             
         KvGotoNextKey(result);
     }

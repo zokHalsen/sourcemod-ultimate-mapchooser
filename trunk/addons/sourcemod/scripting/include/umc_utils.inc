@@ -17,6 +17,26 @@
 //                                        GENERAL UTILITIES                                       //
 //************************************************************************************************//
 
+#if UMC_DEBUG
+
+//Prints a debug message.
+stock DebugMessage(const String:message[], any:...)
+{
+    new size = strlen(message) + 255;
+    decl String:fMessage[size];
+    VFormat(fMessage, size, message, 2);
+    
+    LogMessage("DEBUG: %s", fMessage);
+}
+
+#define DEBUG_MESSAGE(%0) DebugMessage(%0);
+
+#else
+
+#define DEBUG_MESSAGE(%0)
+
+#endif
+
 //Utility function to build a map trie.
 stock Handle:CreateMapTrie(const String:map[], const String:group[])
 {
@@ -636,13 +656,13 @@ stock bool:GetWeightedRandomSubKey(String:buffer[], size, Handle:weightArr, Hand
     //Calc total number of maps we're choosing.
     new total = GetArraySize(weightArr);
     
-    DebugMessage("Getting number of maps in the pool - %i", total);
+    DEBUG_MESSAGE("Getting number of items in the pool - %i", total)
     
     //Return an answer immediately if...
     //    ...there's only one map to choose from.
     if (total == 1)
     {   
-        DebugMessage("Only 1 map in pool, setting it as the winner.");
+        DEBUG_MESSAGE("Only 1 item in pool, setting it as the winner.")
         //WE HAVE A WINNER!
         GetArrayString(nameArr, 0, buffer, size);
         return true;
@@ -651,44 +671,44 @@ stock bool:GetWeightedRandomSubKey(String:buffer[], size, Handle:weightArr, Hand
     //    ...there are no maps to choose from.
     else if (total == 0)
     {
-        DebugMessage("No maps in the pool. Returning false.");
+        DEBUG_MESSAGE("No items in the pool. Returning false.")
         return false;
     }
 
-    DebugMessage("Setting up array of weights.");
+    DEBUG_MESSAGE("Setting up array of weights.")
     //Convert the adt_array of weights to a normal array.
     new Float:weights[total];
     ConvertArray(weightArr, weights, total);
 
-    DebugMessage("Picking a random number.");
+    DEBUG_MESSAGE("Picking a random number.")
     //We select a random number here by getting a random Float in the
     //range [0, 1), and then multiply it by the sum of the weights, to
     //make the effective range [0, totalweight).
     new Float:rand = GetURandomFloat() * ArraySum(weights, total);
     new Float:runningTotal = 0.0; //keeps track of total so far
     
-    DebugMessage("Find the winner in the pool.");
+    DEBUG_MESSAGE("Find the winner in the pool.")
     //Determine if a map is the winner for...
     //    ...each map in the arrays.
     for (new i = 0; i < total; i++)
     {
-        DebugMessage("Update running total of weights.");
+        DEBUG_MESSAGE("Update running total of weights.")
         //add weight onto the total
         runningTotal += weights[i];
         
-        DebugMessage("Check if we're at the right map.");
+        DEBUG_MESSAGE("Check if we're at the right item.")
         //We have found an answer if...
         //    ...the running total has reached the random number.
         if (runningTotal > rand)
         {
-            DebugMessage("Map found.");
+            DEBUG_MESSAGE("Item found.")
             GetArrayString(nameArr, i, buffer, size);
             index = i;
             return true;
         }
     }
     
-    DebugMessage("ERROR WITH THE RANDOMIZATION ALGORITHM!");
+    DEBUG_MESSAGE("ERROR WITH THE RANDOMIZATION ALGORITHM!")
     //This shouldn't ever happen, but alas the compiler complains.
     index = -1;
     return false;
@@ -790,21 +810,6 @@ stock CloseHandleEx(&Handle:handle)
 {
     CloseHandle(handle);
     handle = INVALID_HANDLE;
-}
-
-
-//Prints a debug message if the DEBUG flag is on.
-stock DebugMessage(const String:message[], any:...)
-{
-#if UMC_DEBUG
-    
-    new size = strlen(message) + 255;
-    decl String:fMessage[size];
-    VFormat(fMessage, size, message, 2);
-    
-    LogMessage("DEBUG: %s", fMessage);
-    
-#endif
 }
 
 
