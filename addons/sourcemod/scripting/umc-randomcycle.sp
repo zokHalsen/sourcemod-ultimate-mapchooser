@@ -293,7 +293,7 @@ DoRandomNextMap()
                          sizeof(nextGroup), randnext_mem_arr, randnext_catmem_arr, 
                          GetConVarInt(cvar_randnext_catmem), false, true))
     {
-        DebugMessage("Random map: %s %s", nextMap, nextGroup);
+        DEBUG_MESSAGE("Random map: %s %s", nextMap, nextGroup)
         UMC_SetNextMap(map_kv, nextMap, nextGroup, ChangeMapTime_MapEnd);
     }
     else

@@ -506,7 +506,7 @@ public OnMapTimeLeftChanged()
     //    ...we haven't already completed an RTV.
     if (vote_enabled)
     {
-        DebugMessage("Timeleft Changed");
+        DEBUG_MESSAGE("Timeleft Changed")
         UpdateTimers();
     }
 }
@@ -680,7 +680,7 @@ MakeVoteTimer()
     //Make the end-of-map vote timer.
     if (timer_alive)
     {
-        DebugMessage("Killing timer. (MakeVoteTimer)");
+        DEBUG_MESSAGE("Killing timer. (MakeVoteTimer)")
         timer_alive = false;
         KillTimer(vote_timer);
         vote_timer = INVALID_HANDLE;
@@ -1007,15 +1007,17 @@ Handle:MakeTimer()
                 "End of map timer could not be created. Please file a bug report with the author."
             );
         }
+#if UMC_DEBUG
         else
-            DebugMessage("Making timer.");
+            DEBUG_MESSAGE("Making timer.")
+#endif
     }
     else
     {
         timer_alive = false;
         
         //Log message
-        LogMessage("Unable to create end of map vote timer, trigger time already passed.");
+        LogMessage("Unable to create end of map vote time-trigger, trigger time already passed.");
     }
     return result;
 }
@@ -1109,7 +1111,7 @@ UpdateTimers()
             LogMessage("Map vote timer successfully updated.");
         else
         {
-            DebugMessage("Killing Timer (UpdateTimers)");
+            DEBUG_MESSAGE("Killing Timer (UpdateTimers)")
             timer_alive = false;
             KillTimer(vote_timer);
             vote_timer = INVALID_HANDLE;
@@ -1134,7 +1136,7 @@ DestroyTimers()
     //    ...the timer is alive.
     if (timer_alive)
     {
-        DebugMessage("Killing Timer (DestroyTimers)");
+        DEBUG_MESSAGE("Killing Timer (DestroyTimers)")
         timer_alive = false;
         KillTimer(vote_timer);
         vote_timer = INVALID_HANDLE;

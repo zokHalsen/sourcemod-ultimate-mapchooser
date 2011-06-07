@@ -37,6 +37,14 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
+3.0.6 (6//11)
+Fixed bug where errors could be caused by group exclusion code.
+Heavily optimized debugging system, should result in execution speedup.
+Optimized umc-maprate-reweight to fetch map weights in O(1) as opposed to O(n)
+
+3.0.5 (5/29/11)
+Fixed bug where individual clients cancelling a vote menu could break tiered and group votes.
+
 3.0.4 (5/28/11)
 Added experimental admin menu module. [ADMINMENU]
 Fixed rare bug with tiered nomination menus displaying groups with no maps in it. [NOMINATIONS]
@@ -912,7 +920,7 @@ public Native_UMCAddWeightModifier(Handle:plugin, numParams)
     if (reweight_active)
     {
         current_weight *= Float:GetNativeCell(1);
-        DebugMessage("New map weight: %f", current_weight);
+        DEBUG_MESSAGE("New map weight: %f", current_weight)
     }
     else
         LogError("REWEIGHT: Attempted to add weight modifier outside of UMC_OnReweightMap forward.");
@@ -1263,7 +1271,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                         bool:ignoreDupes=false, bool:strictNoms=false,
                         bool:ignoreInvoteSetting=false)
 {
-    DebugMessage("MAPVOTE - Building map vote menu.");
+    DEBUG_MESSAGE("MAPVOTE - Building map vote menu.")
     //Throw an error and return nothing if...
     //    ...the mapcycle is invalid.
     if (stored_kv == INVALID_HANDLE)
@@ -1272,7 +1280,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
         return INVALID_HANDLE;
     }
     
-    DebugMessage("Preparing mapcycle for traversal.");
+    DEBUG_MESSAGE("Preparing mapcycle for traversal.")
     //Duplicate the stored_kv handle, because we will be deleting some keys.
     KvRewind(stored_kv); //rewind original
     new Handle:kv = CreateKeyValues("umc_rotation"); //new handle
@@ -1293,24 +1301,24 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     }
 #endif
     
-    DebugMessage("Checking for categories.");
+    DEBUG_MESSAGE("Checking for groups.")
     //Log an error and return nothing if...
     //    ...it cannot find a category.
     if (!KvGotoFirstSubKey(kv))
     {
-        LogError("VOTING: No map categories found in rotation. Vote menu was not built.");
+        LogError("VOTING: No map groups found in rotation. Vote menu was not built.");
         CloseHandle(kv);
         return INVALID_HANDLE;
     }
     
-    DebugMessage("Preparing vote data storage.");
+    DEBUG_MESSAGE("Preparing vote data storage.")
     ClearVoteArrays();
 
-    DebugMessage("Getting options from cvars.");
+    DEBUG_MESSAGE("Getting options from cvars.")
     //Determine how we're logging
     new bool:verboseLogs = GetConVarBool(cvar_logging);
     
-    DebugMessage("Initializing Buffers");
+    DEBUG_MESSAGE("Initializing Buffers")
     //Buffers
     new String:mapName[MAP_LENGTH];     //Name of the map
     new String:display[MAP_LENGTH];     //String to be displayed in the vote
@@ -1333,7 +1341,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     
     new tierAmount = GetConVarInt(cvar_vote_tieramount);
     
-    DebugMessage("Performing Traversal");
+    DEBUG_MESSAGE("Performing Traversal")
     //Add maps to vote array from current category.
     do
     {
@@ -1342,12 +1350,12 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
         //Store the name of the current category.
         KvGetSectionName(kv, catName, sizeof(catName));
         
-        DebugMessage("Fetching map group data");
+        DEBUG_MESSAGE("Fetching map group data")
         
         //Get the map-display template from the categeory definition.
         KvGetString(kv, "display-template", gDisp, sizeof(gDisp), "{MAP}");
         
-        DebugMessage("Fetching Nominations");
+        DEBUG_MESSAGE("Fetching Nominations")
         
         //Get all nominations for the current category.
         tempCatNoms = GetCatNominations(catName);
@@ -1357,7 +1365,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
         //Get the amount of nominations for the current category.
         numNoms = GetArraySize(nominationsFromCat);
         
-        DebugMessage("Calculating amount of maps needed to be fetched.");
+        DEBUG_MESSAGE("Calculating amount of maps needed to be fetched.")
         
         //Get the total amount of maps to appear in the vote from this category.
         inVote = ignoreInvoteSetting 
@@ -1374,7 +1382,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
         //Calculate the number of maps we still need to fetch from the mapcycle.
         numMapsFromCat = inVote - numNoms;
         
-        DebugMessage("Determining proper nomination processing algorithm.");
+        DEBUG_MESSAGE("Determining proper nomination processing algorithm.")
         
         //Populate vote with nomination maps from this category if...
         //    ...we do not need to fetch any maps from the mapcycle AND
@@ -1392,7 +1400,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
             //of maps in the vote from this category is reached.
             //////
             
-            DebugMessage("Performing strict nomination algorithm.");
+            DEBUG_MESSAGE("Performing strict nomination algorithm.")
             
             if (verboseLogs)
             {
@@ -1413,20 +1421,20 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                 nameArr = CreateArray(ByteCountToCells(MAP_LENGTH));
                 weightArr = CreateArray();
                 
-                DebugMessage("Fetching data from all nominations in the map group.");
+                DEBUG_MESSAGE("Fetching data from all nominations in the map group.")
                 
                 //Store data from a nomination for...
                 //    ...each index of the adt_array of nominations from this category.
                 for (new i = 0; i < numNoms; i++)
                 {
-                    DebugMessage("Fetching nomination data.");
+                    DEBUG_MESSAGE("Fetching nomination data.")
                     //Store nomination.
                     trie = GetArrayCell(nominationsFromCat, i);
                     
                     //Get the map name from the nomination.
                     GetTrieString(trie, MAP_TRIE_MAP_KEY, mapName, sizeof(mapName));    
                     
-                    DebugMessage("Determining what to do with the nomination.");
+                    DEBUG_MESSAGE("Determining what to do with the nomination.")
                     
                     //Add map to list of possible maps to be added to vote from the nominations 
                     //if...
@@ -1434,7 +1442,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                     if (!ignoreDupes 
                         && FindStringInVoteArray(mapName, MAP_TRIE_MAP_KEY, map_vote) != -1)
                     {
-                        DebugMessage("Skipping repeated nomination.");
+                        DEBUG_MESSAGE("Skipping repeated nomination.")
                         if (verboseLogs)
                         {
                             LogMessage(
@@ -1445,7 +1453,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                     }
                     else
                     {
-                        DebugMessage("Adding nomination to the possible vote pool.");
+                        DEBUG_MESSAGE("Adding nomination to the possible vote pool.")
                         //Increment number of noms fetched.
                         nomCounter++;
                         
@@ -1459,7 +1467,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                 
                 //After we have parsed every map from the list of nominations...
                 
-                DebugMessage("Choosing nominations from the pool to be inserted into the vote.");
+                DEBUG_MESSAGE("Choosing nominations from the pool to be inserted into the vote.")
                 
                 //Populate vote array with maps from the pool if...
                 //    ...the number of nominations fetched is greater than zero.
@@ -1469,24 +1477,24 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                     //    ...the number of available spots there are from the category.
                     new min = (inVote < nomCounter) ? inVote : nomCounter;
                     
-                    DebugMessage("Begin parsing nomination pool.");
+                    DEBUG_MESSAGE("Begin parsing nomination pool.")
                     
                     for (new i = 0; i < min; i++)
                     {
-                        DebugMessage("Fetching a random nomination from the pool.");
+                        DEBUG_MESSAGE("Fetching a random nomination from the pool.")
                         //Get a random map from the pool.
                         GetWeightedRandomSubKey(mapName, sizeof(mapName), weightArr, nameArr, index);
                         
-                        DebugMessage("Determining where to place the map in the vote.");
+                        DEBUG_MESSAGE("Determining where to place the map in the vote.")
                         //Get the position in the vote array to add the map to
                         position = GetNextMenuIndex(voteCounter, scramble);
                         
-                        DebugMessage("Fetching extra info for the map from the mapcycle.");
+                        DEBUG_MESSAGE("Fetching extra info for the map from the mapcycle.")
                         //Get extra fields from the map
                         KvJumpToKey(kv, mapName);
                         KvGetString(kv, "display", display, sizeof(display), gDisp);
                         
-                        DebugMessage("Setting proper display string.");
+                        DEBUG_MESSAGE("Setting proper display string.")
                         if (strlen(display) == 0)
                             strcopy(display, sizeof(display), mapName);
                         else
@@ -1494,7 +1502,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                         
                         KvGoBack(kv);
                         
-                        DebugMessage("Adding nomination to the vote.");
+                        DEBUG_MESSAGE("Adding nomination to the vote.")
                         
                         new Handle:map = CreateMapTrie(mapName, catName);
                         InsertArrayCell(map_vote, position, map);
@@ -1503,7 +1511,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                         //Increment number of maps added to the vote.
                         voteCounter++;
                         
-                        DebugMessage("Preventing nomination and map from being picked again.");
+                        DEBUG_MESSAGE("Preventing nomination and map from being picked again.")
                         
                         //Delete the map so it can't be picked again.
                         KvDeleteKey(kv, mapName);
@@ -1534,17 +1542,17 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
         //mapcycle.
         else
         {
-            DebugMessage("Adding all nominations to the vote.");
+            DEBUG_MESSAGE("Adding all nominations to the vote.")
             //Add nomination to the vote array for..
             //    ...each index in the nomination array.
             for (new i = 0; i < numNoms; i++)
             {
-                DebugMessage("Fetching nomination info.");
+                DEBUG_MESSAGE("Fetching nomination info.")
                 //Get map name.
                 GetTrieString(GetArrayCell(nominationsFromCat, i), MAP_TRIE_MAP_KEY, mapName,
                     sizeof(mapName));
                 
-                DebugMessage("Determining what to do with the nomination.");
+                DEBUG_MESSAGE("Determining what to do with the nomination.")
                 
                 //Add nominated map to the vote array if...
                 //    ...the map isn't already in the vote AND
@@ -1552,7 +1560,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                 if (!ignoreDupes
                     && FindStringInVoteArray(mapName, MAP_TRIE_MAP_KEY, map_vote) != -1)
                 {
-                    DebugMessage("Skipping repeated nomination.");
+                    DEBUG_MESSAGE("Skipping repeated nomination.")
                     if (verboseLogs)
                     {
                         LogMessage(
@@ -1563,12 +1571,12 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                 }
                 else
                 {
-                    DebugMessage("Adding nomination to the vote.");
+                    DEBUG_MESSAGE("Adding nomination to the vote.")
                     //Get extra fields from the map
                     KvJumpToKey(kv, mapName);
                     KvGetString(kv, "display", display, sizeof(display), gDisp);
                     
-                    DebugMessage("Setting proper display string.");
+                    DEBUG_MESSAGE("Setting proper display string.")
                     if (strlen(display) == 0)
                         strcopy(display, sizeof(display), mapName);
                     else
@@ -1576,11 +1584,11 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                         
                     KvGoBack(kv);
                     
-                    DebugMessage("Determining where to place the map in the vote.");
+                    DEBUG_MESSAGE("Determining where to place the map in the vote.")
                     //Get the position in the vote array to add the map to.
                     position = GetNextMenuIndex(voteCounter, scramble);
                     
-                    DebugMessage("Adding nomination to the vote.");
+                    DEBUG_MESSAGE("Adding nomination to the vote.")
                     
                     new Handle:map = CreateMapTrie(mapName, catName);
                     InsertArrayCell(map_vote, position, map);
@@ -1589,7 +1597,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                     //Increment number of maps added to the vote.
                     voteCounter++;
                     
-                    DebugMessage("Preventing map from being picked again.");
+                    DEBUG_MESSAGE("Preventing map from being picked again.")
                         
                     //Delete the map so it cannot be picked again.
                     KvDeleteKey(kv, mapName);
@@ -1611,7 +1619,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
         //from the mapcycle directly.
         //////
         
-        DebugMessage("Finished processing nominations.");
+        DEBUG_MESSAGE("Finished processing nominations.")
         
         if (verboseLogs)
         {
@@ -1627,32 +1635,32 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
         //We no longer need the nominations array, so we close the handle.
         CloseHandle(nominationsFromCat);
         
-        DebugMessage("Begin filling remaining spots in the vote.");
+        DEBUG_MESSAGE("Begin filling remaining spots in the vote.")
         //Add a map to the vote array from the current category while...
         //    ...maps still need to be added from the current category.
         while (numMapsFromCat > 0)
         {
-            DebugMessage("Attempting to fetch a map from the group.");
+            DEBUG_MESSAGE("Attempting to fetch a map from the group.")
             //Skip the category if...
             //    ...there are no more maps that can be added to the vote.
             if (!GetRandomMap(kv, mapName, sizeof(mapName)))//, excluded, excludedCats))
             {
                 if (verboseLogs)
                     LogMessage("VOTE MENU: (Verbose) No more maps in map group '%s'", catName);
-                DebugMessage("No more maps in group. Continuing to next group.");
+                DEBUG_MESSAGE("No more maps in group. Continuing to next group.")
                 break;
             }
 
             //The name of the selected map is now stored in mapName.    
             
-            DebugMessage("Checking to make sure the map isn't already in the vote.");
+            DEBUG_MESSAGE("Checking to make sure the map isn't already in the vote.")
             //Remove the map from the category (so it cannot be selected again) and repick a map 
             //if...
             //    ...the map has already been added to the vote (through nomination or another 
             //       category
             if (!ignoreDupes && FindStringInVoteArray(mapName, MAP_TRIE_MAP_KEY, map_vote) != -1)
             {
-                DebugMessage("Map found in vote. Removing from mapcycle.");
+                DEBUG_MESSAGE("Map found in vote. Removing from mapcycle.")
                 KvDeleteKey(kv, mapName);
                 if (verboseLogs)
                 {
@@ -1674,7 +1682,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                 );
             }
             
-            DebugMessage("Searching for map in nominations.");
+            DEBUG_MESSAGE("Searching for map in nominations.")
             //Find this map in the list of nominations.
             nomIndex = FindNominationIndex(mapName, catName);
             
@@ -1682,10 +1690,10 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
             //    ...it was found.
             if (nomIndex != -1)
             {
-                DebugMessage("Map found in nominations.");
+                DEBUG_MESSAGE("Map found in nominations.")
                 new Handle:nom = GetArrayCell(nominations_arr, nomIndex);
                 
-                DebugMessage("Calling nomination removal forward.");
+                DEBUG_MESSAGE("Calling nomination removal forward.")
                 new owner;
                 GetTrieValue(nom, "client", owner);
                 
@@ -1694,7 +1702,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                 Call_PushCell(owner);
                 Call_Finish();
                 
-                DebugMessage("Removing nomination.");
+                DEBUG_MESSAGE("Removing nomination.")
                 CloseHandle(nom);
                 RemoveFromArray(nominations_arr, nomIndex);
                 if (verboseLogs)
@@ -1704,12 +1712,12 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                 }
             }
             
-            DebugMessage("Fetching extra info for the map from the mapcycle.");
+            DEBUG_MESSAGE("Fetching extra info for the map from the mapcycle.")
             //Get extra fields from the map
             KvJumpToKey(kv, mapName);
             KvGetString(kv, "display", display, sizeof(display), gDisp);
             
-            DebugMessage("Setting proper display string.");
+            DEBUG_MESSAGE("Setting proper display string.")
             if (strlen(display) == 0)
                 strcopy(display, sizeof(display), mapName);
             else 
@@ -1717,11 +1725,11 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
             
             KvGoBack(kv);
             
-            DebugMessage("Determining where to place the map in the vote.");
+            DEBUG_MESSAGE("Determining where to place the map in the vote.")
             //Get the position in the vote array to add the map to.
             position = GetNextMenuIndex(voteCounter, scramble);
             
-            DebugMessage("Adding map to the vote.");
+            DEBUG_MESSAGE("Adding map to the vote.")
                     
             new Handle:map = CreateMapTrie(mapName, catName);
             InsertArrayCell(map_vote, position, map);
@@ -1730,7 +1738,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
             //Increment number of maps added to the vote.
             voteCounter++;
             
-            DebugMessage("Preventing map from being picked again.");
+            DEBUG_MESSAGE("Preventing map from being picked again.")
             //Delete the map from the KV so we can't pick it again.
             KvDeleteKey(kv, mapName);
             
@@ -1739,13 +1747,13 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
         }
     } while (KvGotoNextKey(kv)); //Do this for each category.
     
-    DebugMessage("Vote now populated with maps.");
+    DEBUG_MESSAGE("Vote now populated with maps.")
     
     //We no longer need the copy of the mapcycle
     CloseHandle(kv);
     CloseHandle(nomKV);
     
-    DebugMessage("Initializing vote menu.");
+    DEBUG_MESSAGE("Initializing vote menu.")
     
     //Begin creating menu
     new Handle:menu = (GetConVarBool(cvar_valvemenu))
@@ -1762,14 +1770,14 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     //Keep track of slots taken up in the vote.
     new voteSlots = blockSlots;
     
-    DebugMessage("Setup slot blocking.");
+    DEBUG_MESSAGE("Setup slot blocking.")
     //Add blocked slots if...
     //    ...the cvar for blocked slots is enabled.
     AddSlotBlockingToMenu(menu, blockSlots);
     
     new Handle:infoArr = BuildNumArray(voteCounter);    
     
-    DebugMessage("Adding maps to the menu.");
+    DEBUG_MESSAGE("Adding maps to the menu.")
     //Add the array of maps to the menu.
     AddArrayToMenu(menu, infoArr, map_vote_display);
     CloseHandle(map_vote_display);
@@ -1781,7 +1789,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     if (verboseLogs && scramble)
         LogMessage("VOTE MENU: (Verbose) Scrambling menu.");
     
-    DebugMessage("Add extend or don't change options.");
+    DEBUG_MESSAGE("Add extend or don't change options.")
     //Add an extend item if...
     //    ...the extend flag is true.
     if (extend)
@@ -1804,12 +1812,12 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
         voteCounter++;
         voteSlots++;
     }
-    DebugMessage("Making sure there are enough items in the vote.");
+    DEBUG_MESSAGE("Making sure there are enough items in the vote.")
     //Throw an error and return nothing if...
     //    ...the number of items in the vote is less than 2 (hence no point in voting).
     if (voteCounter <= 1)
     {
-        DebugMessage("Not enough items in the vote. Aborting.");
+        DEBUG_MESSAGE("Not enough items in the vote. Aborting.")
         LogError("VOTING: Not enough maps to run a map vote. %i maps available.", voteCounter);
         CloseHandle(menu);
         ClearVoteArrays();
@@ -1817,9 +1825,9 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     }
     else //Otherwise, finish making the menu.
     {
-        DebugMessage("Setting proper pagination.");
+        DEBUG_MESSAGE("Setting proper pagination.")
         SetCorrectMenuPagination(menu, voteSlots);
-        DebugMessage("Vote menu built successfully.");
+        DEBUG_MESSAGE("Vote menu built successfully.")
         return menu; //Return the finished menu (finally).
     }
 }
@@ -1855,7 +1863,7 @@ Handle:BuildCatVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     //    ...it cannot find a category.
     if (!KvGotoFirstSubKey(kv))
     {
-        LogError("VOTING: No map categories found in rotation. Vote menu was not built.");
+        LogError("VOTING: No map groups found in rotation. Vote menu was not built.");
         CloseHandle(kv);
         return INVALID_HANDLE;
     }
@@ -2028,16 +2036,16 @@ bool:GetRandomMap(Handle:kv, String:buffer[], size)
     decl String:catName[MAP_LENGTH];
     KvGetSectionName(kv, catName, sizeof(catName));
     
-    DebugMessage("Preparing mapcycle for random map selection.");
+    DEBUG_MESSAGE("Preparing mapcycle for random map selection.")
     //Return failure if...
     //    ...there are no maps in the category.
     if (!KvGotoFirstSubKey(kv))
     {
-        DebugMessage("No maps found in map group. Return false.");
+        DEBUG_MESSAGE("No maps found in map group. Return false.")
         return false;
     }
 
-    DebugMessage("Preparing to traverse maps in the group.");
+    DEBUG_MESSAGE("Preparing to traverse maps in the group.")
     new index = 0; //counter of maps in the random pool
     new Handle:nameArr = CreateArray(ByteCountToCells(MAP_LENGTH)); //Array to store possible map names
     new Handle:weightArr = CreateArray();  //Array to store possible map weights.
@@ -2049,7 +2057,7 @@ bool:GetRandomMap(Handle:kv, String:buffer[], size)
         //Get the name of the map.
         KvGetSectionName(kv, temp, sizeof(temp));
         
-        DebugMessage("Adding map %s to the pool.", temp);
+        DEBUG_MESSAGE("Adding map %s to the pool.", temp)
         
         //Add the map to the random pool.
         PushArrayCell(weightArr, GetWeight(kv));
@@ -2060,7 +2068,7 @@ bool:GetRandomMap(Handle:kv, String:buffer[], size)
     }
     while (KvGotoNextKey(kv)); //Do this for each map.
     
-    DebugMessage("Finished populating random pool.");
+    DEBUG_MESSAGE("Finished populating random pool.")
     
     //Go back to the category level.
     KvGoBack(kv);
@@ -2069,13 +2077,13 @@ bool:GetRandomMap(Handle:kv, String:buffer[], size)
     //    ...no maps are selectable.
     if (index == 0)
     {
-        DebugMessage("No maps found in pool. Returning false.");
+        DEBUG_MESSAGE("No maps found in pool. Returning false.")
         CloseHandle(nameArr);
         CloseHandle(weightArr);
         return false;
     }
 
-    DebugMessage("Getting random map from the pool.");
+    DEBUG_MESSAGE("Getting random map from the pool.")
     
     //Use weights to randomly select a map from the pool.
     new bool:result = GetWeightedRandomSubKey(buffer, size, weightArr, nameArr, _);
@@ -2107,45 +2115,49 @@ FindStringInVoteArray(const String:target[], const String:val[], Handle:arr)
 //Called when a vote has finished.
 public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
 {
-    DebugMessage("Vote Handler Called");
+    //DEBUG_MESSAGE("Vote Handler Called")
     //Cleanup the memory taken by the vote if...
     //    ...the vote is actually over.
-    if (action == MenuAction_End)
+    switch(action)
     {
-        DebugMessage("MenuAction_End");
-        CloseHandle(menu);
-        VoteCompleted(); //Called when vote menu has been closed.
-    }
-    if (action == VoteAction_Cancel)
-    {
-        DebugMessage("Vote Cancelled");
-    }
-    if (action == MenuAction_Display)
-    {
-        //LogMessage("DEBUG: Display");
-        new Handle:panel = Handle:param2;
-        
-        decl String:phrase[255];
-        GetMenuTitle(menu, phrase, sizeof(phrase));
-        
-        decl String:buffer[255];
-        Format(buffer, sizeof(buffer), "%T", phrase, param1);
-        
-        SetPanelTitle(panel, buffer);
-    }
-    if (action == MenuAction_DisplayItem)
-    {
-        //LogMessage("DEBUG: DisplayItem");
-        decl String:map[MAP_LENGTH], String:display[MAP_LENGTH];
-        GetMenuItem(menu, param2, map, sizeof(map), _, display, sizeof(display));
-        
-        if (StrEqual(map, EXTEND_MAP_OPTION) || StrEqual(map, DONT_CHANGE_OPTION) ||
-            (StrEqual(map, NOTHING_OPTION) && strlen(display) > 0))
+        case MenuAction_End:
         {
-            decl String:buffer[255];
-            Format(buffer, sizeof(buffer), "%T", display, param1);
+            DEBUG_MESSAGE("MenuAction_End")
+            CloseHandle(menu);
+            //VoteCompleted(); //Called when vote menu has been closed.
+        }
+        case MenuAction_VoteCancel:
+        {
+            DEBUG_MESSAGE("Vote Cancelled")
+            VoteCompleted();
+        }
+        case MenuAction_Display:
+        {
+            //LogMessage("DEBUG: Display");
+            new Handle:panel = Handle:param2;
             
-            return RedrawMenuItem(buffer);
+            decl String:phrase[255];
+            GetMenuTitle(menu, phrase, sizeof(phrase));
+            
+            decl String:buffer[255];
+            Format(buffer, sizeof(buffer), "%T", phrase, param1);
+            
+            SetPanelTitle(panel, buffer);
+        }
+        case MenuAction_DisplayItem:
+        {
+            //LogMessage("DEBUG: DisplayItem");
+            decl String:map[MAP_LENGTH], String:display[MAP_LENGTH];
+            GetMenuItem(menu, param2, map, sizeof(map), _, display, sizeof(display));
+            
+            if (StrEqual(map, EXTEND_MAP_OPTION) || StrEqual(map, DONT_CHANGE_OPTION) ||
+                (StrEqual(map, NOTHING_OPTION) && strlen(display) > 0))
+            {
+                decl String:buffer[255];
+                Format(buffer, sizeof(buffer), "%T", display, param1);
+                
+                return RedrawMenuItem(buffer);
+            }
         }
     }
     return 0;
@@ -2158,6 +2170,8 @@ VoteCompleted()
     //Catches the case where a vote occurred but nobody voted.
     if (vote_active)
     {
+        LogMessage("Map vote ended with no votes.");
+    
         //Reset flags
         vote_active = false;
         
@@ -2208,7 +2222,7 @@ Handle:MakeSecondTieredCatExclusion(Handle:kv, const String:cat[])
     //  ...there are no categories in the cycle (for some reason).
     if (!KvGotoFirstSubKey(kv))
     {
-        LogError("TIERED VOTE: Cannot create second stage of vote, rotation file is invalid (no categories were found.)");
+        LogError("TIERED VOTE: Cannot create second stage of vote, rotation file is invalid (no groups were found.)");
         return INVALID_HANDLE;
     }
     
@@ -2466,8 +2480,7 @@ DoRunoffVote(Handle:menu, VoteHandler:callback)
         //Display the first message
         DisplayRunoffMessage(runoff_delay+1);
         
-        DebugMessage("Runoff timer created. Runoff vote will be displayed in %i seconds.",
-            runoff_delay+1);
+        DEBUG_MESSAGE("Runoff timer created. Runoff vote will be displayed in %i seconds.", runoff_delay + 1)
         
         //Setup data pack to go along with the timer.
         //new Handle:pack;    
@@ -2970,13 +2983,13 @@ public Handle_TierVoteResults(Handle:menu, num_votes, num_clients, const client_
 //Handles the winner of an end-of-map tiered vote.
 public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:percentage)
 {
-    DebugMessage("Handling Tiered Endvote Winner \"%s\"", cat);
+    DEBUG_MESSAGE("Handling Tiered Endvote Winner \"%s\"", cat)
     
     //Print a message and extend the map if...
     //    ...the server voted to extend the map.
     if (StrEqual(cat, EXTEND_MAP_OPTION))
     {
-        DebugMessage("Endvote - Extending the map.");
+        DEBUG_MESSAGE("Endvote - Extending the map.")
     
         PrintToChatAll(
             "\x03[UMC]\x01 %t %t (%t)",
@@ -3005,7 +3018,7 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
     }
     else //Otherwise, we set up the second stage of the tiered vote
     {
-        DebugMessage("Setting up second part of Tiered RTV.");
+        DEBUG_MESSAGE("Setting up second part of Tiered RTV.")
         LogMessage("MAPVOTE (Tiered): Players voted for map group '%s'", cat);
         
         //Jump to the map group
@@ -3013,7 +3026,7 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
         new Handle:kv = CreateKeyValues("umc_rotation");
         KvCopySubkeys(stored_kv, kv);
         
-        DebugMessage("Counting the number of nominations from the winning group.");
+        DEBUG_MESSAGE("Counting the number of nominations from the winning group.")
         //Get the number of valid nominations from the group
         new Handle:tempNoms = GetCatNominations(cat);
         new Handle:catNoms = FilterNominationsArray(tempNoms, kv, stored_kv);
@@ -3024,19 +3037,19 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
         KvJumpToKey(kv, cat);
         FilterMapGroup(kv, stored_kv, stored_exmaps, stored_exgroups);
         
-        DebugMessage("Counting the number of available maps from the winning group.");
+        DEBUG_MESSAGE("Counting the number of available maps from the winning group.")
         //Get the number of valid maps from the group
         vMapCount += CountMapsFromGroup(kv);
         
         //Return to the root.
         KvGoBack(kv);
         
-        DebugMessage("Determining if we need to run a second vote.");
+        DEBUG_MESSAGE("Determining if we need to run a second vote.")
         //Just parse the results as a normal map group vote if...
         //  ...the total number of valid maps is 1.
         if (vMapCount == 1)
         {
-            DebugMessage("Only 1 map available, no vote required.");
+            DEBUG_MESSAGE("Only 1 map available, no vote required.")
             LogMessage(
                 "MAPVOTE (Tiered): Only one valid map found in group. Handling results as a Map Group Vote."
             );
@@ -3044,7 +3057,7 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
             return;
         }
     
-        DebugMessage("Starting countdown timer for the second vote.");
+        DEBUG_MESSAGE("Starting countdown timer for the second vote.")
         
         //Setup timer to delay the next vote for a few seconds.
         tiered_delay = 4;
@@ -3065,14 +3078,14 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
         );
     }
     
-    DebugMessage("Playing vote complete sound.");
+    DEBUG_MESSAGE("Playing vote complete sound.")
     
     //Play the vote completed sound if...
     //  ...the vote completed sound is defined.
     if (strlen(stored_end_sound) > 0)
         EmitSoundToAll(stored_end_sound);
         
-    DebugMessage("Finished handling Tiered winner.");
+    DEBUG_MESSAGE("Finished handling Tiered winner.")
 }
 
 
@@ -3269,22 +3282,23 @@ bool:IsValidMap(Handle:kv, Handle:mapcycle, const String:groupName[], Handle:exM
     if (!IsMapValid(mapName))
         return false;
     
-    DebugMessage("Starting exclusion traversal...");
+    DEBUG_MESSAGE("Starting exclusion traversal...")
     new index = -1;
     new bool:isExcluded = false;
     decl String:exCat[MAP_LENGTH];
     if (exMaps != INVALID_HANDLE && exGroups != INVALID_HANDLE)
     {
+        new gSize = GetArraySize(exGroups);
         do
         {
             index = FindStringInArrayEx(exMaps, mapName, index+1);
-            DebugMessage("Map found at %i", index);
+            DEBUG_MESSAGE("Map found at %i", index)
             
-            if (index >= 0 && GetArraySize(exGroups) > index)
+            if (index >= 0 && index < gSize)
             {
                 GetArrayString(exGroups, index, exCat, sizeof(exCat));
                 isExcluded = StrEqual(exCat, groupName, false);
-                DebugMessage("Map Excluded? %i (%s | %s)", _:isExcluded, exCat, groupName);
+                DEBUG_MESSAGE("Map Excluded? %i (%s | %s)", _:isExcluded, exCat, groupName)
             }
         } while (!isExcluded && index != -1);
     }
@@ -3325,16 +3339,16 @@ bool:IsValidCat(Handle:kv, Handle:mapcycle, Handle:excludedCats, numExcludedCats
     decl String:catName[MAP_LENGTH];
     KvGetSectionName(kv, catName, sizeof(catName));
     
-    DebugMessage("IsValidCat: numEC - %i, sizeEC - %i, sizeEM - %i", numExcludedCats,
-                 GetArraySize(excludedCats), GetArraySize(excludedMaps));
-
+    DEBUG_MESSAGE("IsValidCat: numEC - %i, sizeEC - %i, sizeEM - %i", numExcludedCats, GetArraySize(excludedCats), GetArraySize(excludedMaps))
                  
     //Check if the map group is in the excluded array.
     if (excludedCats != INVALID_HANDLE && numExcludedCats > 0)
     {
+        new size = GetArraySize(excludedCats);
+        new len = size < numExcludedCats ? size : numExcludedCats;
         new bool:excludeGroup = false;
         decl String:temp[MAP_LENGTH];
-        for (new i = 0; i < numExcludedCats; i++)
+        for (new i = 0; i < len; i++)
         {
             GetArrayString(excludedCats, i, temp, sizeof(temp));
             if (StrEqual(temp, catName, false))
@@ -3499,9 +3513,11 @@ FilterMapcycle(Handle:kv, Handle:originalMapcycle, Handle:exMaps, Handle:exGroup
     if (!KvGotoFirstSubKey(kv))
         return;
         
-    DebugMessage("Starting mapcycle filtering.");
+    DEBUG_MESSAGE("Starting mapcycle filtering.")
     decl String:group[MAP_LENGTH];
     decl String:temp[MAP_LENGTH];
+    new size = GetArraySize(exGroups);
+    new len = size < numExGroups ? size : numExGroups;
     new bool:checkGrEx = exGroups != INVALID_HANDLE && numExGroups > 0;
     new bool:excludeGroup = false;
     for ( ; ; )
@@ -3512,7 +3528,7 @@ FilterMapcycle(Handle:kv, Handle:originalMapcycle, Handle:exMaps, Handle:exGroup
             KvGetSectionName(kv, group, sizeof(group));
             excludeGroup = false;
             
-            for (new i = 0; i < numExGroups; i++)
+            for (new i = 0; i < len; i++)
             {
                 GetArrayString(exGroups, i, temp, sizeof(temp));
                 if (StrEqual(temp, group, false))
@@ -3524,7 +3540,7 @@ FilterMapcycle(Handle:kv, Handle:originalMapcycle, Handle:exMaps, Handle:exGroup
             
             if (excludeGroup)
             {
-                DebugMessage("Removing invalid group \"%s\".", group);
+                DEBUG_MESSAGE("Removing invalid group \"%s\".", group)
                 if (KvDeleteThis(kv) == -1)
                     return;
                 else
@@ -3538,10 +3554,10 @@ FilterMapcycle(Handle:kv, Handle:originalMapcycle, Handle:exMaps, Handle:exGroup
         //Delete the group if there are no valid maps in it.
         if (!KvGotoFirstSubKey(kv))
         {
-            DebugMessage("Removing empty group \"%s\".", group);
+            DEBUG_MESSAGE("Removing empty group \"%s\".", group)
             if (KvDeleteThis(kv) == -1)
             {
-                DebugMessage("Mapcycle filtering completed.");
+                DEBUG_MESSAGE("Mapcycle filtering completed.")
                 return;
             }
             else
@@ -3557,7 +3573,7 @@ FilterMapcycle(Handle:kv, Handle:originalMapcycle, Handle:exMaps, Handle:exGroup
     //Return to the root.
     KvGoBack(kv);
     
-    DebugMessage("Mapcycle filtering completed.");
+    DEBUG_MESSAGE("Mapcycle filtering completed.")
 }
 
 
@@ -3571,7 +3587,7 @@ FilterMapGroup(Handle:kv, Handle:mapcycle, Handle:exMaps, Handle:exGroups, bool:
     if (!KvGotoFirstSubKey(kv))
         return;
     
-    DebugMessage("Starting filtering of map group \"%s\".", group);
+    DEBUG_MESSAGE("Starting filtering of map group \"%s\".", group)
     
     decl String:mapName[MAP_LENGTH];
     for ( ; ; )
@@ -3579,10 +3595,10 @@ FilterMapGroup(Handle:kv, Handle:mapcycle, Handle:exMaps, Handle:exGroups, bool:
         if (!IsValidMap(kv, mapcycle, group, exMaps, exGroups, isNom, forMapChange))
         {
             KvGetSectionName(kv, mapName, sizeof(mapName));
-            DebugMessage("Removing invalid map \"%s\" from group \"%s\".", mapName, group);
+            DEBUG_MESSAGE("Removing invalid map \"%s\" from group \"%s\".", mapName, group)
             if (KvDeleteThis(kv) == -1)
             {
-                DebugMessage("Map Group filtering completed for group \"%s\".", group);
+                DEBUG_MESSAGE("Map Group filtering completed for group \"%s\".", group)
                 return;
             }
         }
@@ -3595,7 +3611,7 @@ FilterMapGroup(Handle:kv, Handle:mapcycle, Handle:exMaps, Handle:exGroups, bool:
     
     KvGoBack(kv);
     
-    DebugMessage("Map Group filtering completed for group \"%s\".", group);
+    DEBUG_MESSAGE("Map Group filtering completed for group \"%s\".", group)
 }
 
 
@@ -3816,7 +3832,7 @@ bool:GetRandomMapFromCycle(Handle:kv, const String:group[], String:buffer[], siz
 //                  Handle:excluded, bool:isNom=false, bool:forMapChange=true)
 bool:GetRandomCat(Handle:kv, String:buffer[], size)
 {
-    DebugMessage("Getting a random group");
+    DEBUG_MESSAGE("Getting a random group")
 
     //Fail if...
     //    ...there are no categories in the mapcycle.
@@ -3827,7 +3843,7 @@ bool:GetRandomCat(Handle:kv, String:buffer[], size)
     new Handle:nameArr = CreateArray(ByteCountToCells(MAP_LENGTH)); //Array to store possible category names.
     new Handle:weightArr = CreateArray();  //Array to store possible category weights.
     
-    DebugMessage("Starting traversal");
+    DEBUG_MESSAGE("Starting traversal")
     //Add a category to the random pool.
     do
     {
@@ -3836,7 +3852,7 @@ bool:GetRandomCat(Handle:kv, String:buffer[], size)
         //Get the name of the category.
         KvGetSectionName(kv, temp, sizeof(temp));
         
-        DebugMessage("Group %s added to random pool.", temp);
+        DEBUG_MESSAGE("Group %s added to random pool.", temp)
         
         //Add the category to the random pool.
         PushArrayCell(weightArr, GetWeight(kv));
@@ -3849,7 +3865,7 @@ bool:GetRandomCat(Handle:kv, String:buffer[], size)
     //Return to the root level.
     KvGoBack(kv);
     
-    DebugMessage("Finished traversal.");
+    DEBUG_MESSAGE("Finished traversal.")
     
     //Fail if...
     //    ...no categories are selectable.
@@ -3860,7 +3876,7 @@ bool:GetRandomCat(Handle:kv, String:buffer[], size)
         return false;
     }
     
-    DebugMessage("Selecting a random group.");
+    DEBUG_MESSAGE("Selecting a random group.")
 
     //Use weights to randomly select a category from the pool.
     new bool:result = GetWeightedRandomSubKey(buffer, size, weightArr, nameArr);
@@ -3869,8 +3885,10 @@ bool:GetRandomCat(Handle:kv, String:buffer[], size)
     CloseHandle(nameArr);
     CloseHandle(weightArr);
     
+#if UMC_DEBUG
     if (result)
-        DebugMessage("Selected group %s", buffer);
+        DEBUG_MESSAGE("Selected group %s", buffer)
+#endif
     
     //Booyah!
     return result;

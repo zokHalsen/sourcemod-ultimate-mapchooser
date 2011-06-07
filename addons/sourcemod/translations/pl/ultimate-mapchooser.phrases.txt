@@ -2,27 +2,27 @@
 {
     "Slot Block Message 1"
     {
-        "pl"    "Rozwa¿, któr¹ mapê chcesz graæ"
+        "pl"    "Rozważ, która mapę chcesz grać"
     }
 
     "Slot Block Message 2"
     {
-        "pl"    "i nie wciskaj numerków bezmyœlnie."
+        "pl"    "i nie wciskaj numerków bezmyślnie."
     }
 
     "Map Vote Menu Title"
     {
-        "pl"    "Wybierz nastêpn¹ mapê!"
+        "pl"    "Wybierz następną mapę!"
     }
 
     "Group Vote Menu Title"
     {
-        "pl"    "Wybierz nastêpn¹ grupê map!"
+        "pl"    "Wybierz następną grupę map!"
     }
 
     "Extend Map"
     {
-        "pl"    "Przed³u¿ mapê"
+        "pl"    "Przedłuż mapę"
     }
 
     "Don't Change"
@@ -32,23 +32,23 @@
 
     "End of Map Vote Over"
     {
-        "pl"    "G³osowanie zosta³o zakoñczone."
+        "pl"    "Głosowanie zostało zakończone."
     }
 
     "Map Extended"
     {
-        "pl"    "Aktualnie grana mapa zostanie przed³u¿ona."
+        "pl"    "Aktualnie grana mapa zostanie przedłużona."
     }
 
     "End of Map Vote Map Won"
     {
-        "pl"    "Nastêpn¹ map¹ bêdzie {1}."
+        "pl"    "Następną mapą będzie {1}."
     }
 
     "Vote Win Percentage"
     {
-        //Maj¹ byæ dwa znaki %, jak bêdzie tylko jeden to nic siê nie wyœwietli po cyferkach
-        "pl"    "Otrzyma³a  {1}%% z {2} g³osów"
+        //Mają być dwa znaki %, jak będzie tylko jeden to nic się nie wyświetli po cyferkach
+        "pl"    "Otrzymała  {1}%% z {2} głosów"
     }
 
     "Map Unchanged"
@@ -58,117 +58,117 @@
 
     "Map Change in 5"
     {
-        "pl"    "Mapa zmieni siê za 5 sekund."
+        "pl"    "Mapa zmieni się za 5 sekund."
     }
 
     "Map Change at Round End"
     {
-        "en"    "Map will change at the end of this round."
+        "pl"    "Mapa zostanie zmieniona po tej rundzie."
     }
 
     "End of Map Vote Group Won"
     {
-        "pl"    "Nastêpn¹ map¹ bêdzie '{1},' wybrana z grupy '{2},'"
+        "pl"    "Następną mapą będzie '{1},' wybrana z grupy '{2},'"
     }
 
     "Runoff Msg"
     {
-        "pl"    "G³osowanie nieudane! Nie osi¹gniêto wiêkszoœci."
+        "pl"    "Głosowanie nieudane! Nie osiągnięto większości."
     }
 
     "Another Vote"
     {
-        "pl"    "Kolejne g³osowanie zacznie siê za {1} sekund."
+        "pl"    "Kolejne głosowanie zacznie się za {1} sekund."
     }
 
     "Player Disconnect RTV"
     {
-        "pl"    "Gracz wyszed³, rozpoczynaj¹c g³osowanie."
+        "pl"    "Gracz wyszedł, rozpoczynając głosowanie."
     }
 
     "Not Enough Players"
     {
-        "pl"    "Nie wystarczaj¹ca iloœæ graczy na aktualn¹ mapê ({1} jest wymagane)"
+        "pl"    "Nie wystarczająca ilość graczy na aktualną mapę ({1} jest wymagane)"
     }
 
     "Too Many Players"
     {
-        "pl"    "Za du¿o graczy na serwerze na aktualnie gran¹ mapê (max {1})"
+        "pl"    "Za dużo graczy na serwerze na aktualnie graną mapę (max {1})"
     }
 
     "No RTV Player Count"
     {
-        "pl"    "Nie mo¿na dawaæ RTV, dopóki nie wejdzie {1} wiêcej graczy na serwer."
+        "pl"    "Nie można dawać RTV, dopóki nie wejdzie {1} więcej graczy na serwer."
     }
 
     "More Required"
     {
-        "pl"    "potrzeba {1} g³osów"
+        "pl"    "potrzeba {1} głosów"
     }
 
     "No RTV Time"
     {
-        "pl"    "Nie mo¿na dawaæ RTV przez {1} sekund."
+        "pl"    "Nie można dawać RTV przez {1} sekund."
     }
 
     "More Required"
     {
-        "pl"    "potrzeba {1} g³osów"
+        "pl"    "potrzeba {1} głosów"
     }
 
     "RTV Entered"
     {
-        "pl"    "{1} da³ RTV i chce zmieniæ mapê."
+        "pl"    "{1} dał RTV i chce zmienia mapę."
     }
 
     "RTV Info Msg"
     {
-        "pl"    "Wpisz NOMINATE, by nominowaæ mapê lub RTV by przyspieszyæ g³osowanie na mapkê."
+        "pl"    "Wpisz NOMINATE, by nominować mapę lub RTV by przyspieszyć głosowanie na mapkę."
     }
 
     "RTV Start"
     {
-        "pl"    "Zmieniamy mapê!"
+        "pl"    "Zmieniamy mapę!"
     }
 
     "Vote In Progress"
     {
-        "pl"    "G³osowanie w toku."
+        "pl"    "Głosowanie w toku."
     }
 
     "RTV Already Entered"
     {
-        "pl"    "Ju¿ wpisa³eœ RTV."
+        "pl"    "Już wpisałeś RTV."
     }
 
     "No Nominate Nextmap"
     {
-        "pl"    "Nie mo¿na nominowaæ, dopóki mapa siê nie zmieni."
+        "pl"    "Nie można nominować, dopóki mapa się nie zmieni."
     }
 
     "Pending Vote"
     {
-        "pl"    "Oczekiwanie na g³osowanie"
+        "pl"    "Oczekiwanie na głosowanie"
     }
 
     "Next Map"
     {
-        "pl"    "Nastêpna mapa: {1}"
+        "pl"    "Następna mapa: {1}"
     }
 
     "Player Nomination"
     {
-        "pl"    "{1} nominowa³ {2}."
+        "pl"    "{1} nominował {2}."
     }
 
     "Nomination Menu Title"
     {
-        "pl"    "Wybierz swoj¹ mapê."
+        "pl"    "Wybierz swoją mapę."
     }
 
     "Yes/No Menu Title"
     {
-        "pl"    "Zmieniæ mapê na {1}?"
+        "pl"    "Zmienia mapę na {1}?"
     }
 
     "Yes"
@@ -183,23 +183,23 @@
 
     "Starting Map Vote"
     {
-        "pl"    "Zaczynamy g³osowanie. Mapa zmieni siê po jego zakoñczeniu."
+        "pl"    "Zaczynamy głosowanie. Mapa zmieni się po jego zakończeniu."
     }
 
     "Default Warning"
     {
-        //Tu gdzie {TIME} zostanie wstawiona iloœæ sekund.
-        //Zostaw {TIME} w tej samej postaci - po angielsku- to nie jest b³¹d.
-        "pl"    "{TIME} sekund do rozpoczêcia g³osowania."
+        //Tu gdzie {TIME} zostanie wstawiona ilść sekund.
+        //Zostaw {TIME} w tej samej postaci - po angielsku- to nie jest błąd.
+        "pl"    "{TIME} sekund do rozpoczęcia głosowania."
     }
     
     "Vote Failed"
     {
-        "pl"    "G³osowanie nieudane. Wygrywaj¹ca opcja nie przekroczy³a wymaganego progu procentowego"
+        "pl"    "Głosowanie nieudane. Wygrywająca opcja nie przekroczyła wymaganego progu procentowego"
     }
     
     "Selective Runoff"
     {
-        "pl"    "Pokazujê menu g³osowania dla graczy, którzy nie g³osowali lub których g³osy zosta³y wyeliminowane."
+        "pl"    "Pokazuje menu głosowania dla graczy, którzy nie głosowali lub których głosy zostały wyeliminowane."
     }
 }
