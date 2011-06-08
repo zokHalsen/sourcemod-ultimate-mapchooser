@@ -71,6 +71,7 @@ public Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const Str
     
     if (IsPlayerCountBetween(min, max))
         return Plugin_Continue;
-    
+        
+    DEBUG_MESSAGE("Map %s is excluded due to Player Limits. Min: %i, Max: %i, Current: %i", map, min, max, GetRealClientCount())
     return Plugin_Stop;
 }

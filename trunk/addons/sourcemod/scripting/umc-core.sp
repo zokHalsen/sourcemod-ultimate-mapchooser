@@ -37,7 +37,8 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
-3.0.6 (6//11)
+3.0.6 (6/8/11)
+Changed minimum value of the sm_umc_maprate_expscale cvar to 0. [MAPRATE-REWEIGHT]
 Fixed bug where errors could be caused by group exclusion code.
 Heavily optimized debugging system, should result in execution speedup.
 Optimized umc-maprate-reweight to fetch map weights in O(1) as opposed to O(n)
@@ -3518,6 +3519,7 @@ FilterMapcycle(Handle:kv, Handle:originalMapcycle, Handle:exMaps, Handle:exGroup
     decl String:temp[MAP_LENGTH];
     new size = GetArraySize(exGroups);
     new len = size < numExGroups ? size : numExGroups;
+    DEBUG_MESSAGE("Length of Group Exclusion Array To Check: %i (Size: %i, NumEx: %i)", len, size, numExGroups)
     new bool:checkGrEx = exGroups != INVALID_HANDLE && numExGroups > 0;
     new bool:excludeGroup = false;
     for ( ; ; )
@@ -3542,7 +3544,10 @@ FilterMapcycle(Handle:kv, Handle:originalMapcycle, Handle:exMaps, Handle:exGroup
             {
                 DEBUG_MESSAGE("Removing invalid group \"%s\".", group)
                 if (KvDeleteThis(kv) == -1)
+                {
+                    DEBUG_MESSAGE("Mapcycle filtering completed.")
                     return;
+                }
                 else
                     continue;
             }

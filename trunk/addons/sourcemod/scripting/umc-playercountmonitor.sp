@@ -269,8 +269,7 @@ public OnConfigsExecuted()
     validity_enabled = false;
     
     //Set triggers for min and max number of players.
-    if (ReloadMapcycle())
-        SetupMinMaxPlayers();
+    new bool:setup = ReloadMapcycle();
         
     SetupVoteSounds();
     
@@ -289,6 +288,9 @@ public OnConfigsExecuted()
     new catmem = GetConVarInt(cvar_catmem);
     AddToMemoryArray(mapName, vote_mem_arr, mapmem);
     AddToMemoryArray(groupName, vote_catmem_arr, (mapmem > catmem) ? mapmem : catmem);
+    
+    if (setup)
+        SetupMinMaxPlayers();
 }
 
 
