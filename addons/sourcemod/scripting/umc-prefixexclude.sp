@@ -116,7 +116,10 @@ public Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const Str
             amt--;
         
         if (amt == 0)
+        {
+            DEBUG_MESSAGE("Map %s is excluded due to Prefix Exclusion.")
             return Plugin_Stop;
+        }
     }
     
     return Plugin_Continue;
