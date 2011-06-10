@@ -463,8 +463,10 @@ public Handle_NominationMenu(Handle:menu, MenuAction:action, client, param2)
             GetMenuItem(menu, param2, map, sizeof(map));
             GetArrayString(nomination_cats[client], param2, group, sizeof(group));
             
+            KvRewind(map_kv);
+            
             //Nominate it.
-            UMC_NominateMap(map, group, client);
+            UMC_NominateMap(map_kv, map, group, client);
             
             //Display a message.
             decl String:clientName[MAX_NAME_LENGTH];

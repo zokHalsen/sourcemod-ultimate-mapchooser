@@ -12,13 +12,13 @@
 #include <sdktools_functions>
 #include <sdktools_entinput>
 #include <sdktools_stringtables>
+#include <regex>
 
 //************************************************************************************************//
 //                                        GENERAL UTILITIES                                       //
 //************************************************************************************************//
 
 #if UMC_DEBUG
-
 //Prints a debug message.
 stock DebugMessage(const String:message[], any:...)
 {
@@ -28,7 +28,6 @@ stock DebugMessage(const String:message[], any:...)
     
     LogMessage("DEBUG: %s", fMessage);
 }
-
 #define DEBUG_MESSAGE(%0) DebugMessage(%0);
 
 #else
@@ -36,6 +35,10 @@ stock DebugMessage(const String:message[], any:...)
 #define DEBUG_MESSAGE(%0)
 
 #endif
+
+
+#define MIN(%0, %1) ((%0) < (%1)) ? (%0) : (%1)
+
 
 //Utility function to build a map trie.
 stock Handle:CreateMapTrie(const String:map[], const String:group[])
@@ -54,15 +57,97 @@ stock Handle:GetKvFromFile(const String:filename[], const String:rootKey[])
     
     //Log an error and return empty handle if...
     //    ...the kv file fails to parse.
-    if (!FileToKeyValues(kv, filename))
+    if (!ConvertNormalMapcycle(kv, filename) && !FileToKeyValues(kv, filename))
     {
         LogError("KV ERROR: Unable to load KV file: %s", filename);
+        CloseHandle(kv);
         return INVALID_HANDLE;
     }
     
-    //Log success message and return handle.
-    //LogMessage("SETUP: KV file \"%s\" successfully loaded.", filename);
+#if UMC_DEBUG
+    PrintKv(kv);
+#endif
+    
     return kv;
+}
+
+
+//
+stock bool:ConvertNormalMapcycle(Handle:kv, const String:filename[])
+{
+    DEBUG_MESSAGE("Opening Mapcycle File %s", filename)
+    new Handle:file = OpenFile(filename, "r");
+    
+    if (file == INVALID_HANDLE)
+        return false;
+        
+    DEBUG_MESSAGE("Fetching first line.")
+    new String:firstLine[256];
+    new bool:foundDef;
+    while (ReadFileLine(file, firstLine, sizeof(firstLine)))
+    {
+        TrimString(firstLine);
+        if (strlen(firstLine) > 0)
+        {
+            foundDef = true;
+            break;
+        }
+    }
+    
+    if (!foundDef)
+    {
+        DEBUG_MESSAGE("Couldn't find first line")
+        CloseHandle(file);
+        return false;
+    }
+    
+    DEBUG_MESSAGE("Checking first line for UMC header: \"%s\"", firstLine)
+    
+    static Handle:re = INVALID_HANDLE;
+    if (re == INVALID_HANDLE)
+        re = CompileRegex("^//!UMC\\s+([0-9]+)\\s*$");
+    
+    decl String:buffer[5];
+    
+    if (MatchRegex(re, firstLine) > 1)
+        GetRegexSubString(re, 1, buffer, sizeof(buffer));
+    else
+    {
+        DEBUG_MESSAGE("Header was not found. Aborting.")
+        CloseHandle(file);
+        return false;
+    }
+    
+    DEBUG_MESSAGE("Making a map group.")
+    
+    static Handle:re2 = INVALID_HANDLE;
+    if (re2 == INVALID_HANDLE)
+        re2 = CompileRegex("^\\s*([^/\\\\:*?'\"<>|\\s]+)\\s*(?://.*)?$");
+    
+    KvJumpToKey(kv, "Mapcycle", true);
+    KvSetNum(kv, "maps_invote", StringToInt(buffer));
+    
+    DEBUG_MESSAGE("Parsing maps.")
+    
+    decl String:map[MAP_LENGTH];
+    decl String:line[256];
+    while (ReadFileLine(file, line, sizeof(line)))
+    {
+        TrimString(line);
+        if (MatchRegex(re2, line) > 1)
+        {
+            GetRegexSubString(re2, 1, map, sizeof(map));
+            DEBUG_MESSAGE("Adding map: %s", map)
+            KvJumpToKey(kv, map, true);
+            KvGoBack(kv);
+        }
+    }
+    
+    CloseHandle(file);
+
+    KvGoBack(kv);
+
+    return true;
 }
 
 
@@ -881,19 +966,51 @@ stock SortMapTrieArray(Handle:array)
 //Prints the sections of a kv to the log.
 stock PrintKv(Handle:kv, depth=0)
 {
-    decl String:section[256];
+    decl String:section[64];
     KvGetSectionName(kv, section, sizeof(section));
-    LogMessage("%i: \"%s\"", depth, section);
-            
+    
+    new whitespace = depth*2+1;
+    decl String:space[whitespace];
+    FillWhiteSpace(space, whitespace);
+    
+    LogMessage("%i: %s\"%s\"", depth, space, section);
+    
     if (!KvGotoFirstSubKey(kv))
         return;
     
     do
     {
         PrintKv(kv, depth + 1);
-    } while (KvGotoNextKey(kv));
+    }
+    while (KvGotoNextKey(kv));
     
     KvGoBack(kv);
 }
 
 
+//Fills a string with whitespace.
+stock FillWhiteSpace(String:buffer[], maxlen)
+{
+    new limit = maxlen - 1;
+    for (new i = 0; i < limit; i++)
+    {
+        buffer[i] = ' ';
+    }
+    buffer[limit] = 0;
+}
+
+
+//
+stock PrintNominationArray(Handle:array)
+{
+    new Handle:nom;
+    decl String:map[MAP_LENGTH], String:group[MAP_LENGTH];
+    new size = GetArraySize(array);
+    for (new i = 0; i < size; i++)
+    {
+        nom = GetArrayCell(array, i);
+        GetTrieString(nom, MAP_TRIE_MAP_KEY, map, sizeof(map));
+        GetTrieString(nom, MAP_TRIE_GROUP_KEY, group, sizeof(group));
+        LogMessage("%20s   |    %20s", map, group);
+    }
+}

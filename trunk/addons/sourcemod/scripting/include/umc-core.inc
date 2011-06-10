@@ -7,7 +7,7 @@
 
 #pragma semicolon 1
 
-#define PL_VERSION "3.0.6"
+#define PL_VERSION "3.0.7"
 
 #define UMC_DEBUG 0
 
@@ -192,13 +192,14 @@ native bool:UMC_IsMapNominated(const String:map[], const String:group[]);
 /**
  * Nominates a map for UMC.
  *
+ * @param kv    Mapcycle containing the nomination
  * @param map   The name of the map.
  * @param group The name of the map group containing the map.
  * @param client    The client who is nominating this map.
  *
  * @return True on success, false otherwise.
  */
-native bool:UMC_NominateMap(const String:map[], const String:group[], client);
+native bool:UMC_NominateMap(Handle:kv, const String:map[], const String:group[], client);
  
 
 /**

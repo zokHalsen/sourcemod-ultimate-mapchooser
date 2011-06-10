@@ -159,7 +159,7 @@ public OnPluginStart()
     
     cvar_vote_threshold = CreateConVar(
         "sm_umc_playerlimit_threshold",
-        ".50",
+        "0",
         "If the winning option has less than this percentage of total votes, a vote will fail and the action specified in \"sm_umc_playerlimits_failaction\" cvar will be performed.",
         0, true, 0.0, true, 1.0
     );
