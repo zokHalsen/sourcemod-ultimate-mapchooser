@@ -3637,20 +3637,23 @@ FilterMapcycle(Handle:kv, Handle:originalMapcycle, Handle:exMaps, Handle:exGroup
         FilterMapGroup(kv, originalMapcycle, exMaps, exGroups, isNom, forMapChange);
         
         //Delete the group if there are no valid maps in it.
-        if (deleteEmpty && !KvGotoFirstSubKey(kv))
+        if (deleteEmpty) 
         {
-            DEBUG_MESSAGE("Removing empty group \"%s\".", group)
-            if (KvDeleteThis(kv) == -1)
+            if (!KvGotoFirstSubKey(kv))
             {
-                DEBUG_MESSAGE("Mapcycle filtering completed.")
-                return;
+                DEBUG_MESSAGE("Removing empty group \"%s\".", group)
+                if (KvDeleteThis(kv) == -1)
+                {
+                    DEBUG_MESSAGE("Mapcycle filtering completed.")
+                    return;
+                }
+                else
+                    continue;
             }
-            else
-                continue;
+            
+            KvGoBack(kv);
         }
-        
-        KvGoBack(kv);
-        
+                
         if (!KvGotoNextKey(kv))
             break;
     }
