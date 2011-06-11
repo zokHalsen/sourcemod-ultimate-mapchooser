@@ -26,7 +26,7 @@
 //          //mean the group is more likely to be picked. 0 means the group  //
 //          //can never be picked randomly.                                  //
 //          // (Default value: 1)                                            //
-//          "group_weight"          "int >= 0"                               //
+//          "group_weight"          "int > 0"                                //
 //            //Defined in "umc-weight.smx"                                  //
 //                                                                           //
 //          //If a map from this group is picked randomly or via vote, the   //
@@ -75,7 +75,7 @@
 //              //map will be chosen randomly (assuming this group has       //
 //              //already been chosen.)                                      //
 //              // (Default value: 1)                                        //
-//              "weight"        "int >= 0"                                   //
+//              "weight"        "int > 0"                                    //
 //                //Defined in "umc-weight.smx"                              //
 //                                                                           //
 //              //Defines the number of players required to be on the        //

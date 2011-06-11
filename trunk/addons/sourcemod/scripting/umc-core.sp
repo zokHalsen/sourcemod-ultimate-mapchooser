@@ -37,6 +37,9 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
+3.0.8 (6/11/11)
+Fixed bug where sometimes only the first map group would be processed for map exclusions.
+
 3.0.7 (6/10/11)
 Changed default value for all threshold cvars to 0.
 Added standard mapcycle feature; if given a special header, regular one-map-per-line mapcycles can be used with UMC.
@@ -829,14 +832,14 @@ Handle:CreateMapArray(Handle:kv, Handle:mapcycle, const String:group[], Handle:e
                 KvGetSectionName(kv, mapName, sizeof(mapName));
                 PushArrayCell(result, CreateMapTrie(mapName, groupName));
             }
-            
-        } while (KvGotoNextKey(kv));
+        }
+        while (KvGotoNextKey(kv));
         
         KvGoBack(kv);
         
-        if (oneSection) break;
-        
-    } while (KvGotoNextKey(kv));
+        if (oneSection) break;    
+    }
+    while (KvGotoNextKey(kv));
     
     KvGoBack(kv);
     
@@ -883,9 +886,9 @@ Handle:CreateMapGroupArray(Handle:kv, Handle:mapcycle, Handle:exMaps, Handle:exG
         {
             KvGetSectionName(kv, groupName, sizeof(groupName));
             PushArrayString(result, groupName);
-        }
-        
-    } while (KvGotoNextKey(kv));
+        }    
+    }
+    while (KvGotoNextKey(kv));
     
     KvGoBack(kv);
     
@@ -1787,7 +1790,8 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
             //One less map to be added to the vote from this category.
             numMapsFromCat--;
         }
-    } while (KvGotoNextKey(kv)); //Do this for each category.
+    }
+    while (KvGotoNextKey(kv)); //Do this for each category.
     
     DEBUG_MESSAGE("Vote now populated with maps.")
     
@@ -1986,7 +1990,8 @@ Handle:BuildCatVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
         
         //Increment number of categories in the vote.
         voteCounter++;
-    } while (KvGotoNextKey(kv)); //Do this for each category.
+    }
+    while (KvGotoNextKey(kv)); //Do this for each category.
     
     //No longer need the copied mapcycle
     CloseHandle(kv);
@@ -2291,8 +2296,8 @@ Handle:MakeSecondTieredCatExclusion(Handle:kv, const String:cat[])
         //  ...it is not equal to the given category.
         if (!StrEqual(catName, cat, false))
             PushArrayString(result, catName);
-        
-    } while (KvGotoNextKey(kv));
+    }
+    while (KvGotoNextKey(kv));
     
     //Return to the root.
     KvGoBack(kv);
@@ -3377,7 +3382,8 @@ bool:IsValidMap(Handle:kv, Handle:mapcycle, const String:groupName[], Handle:exM
                 isExcluded = StrEqual(exCat, groupName, false);
                 DEBUG_MESSAGE("Map Excluded? %i (%s | %s)", _:isExcluded, exCat, groupName)
             }
-        } while (!isExcluded && index != -1);
+        }
+        while (!isExcluded && index != -1);
     }
     
     if (isExcluded)
@@ -3476,7 +3482,8 @@ CountMapsFromGroup(Handle:kv)
     do
     {
         result++;
-    } while (KvGotoNextKey(kv));
+    }
+    while (KvGotoNextKey(kv));
     
     KvGoBack(kv);
     
@@ -3974,7 +3981,8 @@ bool:GetRandomCat(Handle:kv, String:buffer[], size)
         
         //One more category in the pool.
         index++;
-    } while (KvGotoNextKey(kv)); //Do this for each category.s
+    }
+    while (KvGotoNextKey(kv)); //Do this for each category.
 
     //Return to the root level.
     KvGoBack(kv);
