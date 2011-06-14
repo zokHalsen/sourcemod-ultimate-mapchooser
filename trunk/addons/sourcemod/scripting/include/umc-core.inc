@@ -7,7 +7,7 @@
 
 #pragma semicolon 1
 
-#define PL_VERSION "3.0.9"
+#define PL_VERSION "3.1"
 
 #define UMC_DEBUG 0
 
@@ -131,7 +131,9 @@ forward Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const St
  * @param runoffSound   Sound to be played when the runoff vote starts (must be precached already).
  * @param nominationStrictness  Specifies how nominations should be handled.
  * @param allowDuplicates   Determines if the same map (in different groups) can appear in the vote.
- *
+ * @param adminFlags    String of flags required for players to see the vote.
+ * @param runExclusion  Determines if UMC will filter the mapcycle through the Map Exclusion system.
+ * 
  * @return True on success, false on failure.
  */
 native bool:UMC_StartVote(Handle:kv, UMC_VoteType:type, time, Handle:excludedMaps,
@@ -139,7 +141,8 @@ native bool:UMC_StartVote(Handle:kv, UMC_VoteType:type, time, Handle:excludedMap
     const String:startSound[], const String:endSound[], bool:extendOption, Float:timestep, roundstep,
     fragstep, bool:dontChangeOption, Float:threshold, UMC_ChangeMapTime:successAction,
     UMC_VoteFailAction:failAction, maxRunoffs, maxRunoffMaps, UMC_RunoffFailAction:runoffFailAction,
-    const String:runoffSound[], bool:nominationStrictness, bool:allowDuplicates);
+    const String:runoffSound[], bool:nominationStrictness, bool:allowDuplicates,
+    const String:adminFlags[], bool:runExclusion=true);
 
 
 /**
@@ -210,7 +213,7 @@ native bool:UMC_NominateMap(Handle:kv, const String:map[], const String:group[],
  * 
  * @return True if the group is valid, false otherwise.
  */
-//native bool:UMC_IsGroupValid(Handle:kv, const String:group[]);
+native bool:UMC_IsGroupValid(Handle:kv, const String:group[]);
 
 
 /**
@@ -222,7 +225,7 @@ native bool:UMC_NominateMap(Handle:kv, const String:map[], const String:group[],
  *
  * @return True if the map is valid, false otherwise.
  */
-//native bool:UMC_IsMapValid(Handle:kv, const String:map[], const String:group[]);
+native bool:UMC_IsMapValid(Handle:kv, const String:map[], const String:group[]);
 
 
 /**

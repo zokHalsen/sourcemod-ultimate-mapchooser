@@ -153,6 +153,7 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
     Format(dMessage, sizeof(dMessage), "%T", "Default Warning", LANG_SERVER); //Message
     new String:dNotification[10] = "C"; //Notification
     new String:dSound[PLATFORM_MAX_PATH] = ""; //Sound
+    new String:dFlags[64] = "";
     
     //Grab defaults from the KV if...
     //    ...they are actually defined.
@@ -162,6 +163,7 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
         KvGetString(kv, "message", dMessage, sizeof(dMessage), dMessage);
         KvGetString(kv, "notification", dNotification, sizeof(dNotification), dNotification);
         KvGetString(kv, "sound", dSound, sizeof(dSound), dSound);
+        KvGetString(kv, "adminflags", dFlags, sizeof(dFlags), dFlags);
     
         //Rewind back to root, so we can begin parsing the warnings.
         KvRewind(kv);
@@ -188,6 +190,7 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
     decl String:message[255];
     decl String:notification[2];
     decl String:sound[PLATFORM_MAX_PATH];
+    decl String:flags[64];
     
     //Storage buffer for formatted sound strings
     decl String:fsound[PLATFORM_MAX_PATH];
@@ -197,7 +200,6 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
     static Handle:re = INVALID_HANDLE;
     if (re == INVALID_HANDLE)
         re = CompileRegex("^([0-9]+)\\s*(?:(?:\\.\\.\\.)|-)\\s*([0-9]+)$");
-                        //"^([0-9]+)\\.\\.\\.([0-9]+)$");
     
     //Variables to store sequence definition
     decl String:sequence_start[10], String:sequence_end[10];
@@ -220,6 +222,7 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
         KvGetString(kv, "message", message, sizeof(message), dMessage);
         KvGetString(kv, "notification", notification, sizeof(notification), dNotification);
         KvGetString(kv, "sound", sound, sizeof(sound), dSound);
+        KvGetString(kv, "adminflags", flags, sizeof(flags), dFlags);
         
         //Prepare to handle sequence of warnings if...
         //  ...a sequence is what was defined.
@@ -255,6 +258,7 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
             SetTrieValue(warning, "time", warningTime - i);
             SetTrieString(warning, "message", message);
             SetTrieString(warning, "notification", notification);
+            SetTrieString(warning, "flags", flags);
             
             //Insert correct time remaining if...
             //    ...the message has a place to insert it.

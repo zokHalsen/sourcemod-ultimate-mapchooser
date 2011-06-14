@@ -44,6 +44,8 @@ new Handle:cvar_rtv_type             = INVALID_HANDLE;
 new Handle:cvar_rtv_dontchange       = INVALID_HANDLE;
 new Handle:cvar_rtv_startsound       = INVALID_HANDLE;
 new Handle:cvar_rtv_endsound         = INVALID_HANDLE;
+new Handle:cvar_voteflags            = INVALID_HANDLE;
+new Handle:cvar_enterflags           = INVALID_HANDLE;
         ////----/CONVARS-----/////
 
 //Mapcycle KV
@@ -83,6 +85,18 @@ new String:vote_start_sound[PLATFORM_MAX_PATH], String:vote_end_sound[PLATFORM_M
 //Called when the plugin is finished loading.
 public OnPluginStart()
 {
+    cvar_voteflags = CreateConVar(
+        "sm_umc_rtv_voteadminflags",
+        "",
+        "Specifies which admin flags are necessary for a player to participate in a vote. If empty, all players can participate."
+    );
+    
+    cvar_enterflags = CreateConVar(
+        "sm_umc_rtv_enteradminflags",
+        "",
+        "Specifies which admin flags are necessary for a player to enter RTV. If empty, all players can participate."
+    );
+
     cvar_fail_action = CreateConVar(
         "sm_umc_rtv_failaction",
         "0",
@@ -534,6 +548,19 @@ AttemptRTV(client)
     if (!rtv_enabled || !GetConVarBool(cvar_rtv_enable) || size >= rtv_threshold || client == 0)
         return;
         
+    decl String:flags[64];
+    GetConVarString(cvar_enterflags, flags, sizeof(flags));
+    
+    if (flags[0] != '\0' && !(GetUserFlagBits(client) & ReadFlagString(flags)))
+    {
+        PrintToChat(
+            client,
+            "\x03[UMC]\x01 %t",
+            "No RTV Admin"
+        );
+        return;
+    }
+        
     new clients = GetRealClientCount();
     new minPlayers = GetConVarInt(cvar_rtv_minplayers);
     
@@ -746,6 +773,9 @@ public StartRTV()
         
         rtv_inprogress = true;
         
+        decl String:flags[64];
+        GetConVarString(cvar_voteflags, flags, sizeof(flags));
+        
         //Start the UMC vote.
         UMC_StartVote(
             map_kv,                                                     //Mapcycle
@@ -771,7 +801,8 @@ public StartRTV()
             UMC_RunoffFailAction:GetConVarInt(cvar_runoff_fail_action), //Runoff Fail Action
             runoff_sound,                                               //Runoff Sound
             GetConVarBool(cvar_strict_noms),                            //Nomination Strictness
-            GetConVarBool(cvar_vote_allowduplicates)                    //Ignore Duplicates
+            GetConVarBool(cvar_vote_allowduplicates),                   //Ignore Duplicates
+            flags                                                       //Admin Flags
         );
     }
 }
