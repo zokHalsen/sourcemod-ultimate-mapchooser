@@ -219,4 +219,9 @@
     {
         "en"    "Presenting vote menu to players who did not vote or whose votes were eliminated."
     }
+    
+    "No RTV Admin"
+    {
+        "en"    "You do not have the required priveleges to enter Rock the Vote."
+    }
 }
