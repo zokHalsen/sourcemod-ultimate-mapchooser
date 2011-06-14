@@ -729,7 +729,8 @@ stock bool:IsPlayerCountBetween(min, max)
 stock ConvertArray(Handle:arr, any:newArr[], size)
 {
     new arraySize = GetArraySize(arr);
-    for (new i = 0; i < size && i < arraySize; i++)
+    new min = size < arraySize ? size : arraySize;
+    for (new i = 0; i < min; i++)
         newArr[i] = GetArrayCell(arr, i);
 }
 
@@ -1012,5 +1013,30 @@ stock PrintNominationArray(Handle:array)
         GetTrieString(nom, MAP_TRIE_MAP_KEY, map, sizeof(map));
         GetTrieString(nom, MAP_TRIE_GROUP_KEY, group, sizeof(group));
         LogMessage("%20s   |    %20s", map, group);
+    }
+}
+
+
+//
+stock bool:VoteMenuToAllWithFlags(Handle:menu, time, const String:flagstring[]="")
+{
+    if (flagstring[0] != '\0')
+    {
+        new flags = ReadFlagString(flagstring);
+        new clients[MAXPLAYERS];
+        new count = 0;
+        for (new i = 1; i <= MaxClients; i++)
+        {
+            if (flags & GetUserFlagBits(i))
+            {
+                clients[count] = i;
+                count++;
+            }
+        }
+        return VoteMenu(menu, clients, count, time);
+    }
+    else
+    {
+        return bool:VoteMenuToAll(menu, time);
     }
 }

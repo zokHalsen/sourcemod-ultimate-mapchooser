@@ -37,7 +37,7 @@ public OnPluginStart()
 
     cvar_prev = CreateConVar(
         "sm_umc_prefixexclude_memory",
-        "1",
+        "0",
         "Specifies how many previously played prefixes to remember. 1 = Current Only",
         0, true, 0.0
     );

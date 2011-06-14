@@ -37,6 +37,26 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
+3.1 (6//11)
+Added admin flag for ability to see vote menu.
+-New "adminflags" cvar in ADMINMENU, ENDVOTE, PLAYERCOUNTMONITOR, ROCKTHEVOTE, and VOTECOMMAND.
+Added admin flag for ability to enter rtv. [RTV]
+-New "enterandminflags" cvar in RTV.
+Added ability to specify flags for maps, limiting which players can nominate them.
+-New group and map option in mapcycle "nominate_flags" to specify flags.
+-New cvar "adminflags" in NOMINATE to set default.
+Added ability to specify flags for maps, limiting which admins can select them in the admin menu.
+-New group and map option in mapcycle "adminmenu_flags" to specify flags.
+Added admin flags for admins who can ignore map exclusion in the admin menu.
+-New cvar "sm_umc_am_adminflags_exclude" to control this feature.
+Added admin flags for admins who can override default settings in the admin menu.
+-New cvar "sm_umc_am_adminflags_defaults" to control this feature.
+Fixed bug with nominations not using group exclusion settings.
+Fixed bug with tiered nomination menu excluding groups unnecessarily.
+Fixed memory leak when parsing nominations for map group vote menus.
+Fixed bug which could cause groups with no valid maps to be added to group votes.
+Fixed bug in Prefix Exclusion which caused prefixes to be excluded even when the memory cvar was set to 0.
+
 3.0.8 (6/11/11)
 Fixed bug where sometimes only the first map group would be processed for map exclusions.
 
@@ -417,6 +437,8 @@ new Float:stored_threshold;
 new stored_runoffmaps_max;
 new stored_votetime;
 new String:stored_reason[PLATFORM_MAX_PATH];
+new String:stored_adminflags[64];
+new bool:stored_exclude;
 
 /* Storage */
 //Array to store results of a vote.
@@ -1004,6 +1026,13 @@ public Native_UMCStartVote(Handle:plugin, numParams)
     new bool:nominationStrictness = bool:GetNativeCell(23);
     new bool:allowDuplicates = bool:GetNativeCell(24);
     
+    GetNativeStringLength(25, len);
+    new String:adminFlags[len+1];
+    if (len > 0)
+        GetNativeString(25, adminFlags, len+1);
+        
+    new bool:runExclusionCheck = (numParams >= 26) ? (bool:GetNativeCell(26)) : true;
+    
     //OK now that that's done, let's save 'em.
     
     new blocksize = ByteCountToCells(MAP_LENGTH);
@@ -1043,9 +1072,14 @@ public Native_UMCStartVote(Handle:plugin, numParams)
     strcopy(stored_end_sound, sizeof(stored_end_sound), endSound);
     strcopy(stored_runoff_sound, sizeof(stored_runoff_sound), runoffSound);
     
+    strcopy(stored_adminflags, sizeof(stored_adminflags), adminFlags);
+    
+    stored_exclude = runExclusionCheck;
+    
     //Make the vote menu.
     new Handle:menu = BuildVoteMenu(type, exMaps, exGroups, numExGroups, scramble, numBlockSlots,
-                                    extend, dontChange, allowDuplicates, nominationStrictness);
+                                    extend, dontChange, allowDuplicates, nominationStrictness,
+                                    runExclusionCheck);
     
     //Run the vote if...
     //    ...the menu was created successfully.
@@ -1056,13 +1090,11 @@ public Native_UMCStartVote(Handle:plugin, numParams)
         if (strlen(startSound) > 0)
             EmitSoundToAll(startSound);
     
+   
         vote_active = true;
     
-        //Log an error if...
-        //    ...the vote cannot start for some reason.
-        VoteMenuToAll(menu, time);
         
-        return _:true;
+        return _:VoteMenuToAllWithFlags(menu, time, adminFlags);
     }
     else
         return _:false;
@@ -1253,7 +1285,8 @@ public Action:Command_StopVote(client, args)
 
 //Build and returns a new vote menu.
 Handle:BuildVoteMenu(UMC_VoteType:type, Handle:exMaps, Handle:exGroups, numExGroups, bool:scramble,
-                     numBlockSlots, bool:extend, bool:dontChange, bool:allowDupes, bool:strictNoms)
+                     numBlockSlots, bool:extend, bool:dontChange, bool:allowDupes, bool:strictNoms,
+                     bool:exclude)
 {
     new Handle:result = INVALID_HANDLE;
 
@@ -1263,19 +1296,19 @@ Handle:BuildVoteMenu(UMC_VoteType:type, Handle:exMaps, Handle:exGroups, numExGro
         {
             result = BuildMapVoteMenu(Handle_MapVoteResults, scramble, extend, dontChange,
                                       numBlockSlots, exMaps, exGroups, numExGroups, allowDupes,
-                                      strictNoms);
+                                      strictNoms, .exclude=exclude);
         }
         case (VoteType_Group):
         {
             result = BuildCatVoteMenu(Handle_CatVoteResults, scramble, extend, dontChange,
                                       numBlockSlots, exMaps, exGroups, numExGroups,
-                                      strictNoms);
+                                      strictNoms, .exclude=exclude);
         }
         case (VoteType_Tier):
         {
             result = BuildCatVoteMenu(Handle_TierVoteResults, scramble, extend, dontChange,
                                       numBlockSlots, exMaps, exGroups, numExGroups,
-                                      strictNoms);
+                                      strictNoms, .exclude=exclude);
         }
     }
     return result;
@@ -1294,7 +1327,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                         blockSlots=0, Handle:excluded=INVALID_HANDLE,
                         Handle:excludedCats=INVALID_HANDLE, numExcludedCats=0,
                         bool:ignoreDupes=false, bool:strictNoms=false,
-                        bool:ignoreInvoteSetting=false)
+                        bool:ignoreInvoteSetting=false, bool:exclude=true)
 {
     DEBUG_MESSAGE("MAPVOTE - Building map vote menu.")
     //Throw an error and return nothing if...
@@ -1310,7 +1343,10 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     KvRewind(stored_kv); //rewind original
     new Handle:kv = CreateKeyValues("umc_rotation"); //new handle
     KvCopySubkeys(stored_kv, kv); //copy everything to the new handle
-    FilterMapcycle(kv, stored_kv, excluded, excludedCats, numExcludedCats, .deleteEmpty=false);
+    
+    //Filter mapcycle
+    if (exclude)
+        FilterMapcycle(kv, stored_kv, excluded, excludedCats, numExcludedCats, .deleteEmpty=false);
     
 #if UMC_DEBUG
     PrintKv(kv);
@@ -1381,17 +1417,22 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
         DEBUG_MESSAGE("Fetching Nominations")
         
         //Get all nominations for the current category.
-        tempCatNoms = GetCatNominations(catName);
-        nominationsFromCat = FilterNominationsArray(tempCatNoms);
-        
+        if (exclude)
+        {
+            tempCatNoms = GetCatNominations(catName);
+            nominationsFromCat = FilterNominationsArray(tempCatNoms);
+              
 #if UMC_DEBUG
-        DEBUG_MESSAGE("Unfiltered:")
-        PrintNominationArray(tempCatNoms);
-        DEBUG_MESSAGE("Filtered:")
-        PrintNominationArray(nominationsFromCat);
+            DEBUG_MESSAGE("Unfiltered:")
+            PrintNominationArray(tempCatNoms);
+            DEBUG_MESSAGE("Filtered:")
+            PrintNominationArray(nominationsFromCat);
 #endif
-
-        CloseHandle(tempCatNoms);
+            
+            CloseHandle(tempCatNoms);
+        }
+        else
+            nominationsFromCat = GetCatNominations(catName);
         
         //Get the amount of nominations for the current category.
         numNoms = GetArraySize(nominationsFromCat);
@@ -1888,7 +1929,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
 Handle:BuildCatVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:dontChange,
                         blockSlots=0, Handle:excluded=INVALID_HANDLE,
                         Handle:excludedCats=INVALID_HANDLE, numExcludedCats=0,
-                        bool:strictNoms=false)
+                        bool:strictNoms=false, bool:exclude=true)
 {
     //Throw an error and return nothing if...
     //    ...the mapcycle is invalid.
@@ -1935,51 +1976,62 @@ Handle:BuildCatVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     {
         KvGetSectionName(kv, catName, sizeof(catName));
         
-        catNoms = GetCatNominations(catName);
-        size = GetArraySize(catNoms);
-        for (new i = 0; i < size; i++)
+        haveNoms = false;
+        
+        if (exclude)
         {
-            nom = GetArrayCell(catNoms, i);
-            GetTrieValue(nom, "mapcycle", nomMapcycle);
-            
-            nomKV = CreateKeyValues("umc_rotation");
-            KvCopySubkeys(nomMapcycle, nomKV);
-            
-            GetTrieString(nom, MAP_TRIE_MAP_KEY, mapName, sizeof(mapName));
-            if (IsValidMapFromCat(nomKV, nomMapcycle, mapName, .isNom=true))
+            catNoms = GetCatNominations(catName);
+            size = GetArraySize(catNoms);
+            for (new i = 0; i < size; i++)
             {
-                haveNoms = true;
-                break;
+                nom = GetArrayCell(catNoms, i);
+                GetTrieValue(nom, "mapcycle", nomMapcycle);
+                
+                nomKV = CreateKeyValues("umc_rotation");
+                KvCopySubkeys(nomMapcycle, nomKV);
+                
+                GetTrieString(nom, MAP_TRIE_MAP_KEY, mapName, sizeof(mapName));
+                if (!exclude || IsValidMapFromCat(nomKV, nomMapcycle, mapName, .isNom=true))
+                {
+                    haveNoms = true;            
+                    CloseHandle(nomKV);
+                    break;
+                }
+                
+                CloseHandle(nomKV);
             }
-            
-            CloseHandle(nomKV);
+            CloseHandle(catNoms);
         }
-        CloseHandle(catNoms);
+        else
+            haveNoms = true;
         
         //Skip this category if...
         //    ...the server doesn't have the required amount of players or all maps are excluded OR
         //    ...the number of maps in the vote from the category is less than 1.
-        if (!haveNoms && !IsValidCat(kv, stored_kv, excludedCats, numExcludedCats, excluded))
+        if (!haveNoms)
         {
-            if (verboseLogs)
+            if (!IsValidCat(kv, stored_kv, excludedCats, numExcludedCats, excluded))
             {
-                LogMessage(
-                    "VOTE MENU: (Verbose) Skipping excluded map group '%s'.",
-                    catName
-                );
+                if (verboseLogs)
+                {
+                    LogMessage(
+                        "VOTE MENU: (Verbose) Skipping excluded map group '%s'.",
+                        catName
+                    );
+                }
+                continue;
             }
-            continue;
-        }
-        else if (KvGetNum(kv, "maps_invote", 1) < 1 && strictNoms)
-        {
-            if (verboseLogs)
+            else if (KvGetNum(kv, "maps_invote", 1) < 1 && strictNoms)
             {
-                LogMessage(
-                    "VOTE MENU: (Verbose) Skipping map group '%s' due to \"maps_invote\" setting of 0.",
-                    catName
-                );
+                if (verboseLogs)
+                {
+                    LogMessage(
+                        "VOTE MENU: (Verbose) Skipping map group '%s' due to \"maps_invote\" setting of 0.",
+                        catName
+                    );
+                }
+                continue;
             }
-            continue;
         }
         
         if (verboseLogs)
@@ -2772,7 +2824,7 @@ public Action:Handle_RunoffVoteTimer(Handle:timer)
     {
         //Log an error if...
         //    ...the vote cannot start for some reason.
-        if (!VoteMenuToAll(runoff_menu, stored_votetime))
+        if (!VoteMenuToAllWithFlags(runoff_menu, stored_votetime, stored_adminflags))
             LogMessage("RUNOFF: Menu already has a vote in progress, cannot start a new vote.");
         else
             vote_active = true;
@@ -2932,13 +2984,23 @@ public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:perce
                     
         //Jump to the category in the mapcycle.
         KvJumpToKey(kv, cat);
-        FilterMapGroup(kv, stored_kv, stored_exmaps, stored_exgroups);
+        
+        if (stored_exclude)
+            FilterMapGroup(kv, stored_kv, stored_exmaps, stored_exgroups);
+
         WeightMapGroup(kv, stored_kv);
         
+        new Handle:nominationsFromCat;
+        
         //An adt_array of nominations from the given category.
-        new Handle:tempCatNoms = GetCatNominations(cat);
-        new Handle:nominationsFromCat = FilterNominationsArray(tempCatNoms);
-        CloseHandle(tempCatNoms);
+        if (stored_exclude)
+        {
+            new Handle:tempCatNoms = GetCatNominations(cat);
+            nominationsFromCat = FilterNominationsArray(tempCatNoms);
+            CloseHandle(tempCatNoms);
+        }
+        else
+            nominationsFromCat = GetCatNominations(cat);
         
         //if...
         //    ...there are nominations for this category.
@@ -3102,16 +3164,28 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
         new Handle:kv = CreateKeyValues("umc_rotation");
         KvCopySubkeys(stored_kv, kv);
         
+        new vMapCount;
+        
         DEBUG_MESSAGE("Counting the number of nominations from the winning group.")
         //Get the number of valid nominations from the group
         new Handle:tempNoms = GetCatNominations(cat);
-        new Handle:catNoms = FilterNominationsArray(tempNoms);
+        
+        if (stored_exclude)
+        {
+            new Handle:catNoms = FilterNominationsArray(tempNoms);
+            vMapCount = GetArraySize(catNoms);        
+            CloseHandle(catNoms);
+        }
+        else
+        {
+            vMapCount = GetArraySize(tempNoms);
+        }
         CloseHandle(tempNoms);
-        new vMapCount = GetArraySize(catNoms);
-        CloseHandle(catNoms);
         
         KvJumpToKey(kv, cat);
-        FilterMapGroup(kv, stored_kv, stored_exmaps, stored_exgroups);
+        
+        if (stored_exclude)
+            FilterMapGroup(kv, stored_kv, stored_exmaps, stored_exgroups);
         
         DEBUG_MESSAGE("Counting the number of available maps from the winning group.")
         //Get the number of valid maps from the group
@@ -3212,7 +3286,7 @@ public Action:Handle_TieredVoteTimer(Handle:timer, Handle:exGroups)
     //Initialize the menu.
     new Handle:menu = BuildMapVoteMenu(Handle_MapVoteResults, stored_scramble, false, false,
                                        stored_blockslots, exMaps, exGroups, size,
-                                       stored_ignoredupes, stored_strictnoms, true);
+                                       stored_ignoredupes, stored_strictnoms, true, stored_exclude);
     
     CloseHandle(exMaps);
     
@@ -3224,7 +3298,7 @@ public Action:Handle_TieredVoteTimer(Handle:timer, Handle:exGroups)
             EmitSoundToAll(stored_start_sound);
         
         //Display the menu.
-        VoteMenuToAll(menu, stored_votetime);
+        VoteMenuToAllWithFlags(menu, stored_votetime, stored_adminflags);
         
         vote_active = true;
     }

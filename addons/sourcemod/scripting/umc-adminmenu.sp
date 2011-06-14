@@ -48,6 +48,8 @@
 #define DCMENU_ITEM_INFO_NO "no"
 #define DCMENU_ITEM_INFO_YES "yes"
 
+#define ADMINMENU_ADMINFLAG_KEY "adminmenu_flags"
+
 
 //Plugin Information
 public Plugin:myinfo =
@@ -81,6 +83,14 @@ public Plugin:myinfo =
         Should we take nominations into consideration? (cvar perhaps)
         
         Turn MapVote button into StopVote button when a vote is in progress.
+        
+        Option for Admins Only (Yes = Use cvar, No = Everyone) Skip this if the cvar
+        is empty ("")
+        
+        FLAGS:
+            Whether or not they can override defaults
+            Whether players can participate
+            Whether exclusions are ignored for manual pop. (should be a way of notifying)
 
 */
 
@@ -106,6 +116,9 @@ new Handle:cvar_vote_startsound      = INVALID_HANDLE;
 new Handle:cvar_vote_endsound        = INVALID_HANDLE;
 new Handle:cvar_vote_catmem          = INVALID_HANDLE;
 new Handle:cvar_dontchange           = INVALID_HANDLE;
+new Handle:cvar_defaultsflags        = INVALID_HANDLE;
+new Handle:cvar_flags                = INVALID_HANDLE;
+new Handle:cvar_ignoreexcludeflags   = INVALID_HANDLE;
         ////----/CONVARS-----/////
 
 //Mapcycle KV
@@ -146,6 +159,24 @@ new Handle:threshold_regex = INVALID_HANDLE;
 //Called when the plugin is finished loading.
 public OnPluginStart()
 {
+    cvar_ignoreexcludeflags = CreateConVar(
+        "sm_umc_am_exclude_adminflags",
+        "",
+        "Flags required for admins to be able to select maps which would normally be excluded by UMC. If empty, all admins can select excluded maps."
+    );
+    
+    cvar_defaultsflags = CreateConVar(
+        "sm_umc_am_defaults_adminflags",
+        "",
+        "Flags required for admins to be able to manually select settings for the vote. If the admin does not have the proper priveleges, the vote will automatically use the cvars in this file. If empty, all admins have access."
+    );
+    
+    cvar_flags = CreateConVar(
+        "sm_umc_am_vote_adminflags",
+        "",
+        "Specifies which admin flags are necessary for a player to participate in a vote. If empty, all players can participate."
+    );
+    
     cvar_fail_action = CreateConVar(
         "sm_umc_am_failaction",
         "0",
@@ -558,18 +589,34 @@ public UMCMenu_MapVote(Handle:topmenu, TopMenuAction:action, TopMenuObject:objec
             bool UsingDefaults(client)
         */
         
-        menu_tries[param] = CreateVoteMenuTrie();
+        menu_tries[param] = CreateVoteMenuTrie(param);
         DisplayVoteTypeMenu(param);
     }
 }
 
 
 //
-Handle:CreateVoteMenuTrie()
+Handle:CreateVoteMenuTrie(client)
 {
     new Handle:trie = CreateTrie();
     new Handle:mapList = CreateArray();
     SetTrieValue(trie, "maps", mapList);
+    
+    new bool:ignoreExclude = false;
+    decl String:flags[64];
+    GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+    
+    if (flags[0] != '\0')
+    {
+        if (ReadFlagString(flags) & GetUserFlagBits(client))
+            ignoreExclude = true;
+    }
+    else
+    {
+        ignoreExclude = true;
+    }
+    
+    SetTrieValue(trie, "ignore_exclusion", ignoreExclude);
     return trie;
 }
 
@@ -683,7 +730,10 @@ CloseClientVoteTrie(client)
 //
 DisplayGroupSelectMenu(client)
 {
-    new Handle:menu = CreateGroupMenu(HandleMV_Groups);
+    new bool:ignoreLimits;
+    GetTrieValue(menu_tries[client], "ignore_exclusion", ignoreLimits);
+    
+    new Handle:menu = CreateGroupMenu(HandleMV_Groups, !ignoreLimits, client);
     
     new Handle:voteArray;
     GetTrieValue(menu_tries[client], "maps", voteArray);
@@ -706,7 +756,18 @@ public HandleMV_Groups(Handle:menu, MenuAction:action, param1, param2)
             
             if (StrEqual(group, VOTE_POP_STOP_INFO))
             {
-                DisplayDefaultsMenu(param1);
+                decl String:flags[64];
+                GetConVarString(cvar_defaultsflags, flags, sizeof(flags));
+                
+                if (flags[0] != '\0' || !(GetUserFlagBits(param1) & ReadFlagString(flags)))
+                {
+                    UseVoteDefaults(param1);
+                    DisplayChangeWhenMenu(param1);
+                }
+                else
+                {
+                    DisplayDefaultsMenu(param1);
+                }
             }
             else
             {
@@ -736,7 +797,10 @@ public HandleMV_Groups(Handle:menu, MenuAction:action, param1, param2)
 //
 DisplayMapSelectMenu(client, const String:group[])
 {
-    new Handle:newMenu = CreateMapMenu(HandleMV_Maps, group);
+    new bool:ignoreLimits;
+    GetTrieValue(menu_tries[client], "ignore_exclusion", ignoreLimits);
+    
+    new Handle:newMenu = CreateMapMenu(HandleMV_Maps, group, !ignoreLimits, client);
     DisplayMenu(newMenu, client, 0);
 }
 
@@ -908,7 +972,20 @@ public HandleMV_Scramble(Handle:menu, MenuAction:action, param1, param2)
         {
             if (param2 == MenuCancel_ExitBack)
             {
-                DisplayDefaultsMenu(param1);
+                decl String:flags[64];
+                GetConVarString(cvar_defaultsflags, flags, sizeof(flags));
+                
+                if (flags[0] != '\0' || !(GetUserFlagBits(param1) & ReadFlagString(flags)))
+                {
+                    if (VoteAutoPopulated(param1))
+                        DisplayAutoManualMenu(param1);
+                    else
+                        DisplayGroupSelectMenu(param1);
+                }
+                else
+                {
+                    DisplayDefaultsMenu(param1);
+                }
             }
             else
             {
@@ -1348,7 +1425,88 @@ public HandleMV_DontChange(Handle:menu, MenuAction:action, param1, param2)
     {
         case MenuAction_Select:
         {
-            SetTrieValue(menu_tries[param1], "dont_change", param2);
+            new Handle:trie = menu_tries[param1];
+            SetTrieValue(trie, "dont_change", param2);
+            
+            decl String:flags[64];
+            GetConVarString(cvar_flags, flags, sizeof(flags));
+            
+            if (flags[0] != '\0')
+            {
+                SetTrieValue(trie, "skip_admin", false);
+                DisplayAdminFlagsMenu(param1);
+            }
+            else
+            {
+                SkipAdminFlags(param1);
+                DisplayChangeWhenMenu(param1);
+            }
+        }
+        case MenuAction_Cancel:
+        {
+            if (param2 == MenuCancel_ExitBack)
+            {
+                DisplayExtendMenu(param1);
+            }
+            else
+            {
+                CloseClientVoteTrie(param1);
+            }
+        }
+        case MenuAction_End:
+        {
+            CloseHandle(menu);
+        }
+    }
+}
+
+
+//
+SkipAdminFlags(client)
+{
+    new Handle:trie = menu_tries[client];
+    SetTrieString(trie, "flags", "");
+    SetTrieValue(trie, "skip_admin", true);
+}
+
+
+//
+bool:SkippingAdminFlags(client)
+{
+    new bool:result;
+    return GetTrieValue(menu_tries[client], "skip_admin", result) && result;
+}
+
+
+//
+DisplayAdminFlagsMenu(client)
+{
+    new Handle:menu = CreateMenu(HandleMV_AdminFlags);
+    SetMenuTitle(menu, "Make vote available to...");
+    
+    decl String:flags[64];
+    GetConVarString(cvar_flags, flags, sizeof(flags));
+    
+    AddMenuItem(menu, "", "Everyone");
+    AddMenuItem(menu, flags, "Admins Only");
+    
+    SetMenuExitBackButton(menu, true);
+    
+    DisplayMenu(menu, client, 0);
+}
+
+
+//
+public HandleMV_AdminFlags(Handle:menu, MenuAction:action, param1, param2)
+{
+    switch (action)
+    {
+        case MenuAction_Select:
+        {
+            decl String:info[64];
+            GetMenuItem(menu, param2, info, sizeof(info));
+            
+            SetTrieString(menu_tries[param1], "flags", info);
             
             DisplayChangeWhenMenu(param1);
         }
@@ -1356,7 +1514,7 @@ public HandleMV_DontChange(Handle:menu, MenuAction:action, param1, param2)
         {
             if (param2 == MenuCancel_ExitBack)
             {
-                DisplayExtendMenu(param1);
+                DisplayDontChangeMenu(param1);
             }
             else
             {
@@ -1414,9 +1572,37 @@ public HandleMV_When(Handle:menu, MenuAction:action, param1, param2)
             if (param2 == MenuCancel_ExitBack)
             {
                 if (UsingDefaults(param1))
-                    DisplayDefaultsMenu(param1);
+                {
+                    decl String:flags[64];
+                    GetConVarString(cvar_defaultsflags, flags, sizeof(flags));
+                    
+                    if (flags[0] != '\0' || !(GetUserFlagBits(param1) & ReadFlagString(flags)))
+                    {
+                        if (VoteAutoPopulated(param1))
+                        {
+                            DisplayAutoManualMenu(param1);
+                        }
+                        else
+                        {
+                            DisplayGroupSelectMenu(param1);
+                        }
+                    }
+                    else
+                    {
+                        DisplayDefaultsMenu(param1);
+                    }
+                }
                 else
-                    DisplayDontChangeMenu(param1);
+                {
+                    if (SkippingAdminFlags(param1))
+                    {
+                        DisplayDontChangeMenu(param1);
+                    }
+                    else
+                    {
+                        DisplayAdminFlagsMenu(param1);
+                    }
+                }
             }
             else
             {
@@ -1452,6 +1638,10 @@ DoMapVote(client)
         UMC_ChangeMapTime:when, UMC_VoteFailAction:failAction, runoffs,
         UMC_RunoffFailAction:runoffFailAction;
         
+    decl String:flags[64];
+    
+    new bool:ignoreExclusion;
+        
     GetTrieValue(trie, "maps", selectedMaps);
     
     new bool:autoPop = VoteAutoPopulated(client);
@@ -1469,6 +1659,10 @@ DoMapVote(client)
     GetTrieValue(trie, "runoff_fail_action", runoffFailAction);
     GetTrieValue(trie, "max_runoffs",        runoffs);
     
+    GetTrieString(trie, "flags", flags, sizeof(flags));
+    
+    GetTrieValue(trie, "ignore_exclusion", ignoreExclusion);
+    
     CloseClientVoteTrie(client);
     
     UMC_StartVote(
@@ -1477,7 +1671,8 @@ DoMapVote(client)
         vote_start_sound, vote_end_sound, extend, GetConVarFloat(cvar_extend_time),
         GetConVarInt(cvar_extend_rounds), GetConVarInt(cvar_extend_frags), dontChange, threshold,
         when, failAction, runoffs, GetConVarInt(cvar_runoff_max), runoffFailAction, runoff_sound,
-        GetConVarBool(cvar_strict_noms), GetConVarBool(cvar_vote_allowduplicates)
+        GetConVarBool(cvar_strict_noms), GetConVarBool(cvar_vote_allowduplicates), flags,
+        !ignoreExclusion
     );
     
     if (!autoPop)
@@ -1626,7 +1821,21 @@ ManualChangeMap(client)
 {
     menu_tries[client] = CreateTrie();
     
-    new Handle:menu = CreateGroupMenu(HandleGM_ChangeMap);
+    new bool:ignoreExclude = false;
+    decl String:flags[64];
+    GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+    
+    if (flags[0] != '\0')
+    {
+        if (ReadFlagString(flags) & GetUserFlagBits(client))
+            ignoreExclude = true;
+    }
+    else
+    {
+        ignoreExclude = true;
+    }
+    
+    new Handle:menu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, client);
     DisplayMenu(menu, client, 0);
 }
 
@@ -1643,7 +1852,21 @@ public HandleGM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
             
             SetTrieString(menu_tries[param1], "group", group);
             
-            new Handle:newMenu = CreateMapMenu(HandleMM_ChangeMap, group);
+            new bool:ignoreExclude = false;
+            decl String:flags[64];
+            GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+            
+            if (flags[0] != '\0')
+            {
+                if (ReadFlagString(flags) & GetUserFlagBits(param1))
+                    ignoreExclude = true;
+            }
+            else
+            {
+                ignoreExclude = true;
+            }
+            
+            new Handle:newMenu = CreateMapMenu(HandleMM_ChangeMap, group, !ignoreExclude, param1);
             DisplayMenu(newMenu, param1, 0);
         }
         case MenuAction_Cancel:
@@ -1683,7 +1906,21 @@ public HandleMM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
         {
             if (param2 == MenuCancel_ExitBack)
             {
-                new Handle:newMenu = CreateGroupMenu(HandleGM_ChangeMap);    
+                new bool:ignoreExclude = false;
+                decl String:flags[64];
+                GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+                
+                if (flags[0] != '\0')
+                {
+                    if (ReadFlagString(flags) & GetUserFlagBits(param1))
+                        ignoreExclude = true;
+                }
+                else
+                {
+                    ignoreExclude = true;
+                }
+            
+                new Handle:newMenu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, param1);
                 DisplayMenu(newMenu, param1, 0);
             }
             else
@@ -1737,7 +1974,21 @@ public Handle_ManualChangeWhenMenu(Handle:menu, MenuAction:action, param1, param
         {
             if (param2 == MenuCancel_ExitBack)
             {
-                new Handle:newMenu = CreateGroupMenu(HandleGM_ChangeMap);    
+                new bool:ignoreExclude = false;
+                decl String:flags[64];
+                GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+                
+                if (flags[0] != '\0')
+                {
+                    if (ReadFlagString(flags) & GetUserFlagBits(param1))
+                        ignoreExclude = true;
+                }
+                else
+                {
+                    ignoreExclude = true;
+                }
+            
+                new Handle:newMenu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, param1);
                 DisplayMenu(newMenu, param1, 0);
             }
             else
@@ -1839,6 +2090,7 @@ DoAutoMapChange(client, UMC_ChangeMapTime:when)
 DoMapChange(client, UMC_ChangeMapTime:when, const String:map[], const String:group[])
 {
     UMC_SetNextMap(map_kv, map, group, when);
+    LogMessage("%L set the next map to %s from group %s.", client, map, group);
 }
 
 
@@ -1874,7 +2126,21 @@ ManualNextMap(client)
 {
     menu_tries[client] = CreateTrie();
     
-    new Handle:menu = CreateGroupMenu(HandleGM_NextMap);
+    new bool:ignoreExclude = false;
+    decl String:flags[64];
+    GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+    
+    if (flags[0] != '\0')
+    {
+        if (ReadFlagString(flags) & GetUserFlagBits(client))
+            ignoreExclude = true;
+    }
+    else
+    {
+        ignoreExclude = true;
+    }
+    
+    new Handle:menu = CreateGroupMenu(HandleGM_NextMap, !ignoreExclude, client);
     DisplayMenu(menu, client, 0);
 }
 
@@ -1891,7 +2157,21 @@ public HandleGM_NextMap(Handle:menu, MenuAction:action, param1, param2)
             
             SetTrieString(menu_tries[param1], "group", group);
             
-            new Handle:newMenu = CreateMapMenu(HandleMM_NextMap, group);
+            new bool:ignoreExclude = false;
+            decl String:flags[64];
+            GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+            
+            if (flags[0] != '\0')
+            {
+                if (ReadFlagString(flags) & GetUserFlagBits(param1))
+                    ignoreExclude = true;
+            }
+            else
+            {
+                ignoreExclude = true;
+            }
+            
+            new Handle:newMenu = CreateMapMenu(HandleMM_NextMap, group, !ignoreExclude, param1);
             DisplayMenu(newMenu, param1, 0);
         }
         case MenuAction_Cancel:
@@ -1931,7 +2211,21 @@ public HandleMM_NextMap(Handle:menu, MenuAction:action, param1, param2)
         {
             if (param2 == MenuCancel_ExitBack)
             {
-                new Handle:newMenu = CreateGroupMenu(HandleGM_ChangeMap);    
+                new bool:ignoreExclude = false;
+                decl String:flags[64];
+                GetConVarString(cvar_ignoreexcludeflags, flags, sizeof(flags));
+                
+                if (flags[0] != '\0')
+                {
+                    if (ReadFlagString(flags) & GetUserFlagBits(param1))
+                        ignoreExclude = true;
+                }
+                else
+                {
+                    ignoreExclude = true;
+                }
+            
+                new Handle:newMenu = CreateGroupMenu(HandleGM_ChangeMap, !ignoreExclude, param1);
                 DisplayMenu(newMenu, param1, 0);
             }
             else
@@ -1979,8 +2273,117 @@ AutoNextMap(client)
 }
 
 
+//
+stock Handle:FetchGroupNames(Handle:kv)
+{
+    new Handle:result = CreateArray(ByteCountToCells(MAP_LENGTH));
+
+    if (!KvGotoFirstSubKey(kv))
+        return result;
+    
+    decl String:group[MAP_LENGTH];
+    
+    do
+    {
+        KvGetSectionName(kv, group, sizeof(group));
+        PushArrayString(result, group);
+    }
+    while (KvGotoNextKey(kv));
+    
+    KvGoBack(kv);
+    
+    return result;
+}
+
+
+//
+stock Handle:FetchMapsFromGroup(Handle:kv, const String:group[])
+{
+    new Handle:mapcycle = CreateKeyValues("umc_rotation");
+    KvCopySubkeys(kv, mapcycle);
+
+    if (!KvJumpToKey(kv, group))
+    {
+        LogError("Cannot jump to map group '%s'", group);
+        CloseHandle(mapcycle);
+        return INVALID_HANDLE;
+    }
+    
+    new Handle:result = CreateArray();
+    
+    if (!KvGotoFirstSubKey(kv))
+    {
+        CloseHandle(mapcycle);
+        return result;
+    }
+        
+    decl String:map[MAP_LENGTH];
+    new Handle:trie;
+    
+    do
+    {
+        KvGetSectionName(kv, map, sizeof(map));
+        trie = CreateTrie();
+        SetTrieString(trie, MAP_TRIE_MAP_KEY, map);
+        SetTrieString(trie, MAP_TRIE_GROUP_KEY, group);
+        SetTrieValue(trie, "excluded", UMC_IsMapValid(mapcycle, map, group));
+        PushArrayCell(result, trie);
+    }
+    while (KvGotoNextKey(kv));
+    
+    KvGoBack(kv);
+    KvGoBack(kv);
+    
+    return result;
+}
+
+
+//
+FilterGroupArrayForAdmin(Handle:groups, admin)
+{
+    new userflags = GetUserFlagBits(admin);
+    
+    decl String:group[MAP_LENGTH];
+    decl String:gFlags[64], String:mFlags[64];
+    new size = GetArraySize(groups);
+    for (new i = 0; i < size; i++)
+    {
+        new bool:excluded = true;
+        
+        GetArrayString(groups, i, group, sizeof(group));
+        KvJumpToKey(map_kv, group);
+        KvGetString(map_kv, ADMINMENU_ADMINFLAG_KEY, gFlags, sizeof(gFlags), "");
+        
+        if (KvGotoFirstSubKey(map_kv))
+        {
+            do
+            {
+                KvGetString(map_kv, ADMINMENU_ADMINFLAG_KEY, mFlags, sizeof(mFlags), gFlags);
+                if (mFlags[0] == '\0' || (userflags & ReadFlagString(mFlags)))
+                {
+                    excluded = false;
+                    break;
+                }
+            }
+            while (KvGotoNextKey(map_kv));
+            
+            KvGoBack(map_kv);
+        }
+        
+        if (excluded)
+        {
+            RemoveFromArray(groups, i);
+            size--;
+            i--;
+        }
+        
+        KvGoBack(map_kv);
+    }
+}
+
+
 //Builds and returns a map group selection menu.
-Handle:CreateGroupMenu(MenuHandler:handler, bool:limits=false)
+Handle:CreateGroupMenu(MenuHandler:handler, bool:limits, client)
 {
     //Initialize the menu
     new Handle:menu = CreateMenu(handler);
@@ -1991,18 +2394,26 @@ Handle:CreateGroupMenu(MenuHandler:handler, bool:limits=false)
     KvRewind(map_kv);
     
     //Get group array.
-    //new Handle:groupArray = UMC_CreateValidMapGroupArray(map_kv, exMaps, exGroups, 0, true, false);
-    new Handle:groupArray = UMC_CreateValidMapGroupArray(map_kv, vote_mem_arr, vote_catmem_arr,
-                                                         GetConVarInt(cvar_vote_catmem),
-                                                         false, true);
-
+    new Handle:groupArray;
+    if (limits)
+    {
+        groupArray = UMC_CreateValidMapGroupArray(map_kv, vote_mem_arr, vote_catmem_arr,
+                                                  GetConVarInt(cvar_vote_catmem), false, true);
+    }
+    else
+    {
+        groupArray = FetchGroupNames(map_kv);
+    }
+    
+    FilterGroupArrayForAdmin(groupArray, client);
+    
     new size = GetArraySize(groupArray);
     
     //Log an error and return nothing if...
     //    ...the number of maps available to be nominated
     if (size == 0)
     {
-        LogError("No maps available to build menu.");
+        LogError("No map groups available to build menu.");
         CloseHandle(menu);
         CloseHandle(groupArray);
         return INVALID_HANDLE;
@@ -2010,6 +2421,8 @@ Handle:CreateGroupMenu(MenuHandler:handler, bool:limits=false)
     
     //Add all maps from the nominations array to the menu.
     AddArrayToMenu(menu, groupArray);
+    
+    //TODO: Filter out groups where all the maps cannot be accessed by the user (admin flags)
     
     //No longer need the array.
     CloseHandle(groupArray);
@@ -2020,7 +2433,7 @@ Handle:CreateGroupMenu(MenuHandler:handler, bool:limits=false)
 
 
 //Builds and returns a map selection menu.
-Handle:CreateMapMenu(MenuHandler:handler, const String:group[]=INVALID_GROUP, bool:limits=false)
+Handle:CreateMapMenu(MenuHandler:handler, const String:group[], bool:limits, client)
 {
     //Initialize the menu
     new Handle:menu = CreateMenu(handler);
@@ -2033,8 +2446,16 @@ Handle:CreateMapMenu(MenuHandler:handler, const String:group[]=INVALID_GROUP, bo
     KvRewind(map_kv);
 
     //Get map array.
-    new Handle:mapArray = UMC_CreateValidMapArray(map_kv, group, vote_mem_arr, vote_catmem_arr,
-                                                  GetConVarInt(cvar_vote_catmem), false, true);
+    new Handle:mapArray;
+    if (limits)
+    {
+        mapArray = UMC_CreateValidMapArray(map_kv, group, vote_mem_arr, vote_catmem_arr,
+                                           GetConVarInt(cvar_vote_catmem), false, true);
+    }
+    else
+    {
+        mapArray = FetchMapsFromGroup(map_kv, group);
+    }
     
     new size = GetArraySize(mapArray);
     if (size == 0)
@@ -2049,25 +2470,30 @@ Handle:CreateMapMenu(MenuHandler:handler, const String:group[]=INVALID_GROUP, bo
     new numCells = ByteCountToCells(MAP_LENGTH);
     new Handle:menuItems = CreateArray(numCells);
     new Handle:menuItemDisplay = CreateArray(numCells);
-    decl String:display[MAP_LENGTH], String:gDisp[MAP_LENGTH];
+    decl String:display[MAP_LENGTH+4], String:gDisp[MAP_LENGTH];
     new Handle:mapTrie = INVALID_HANDLE;
     decl String:mapBuff[MAP_LENGTH], String:groupBuff[MAP_LENGTH];
-    
+    new bool:excluded;
+    decl String:gAdminFlags[64], String:mAdminFlags[64];
     for (new i = 0; i < size; i++)
     {
         mapTrie = GetArrayCell(mapArray, i);
         GetTrieString(mapTrie, MAP_TRIE_MAP_KEY, mapBuff, sizeof(mapBuff));
         GetTrieString(mapTrie, MAP_TRIE_GROUP_KEY, groupBuff, sizeof(groupBuff));
-        
-        //if (UMC_IsMapNominated(mapBuff, groupBuff))
-        //    continue;
+        GetTrieValue(mapTrie, "excluded", excluded);
         
         KvJumpToKey(map_kv, groupBuff);
         KvGetString(map_kv, "display-template", gDisp, sizeof(gDisp), "{MAP}");
+        KvGetString(map_kv, ADMINMENU_ADMINFLAG_KEY, gAdminFlags, sizeof(gAdminFlags), "");
         KvJumpToKey(map_kv, mapBuff);
 
         //Get the name of the current map.
         KvGetSectionName(map_kv, mapBuff, sizeof(mapBuff));
+        
+        KvGetString(map_kv, ADMINMENU_ADMINFLAG_KEY, mAdminFlags, sizeof(mAdminFlags), gAdminFlags);
+        
+        if (mAdminFlags[0] != '\0' && !(ReadFlagString(mAdminFlags) & GetUserFlagBits(client)))
+            continue;
         
         KvGetString(map_kv, "display", display, sizeof(display), gDisp);
                     
@@ -2075,6 +2501,20 @@ Handle:CreateMapMenu(MenuHandler:handler, const String:group[]=INVALID_GROUP, bo
             display = mapBuff;
         else
             ReplaceString(display, sizeof(display), "{MAP}", mapBuff, false);
+            
+        if (UMC_IsMapNominated(mapBuff, groupBuff))
+        {
+            decl String:buff[MAP_LENGTH];
+            strcopy(buff, sizeof(buff), display);
+            Format(display, sizeof(display), "%s (*)", buff);
+        }
+            
+        if (excluded)
+        {
+            decl String:buff[MAP_LENGTH];
+            strcopy(buff, sizeof(buff), display);
+            Format(display, sizeof(display), "%s (!)", buff);
+        }
             
         //Add map data to the arrays.
         PushArrayString(menuItems, mapBuff);

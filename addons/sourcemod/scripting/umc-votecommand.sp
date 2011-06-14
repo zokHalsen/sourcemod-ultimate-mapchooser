@@ -41,6 +41,7 @@ new Handle:cvar_vote_startsound      = INVALID_HANDLE;
 new Handle:cvar_vote_endsound        = INVALID_HANDLE;
 new Handle:cvar_vote_catmem          = INVALID_HANDLE;
 new Handle:cvar_dontchange           = INVALID_HANDLE;
+new Handle:cvar_flags                = INVALID_HANDLE;
         ////----/CONVARS-----/////
 
 //Mapcycle KV
@@ -65,6 +66,12 @@ new bool:can_vote;
 //Called when the plugin is finished loading.
 public OnPluginStart()
 {
+    cvar_flags = CreateConVar(
+        "sm_umc_vc_adminflags",
+        "",
+        "Specifies which admin flags are necessary for a player to participate in a vote. If empty, all players can participate."
+    );
+
     cvar_fail_action = CreateConVar(
         "sm_umc_vc_failaction",
         "0",
@@ -354,6 +361,9 @@ public Action:Command_Vote(client, args)
         ReplyToCommand(client, "\x03[UMC]\x01 Usage: sm_umc_mapvote <0|1|2>\n 0: Change now, 1: Change at end of round, 2: Change at end of map.");
         return Plugin_Handled;
     }
+    
+    decl String:flags[64];
+    GetConVarString(cvar_flags, flags, sizeof(flags));
 
     //Start the UMC vote.
     new bool:result = UMC_StartVote(
@@ -380,13 +390,14 @@ public Action:Command_Vote(client, args)
         UMC_RunoffFailAction:GetConVarInt(cvar_runoff_fail_action), //Runoff Fail Action
         runoff_sound,                                               //Runoff Sound
         GetConVarBool(cvar_strict_noms),                            //Nomination Strictness
-        GetConVarBool(cvar_vote_allowduplicates)                    //Ignore Duplicates
+        GetConVarBool(cvar_vote_allowduplicates),                   //Ignore Duplicates
+        flags                                                       //Admin Flags
     );
     
     if (result)
         ReplyToCommand(client, "\x03[UMC]\x01 Started Vote.");
     else
-        ReplyToCommand(client, "\x03[UMC]\x01 Could not start vote.");
+        ReplyToCommand(client, "\x03[UMC]\x01 Could not start vote. See log for details.");
     
     return Plugin_Handled;
 }
