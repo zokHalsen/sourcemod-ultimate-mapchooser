@@ -1,3 +1,4 @@
+===Table of Contents===
   * [InstallationConfiguration Installation and Configuration]
   * [AboutVoting About Voting]
   * [AboutExclusion About Map Exclusion]
