@@ -49,8 +49,8 @@
 //                     //value: integer > 0                                  //
 //                     //       A sequence of warnings can be defined by     //
 //                     //       separating the starting and ending times with//
-//                     //       "..."  Ex: "20...1" will make warnings from  //
-//                     //                  20secs to 1sec.                   //
+//                     //       "-"  Ex: "20-1" will make warnings from      //
+//                     //                20secs to 1sec.                     //
 //      {                                                                    //
 //          "message"           "string"                                     //
 //          "notification"      "string containing characters 'CHSTG'"       //
@@ -74,10 +74,19 @@
 
 "vote_warnings"
 {
-	"default"
-	{
-		"message"	"{TIME} seconds until vote."
-		"notification"	"C"
-		"sound"		""
-	}
+    "default"
+    {
+        "message"   "{TIME} seconds until vote."
+        "notification"  "H"
+        "sound"     ""
+    }
+    
+    "10-2" {}
+    
+    "1"
+    {
+        "message"   "1 second until vote."
+    }
+    
+    "0" {}
 }
