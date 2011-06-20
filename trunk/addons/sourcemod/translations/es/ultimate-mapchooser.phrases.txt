@@ -1,3 +1,5 @@
+//Spanish Translation by lamasniu
+
 "Phrases"
 {
     "Slot Block Message 1"

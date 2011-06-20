@@ -8,7 +8,7 @@
 #include <umc-core>
 #include <umc_utils>
 
-#define NOMINATE_ADMINFLAG_KEY "nominate_adminflags"
+#define NOMINATE_ADMINFLAG_KEY "nominate_flags"
 
 //Plugin Information
 public Plugin:myinfo =
@@ -24,9 +24,9 @@ public Plugin:myinfo =
 new Handle:cvar_filename        = INVALID_HANDLE;
 new Handle:cvar_nominate        = INVALID_HANDLE;
 new Handle:cvar_nominate_tiered = INVALID_HANDLE;
-new Handle:cvar_vote_mem        = INVALID_HANDLE;
-new Handle:cvar_vote_catmem     = INVALID_HANDLE;
-new Handle:cvar_nominate_sort   = INVALID_HANDLE;
+new Handle:cvar_mem_map         = INVALID_HANDLE;
+new Handle:cvar_mem_group       = INVALID_HANDLE;
+new Handle:cvar_sort            = INVALID_HANDLE;
 //new Handle:cvar_nominate_limit  = INVALID_HANDLE;
 new Handle:cvar_flags           = INVALID_HANDLE;
         ////----/CONVARS-----/////
@@ -38,7 +38,7 @@ new Handle:map_kv = INVALID_HANDLE;
 new Handle:vote_mem_arr    = INVALID_HANDLE;
 new Handle:vote_catmem_arr = INVALID_HANDLE;
 
-new Handle:nomination_cats[MAXPLAYERS+1] = { INVALID_HANDLE, ... };
+new Handle:nom_menu_groups[MAXPLAYERS+1] = { INVALID_HANDLE, ... };
 //EACH INDEX OF THE ABOVE TWO ARRAYS CORRESPONDS TO A NOMINATION MENU FOR A PARTICULAR CLIENT.
 
 //Has a vote neem completed?
@@ -68,10 +68,10 @@ public OnPluginStart()
     cvar_flags = CreateConVar(
         "sm_umc_nominate_defaultflags",
         "",
-        "Flags necessary for a player to nominate a map, if flags are not specified by a map in the mapcycle. Leave this empty to allow all players to nominate."
+        "Flags necessary for a player to nominate a map, if flags are not specified by a map in the mapcycle. If empty, all players can nominate."
     );
 
-    cvar_nominate_sort = CreateConVar(
+    cvar_sort = CreateConVar(
         "sm_umc_nominate_sorted",
         "0",
         "Determines the order of maps in the nomination menu.\n 0 - Same as mapcycle,\n 1 - Alphabetical",
@@ -98,14 +98,14 @@ public OnPluginStart()
         "File to use for Ultimate Mapchooser's map rotation."
     );
     
-    cvar_vote_catmem = CreateConVar(
+    cvar_mem_group = CreateConVar(
         "sm_umc_nominate_groupexclude",
         "0",
         "Specifies how many past map groups to exclude from nominations.",
         0, true, 0.0
     );
     
-    cvar_vote_mem = CreateConVar(
+    cvar_mem_map = CreateConVar(
         "sm_umc_nominate_mapexclude",
         "3",
         "Specifies how many past maps to exclude from nominations.",
@@ -144,13 +144,13 @@ public OnConfigsExecuted()
     vote_completed = false;
     
     new Handle:groupArray = INVALID_HANDLE;
-    for (new i = 0; i < sizeof(nomination_cats); i++)
+    for (new i = 0; i < sizeof(nom_menu_groups); i++)
     {
-        groupArray = nomination_cats[i];
+        groupArray = nom_menu_groups[i];
         if (groupArray != INVALID_HANDLE)
         {
             CloseHandle(groupArray);
-            nomination_cats[i] = INVALID_HANDLE;
+            nom_menu_groups[i] = INVALID_HANDLE;
         }
     }
     
@@ -167,8 +167,8 @@ public OnConfigsExecuted()
     }
     
     //Add the map to all the memory queues.
-    new mapmem = GetConVarInt(cvar_vote_mem) + 1;
-    new catmem = GetConVarInt(cvar_vote_catmem);
+    new mapmem = GetConVarInt(cvar_mem_map) + 1;
+    new catmem = GetConVarInt(cvar_mem_group);
     AddToMemoryArray(mapName, vote_mem_arr, mapmem);
     AddToMemoryArray(groupName, vote_catmem_arr, (mapmem > catmem) ? mapmem : catmem);
 }
@@ -260,7 +260,8 @@ public Action:Command_Nominate(client, args)
     else //Otherwise, let them nominate.
     {
         if (!DisplayNominationMenu(client))
-            ReplyToCommand(client, "[UMC] %t", "No Nominate Nextmap"); //TODO: Change to different (new) translation.
+            ReplyToCommand(client, "[UMC] %t", "No Nominate Nextmap");
+            //TODO: Change to different (new) translation.
     }
     return Plugin_Handled;
 }
@@ -313,9 +314,9 @@ Handle:BuildNominationMenu(client, const String:cat[]=INVALID_GROUP)
 
     //Get map array.
     new Handle:mapArray = UMC_CreateValidMapArray(map_kv, cat, vote_mem_arr, vote_catmem_arr,
-                                                  GetConVarInt(cvar_vote_catmem), true, false);
+                                                  GetConVarInt(cvar_mem_group), true, false);
                                                   
-    if (GetConVarBool(cvar_nominate_sort))
+    if (GetConVarBool(cvar_sort))
         SortMapTrieArray(mapArray);
     
     new size = GetArraySize(mapArray);
@@ -329,7 +330,7 @@ Handle:BuildNominationMenu(client, const String:cat[]=INVALID_GROUP)
     
     //Variables
     new numCells = ByteCountToCells(MAP_LENGTH);
-    nomination_cats[client] = CreateArray(numCells);
+    nom_menu_groups[client] = CreateArray(numCells);
     new Handle:menuItems = CreateArray(numCells);
     new Handle:menuItemDisplay = CreateArray(numCells);
     decl String:display[MAP_LENGTH], String:gDisp[MAP_LENGTH];
@@ -379,7 +380,7 @@ Handle:BuildNominationMenu(client, const String:cat[]=INVALID_GROUP)
         //Add map data to the arrays.
         PushArrayString(menuItems, mapBuff);
         PushArrayString(menuItemDisplay, display);
-        PushArrayString(nomination_cats[client], groupBuff);
+        PushArrayString(nom_menu_groups[client], groupBuff);
         
         KvRewind(map_kv);
     }
@@ -408,7 +409,7 @@ Handle:BuildTieredNominationMenu(client)
     
     //Get group array.
     new Handle:groupArray = UMC_CreateValidMapGroupArray(map_kv, vote_mem_arr, vote_catmem_arr,
-                                                         GetConVarInt(cvar_vote_catmem), true, false);
+                                                         GetConVarInt(cvar_mem_group), true, false);
 
     new size = GetArraySize(groupArray);
     
@@ -490,7 +491,7 @@ public Handle_NominationMenu(Handle:menu, MenuAction:action, client, param2)
             //Get the selected map.
             decl String:map[MAP_LENGTH], String:group[MAP_LENGTH];
             GetMenuItem(menu, param2, map, sizeof(map));
-            GetArrayString(nomination_cats[client], param2, group, sizeof(group));
+            GetArrayString(nom_menu_groups[client], param2, group, sizeof(group));
             
             KvRewind(map_kv);
             
@@ -504,8 +505,8 @@ public Handle_NominationMenu(Handle:menu, MenuAction:action, client, param2)
             LogMessage("%s has nominated '%s' from group '%s'", clientName, map, group);
             
             //Close handles for stored data for the client's menu.
-            CloseHandle(nomination_cats[client]);
-            nomination_cats[client] = INVALID_HANDLE;
+            CloseHandle(nom_menu_groups[client]);
+            nom_menu_groups[client] = INVALID_HANDLE;
         }
         case MenuAction_End: //The client has closed the menu.
         {

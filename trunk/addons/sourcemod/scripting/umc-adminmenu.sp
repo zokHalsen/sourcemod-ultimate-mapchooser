@@ -32,12 +32,14 @@
 #define SMENU_ITEM_INFO_NO "no"
 #define SMENU_ITEM_INFO_YES "yes"
 
-#define TMENU_ITEM_INFO_DEFAULT "default"
+#define TMENU_ITEM_INFO_DEFAULT "def"
+#define TMENU_ITEM_INFO_PREV "prev"
 
 #define FAMENU_ITEM_INFO_NOTHING "nothing"
 #define FAMENU_ITEM_INFO_RUNOFF "runoff"
 
-#define MRMENU_ITEM_INFO_DEFAULT "default"
+#define MRMENU_ITEM_INFO_DEFAULT "def"
+#define MRMENU_ITEM_INFO_PREV "prev"
 
 #define RFAMENU_ITEM_INFO_NOTHING "nothing"
 #define RFAMENU_ITEM_INFO_ACCEPT "accept"
@@ -64,34 +66,10 @@ public Plugin:myinfo =
 
 /* IDEAS:
     Votes:
-        Votes Can be manually populated (choose maps/groups from a menu) or
-        automatically populated (random w/ weight and exclusion).
-        
-        When populating a manual vote, just build a new KV containing all of
-        the selected maps, with an appropriate "maps_invote" setting. There is
-        no need to take into account exclusions/weighting since it's not random
-        and all the options in the admin menu are decidedly valid.
-        
         Semi-auto mode: plugin picks the map, user has to confirm if he wants it
         in the vote. If he answers no, then it goes in the exclusion array.
         
-        Limits: If we are using limits, then just use the UMC natives. If not, 
-        then manually build menus by looping through the mapcycle. We can check
-        if a map is excluded (perhaps for display/confirmation) if it is not
-        found in the valid map array (fetched from core via native).
-                
-        Should we take nominations into consideration? (cvar perhaps)
-        
         Turn MapVote button into StopVote button when a vote is in progress.
-        
-        Option for Admins Only (Yes = Use cvar, No = Everyone) Skip this if the cvar
-        is empty ("")
-        
-        FLAGS:
-            Whether or not they can override defaults
-            Whether players can participate
-            Whether exclusions are ignored for manual pop. (should be a way of notifying)
-
 */
 
         ////----CONVARS-----/////
@@ -160,13 +138,13 @@ new Handle:threshold_regex = INVALID_HANDLE;
 public OnPluginStart()
 {
     cvar_ignoreexcludeflags = CreateConVar(
-        "sm_umc_am_exclude_adminflags",
+        "sm_umc_am_adminflags_exclude",
         "",
         "Flags required for admins to be able to select maps which would normally be excluded by UMC. If empty, all admins can select excluded maps."
     );
     
     cvar_defaultsflags = CreateConVar(
-        "sm_umc_am_defaults_adminflags",
+        "sm_umc_am_adminflags_default",
         "",
         "Flags required for admins to be able to manually select settings for the vote. If the admin does not have the proper priveleges, the vote will automatically use the cvars in this file. If empty, all admins have access."
     );
@@ -536,12 +514,15 @@ public UMCMenu_NextMap(Handle:topmenu, TopMenuAction:action, TopMenuObject:objec
 
 
 //Handles the Change Map option in the menu.
-public UMCMenu_MapVote(Handle:topmenu, TopMenuAction:action, TopMenuObject:objectID, param,
+public UMCMenu_MapVote(Handle:topmenu, TopMenuAction:action, TopMenuObject:objectID, client,
                        String:buffer[], maxlength)
 {
     if (action == TopMenuAction_DisplayOption)
     {
-        Format(buffer, maxlength, "Start a Map Vote");
+        if (UMC_IsVoteInProgress())
+            Format(buffer, maxlength, "%T", "AM Stop Vote", client);
+        else
+            Format(buffer, maxlength, "%T", "AM Start Vote", client);
     }
     else if (action == TopMenuAction_SelectOption)
     {
@@ -567,7 +548,7 @@ public UMCMenu_MapVote(Handle:topmenu, TopMenuAction:action, TopMenuObject:objec
                 E. Don't Change Option
             4. When
             
-        Trie Structure:
+        Trie Structure: *incomplete*
         {
             int type
             bool auto
@@ -589,8 +570,8 @@ public UMCMenu_MapVote(Handle:topmenu, TopMenuAction:action, TopMenuObject:objec
             bool UsingDefaults(client)
         */
         
-        menu_tries[param] = CreateVoteMenuTrie(param);
-        DisplayVoteTypeMenu(param);
+        menu_tries[client] = CreateVoteMenuTrie(client);
+        DisplayVoteTypeMenu(client);
     }
 }
 
@@ -624,14 +605,46 @@ Handle:CreateVoteMenuTrie(client)
 //
 DisplayVoteTypeMenu(client)
 {
-    new Handle:menu = CreateMenu(HandleMV_VoteType);
-    SetMenuTitle(menu, "Select Vote Type");
+    new Handle:menu = CreateMenu(HandleMV_VoteType, MenuAction_DisplayItem|MenuAction_Display);
+    SetMenuTitle(menu, "AM Vote Type");
     
     AddMenuItem(menu, VTMENU_ITEM_INFO_MAP, "Maps");
     AddMenuItem(menu, VTMENU_ITEM_INFO_GROUP, "Groups");
     AddMenuItem(menu, VTMENU_ITEM_INFO_TIER, "Tiered");
     
     DisplayMenu(menu, client, 0);
+}
+
+
+//
+public Handle_MenuTranslation(Handle:menu, MenuAction:action, client, param2)
+{
+    switch(action)
+    {
+        case MenuAction_Display:
+        {
+            new Handle:panel = Handle:param2;
+            
+            decl String:translation[256];
+            GetMenuTitle(menu, translation, sizeof(translation));
+            
+            decl String:buffer[256];
+            Format(buffer, sizeof(buffer), "%T", translation, client);
+            
+            SetPanelTitle(panel, buffer);
+        }
+        case MenuAction_DisplayItem:
+        {
+            decl String:info[256], String:display[256];
+            GetMenuItem(menu, param2, info, sizeof(info), _, display, sizeof(display));
+            
+            decl String:buffer[255];
+            Format(buffer, sizeof(buffer), "%T", display, client);
+                
+            return RedrawMenuItem(buffer);
+        }
+    }
+    return 0;
 }
 
 
@@ -654,13 +667,14 @@ public HandleMV_VoteType(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
 
 //
 DisplayAutoManualMenu(client)
 {
-    new Handle:menu = CreateAutoManualMenu(HandleMV_AutoManual, "Populate Vote");
+    new Handle:menu = CreateAutoManualMenu(HandleMV_AutoManual, "AM Populate Vote");
     SetMenuExitBackButton(menu, true);
     DisplayMenu(menu, client, 0);
 }
@@ -677,11 +691,12 @@ public HandleMV_AutoManual(Handle:menu, MenuAction:action, param1, param2)
             {
                 case AMMENU_ITEM_INDEX_AUTO:
                 {
-                    AutoBuildVote(param1);
+                    AutoBuildVote(param1, true);
                     DisplayDefaultsMenu(param1);
                 }
                 case AMMENU_ITEM_INDEX_MANUAL:
                 {
+                    AutoBuildVote(param1, false);
                     DisplayGroupSelectMenu(param1);
                 }
             }
@@ -702,13 +717,14 @@ public HandleMV_AutoManual(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
 
 //
-AutoBuildVote(client)
+AutoBuildVote(client, bool:value)
 {
-    SetTrieValue(menu_tries[client], "auto", true);
+    SetTrieValue(menu_tries[client], "auto", value);
 }
 
 
@@ -749,6 +765,10 @@ public HandleMV_Groups(Handle:menu, MenuAction:action, param1, param2)
 {
     switch (action)
     {
+        case MenuAction_Display:
+        {
+            Handle_MenuTranslation(menu, action, param1, param2);
+        }
         case MenuAction_Select:
         {
             decl String:group[MAP_LENGTH];
@@ -759,7 +779,7 @@ public HandleMV_Groups(Handle:menu, MenuAction:action, param1, param2)
                 decl String:flags[64];
                 GetConVarString(cvar_defaultsflags, flags, sizeof(flags));
                 
-                if (flags[0] != '\0' || !(GetUserFlagBits(param1) & ReadFlagString(flags)))
+                if (!ClientHasAdminFlags(param1, flags))
                 {
                     UseVoteDefaults(param1);
                     DisplayChangeWhenMenu(param1);
@@ -790,7 +810,18 @@ public HandleMV_Groups(Handle:menu, MenuAction:action, param1, param2)
         {
             CloseHandle(menu);
         }
-    }
+        case MenuAction_DisplayItem:
+        {
+            decl String:group[MAP_LENGTH];
+            GetMenuItem(menu, param2, group, sizeof(group));
+            
+            if (StrEqual(group, VOTE_POP_STOP_INFO))
+            {
+                return Handle_MenuTranslation(menu, action, param1, param2);
+            }
+        }
+    }    
+    return 0;
 }
 
 
@@ -810,6 +841,10 @@ public HandleMV_Maps(Handle:menu, MenuAction:action, param1, param2)
 {
     switch (action)
     {
+        case MenuAction_Display:
+        {
+            Handle_MenuTranslation(menu, action, param1, param2);
+        }
         case MenuAction_Select:
         {
             decl String:map[MAP_LENGTH], String:group[MAP_LENGTH];
@@ -852,7 +887,7 @@ AddToVoteList(client, const String:map[], const String:group[])
 //
 DisplayDefaultsMenu(client)
 {
-    new Handle:menu = CreateMenu(HandleMV_Defaults);
+    new Handle:menu = CreateMenu(HandleMV_Defaults, MenuAction_DisplayItem|MenuAction_Display);
     SetMenuTitle(menu, "Vote Settings");
     
     AddMenuItem(menu, DMENU_ITEM_INFO_DEFAULTS, "Use Defaults");
@@ -904,6 +939,7 @@ public HandleMV_Defaults(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
 
@@ -937,17 +973,17 @@ bool:VoteAutoPopulated(client)
 //
 DisplayScrambleMenu(client)
 {
-    new Handle:menu = CreateMenu(HandleMV_Scramble);
-    SetMenuTitle(menu, "Scramble Vote Menu?");
+    new Handle:menu = CreateMenu(HandleMV_Scramble, MenuAction_DisplayItem|MenuAction_Display);
+    SetMenuTitle(menu, "AM Scramble Menu");
     
     if (GetConVarBool(cvar_scramble))
     {
         AddMenuItem(menu, SMENU_ITEM_INFO_NO, "No");
-        AddMenuItem(menu, SMENU_ITEM_INFO_YES, "Yes (default)");
+        AddMenuItem(menu, SMENU_ITEM_INFO_YES, "Default Yes");
     }
     else
     {
-        AddMenuItem(menu, SMENU_ITEM_INFO_NO, "No (default)");
+        AddMenuItem(menu, SMENU_ITEM_INFO_NO, "Default No");
         AddMenuItem(menu, SMENU_ITEM_INFO_YES, "Yes");
     }
     
@@ -975,7 +1011,7 @@ public HandleMV_Scramble(Handle:menu, MenuAction:action, param1, param2)
                 decl String:flags[64];
                 GetConVarString(cvar_defaultsflags, flags, sizeof(flags));
                 
-                if (flags[0] != '\0' || !(GetUserFlagBits(param1) & ReadFlagString(flags)))
+                if (!ClientHasAdminFlags(param1, flags))
                 {
                     if (VoteAutoPopulated(param1))
                         DisplayAutoManualMenu(param1);
@@ -997,6 +1033,7 @@ public HandleMV_Scramble(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
 
@@ -1004,12 +1041,12 @@ public HandleMV_Scramble(Handle:menu, MenuAction:action, param1, param2)
 DisplayThresholdMenu(client)
 {
     threshold_trigger[client] = true;
-
-    new Handle:menu = CreateMenu(HandleMV_Threshold);
-    SetMenuTitle(menu, "Set Vote Threshold");
     
-    AddMenuItem(menu, "", "Type in chat what threshold you would", ITEMDRAW_DISABLED);
-    AddMenuItem(menu, "", "like to set the vote to [0 to 100].", ITEMDRAW_DISABLED);
+    new Handle:menu = CreateMenu(HandleMV_Threshold, MenuAction_DisplayItem|MenuAction_Display);
+    SetMenuTitle(menu, "AM Threshold Menu");
+    
+    AddMenuItem(menu, "", "AM Threshold Menu Message 1", ITEMDRAW_DISABLED);
+    AddMenuItem(menu, "", "AM Threshold Menu Message 2", ITEMDRAW_DISABLED);
     AddMenuItem(menu, "", "", ITEMDRAW_SPACER);
     
     new Float:threshold;
@@ -1017,7 +1054,7 @@ DisplayThresholdMenu(client)
     {
         decl String:fmt2[20];
         Format(fmt2, sizeof(fmt2), "%.f%% (previously entered)", threshold * 100);
-        AddMenuItem(menu, "", fmt2);
+        AddMenuItem(menu, TMENU_ITEM_INFO_PREV, fmt2);
     }
     
     decl String:fmt[20];
@@ -1035,6 +1072,10 @@ public HandleMV_Threshold(Handle:menu, MenuAction:action, param1, param2)
 {
     switch (action)
     {
+        case MenuAction_Display:
+        {
+            Handle_MenuTranslation(menu, action, param1, param2);
+        }
         case MenuAction_Select:
         {
             threshold_trigger[param1] = false;
@@ -1044,10 +1085,6 @@ public HandleMV_Threshold(Handle:menu, MenuAction:action, param1, param2)
             
             if (StrEqual(info, TMENU_ITEM_INFO_DEFAULT))
                 SetTrieValue(menu_tries[param1], "threshold", GetConVarFloat(cvar_vote_threshold));
-                
-            //TODO:
-            //I don't think I need to handle the case where we reselect the previously entered threshold,
-            //since it should already be stored in the trie.
         
             DisplayFailActionMenu(param1);
         }
@@ -1071,7 +1108,45 @@ public HandleMV_Threshold(Handle:menu, MenuAction:action, param1, param2)
         {
             CloseHandle(menu);
         }
+        case MenuAction_DisplayItem:
+        {
+            decl String:info[256];
+            GetMenuItem(menu, param2, info, sizeof(info));
+        
+            if (StrEqual(info, TMENU_ITEM_INFO_PREV))
+            {
+                new Float:threshold;
+                GetTrieValue(menu_tries[param1], "threshold", threshold);
+            
+                decl String:buffer[255];
+                Format(
+                    buffer, sizeof(buffer), "%.f%% (%T)",
+                        threshold * 100,
+                        "Previously Entered",
+                            param1
+                );
+                    
+                return RedrawMenuItem(buffer);
+            }
+            else if (StrEqual(info, TMENU_ITEM_INFO_DEFAULT))
+            {
+                decl String:buffer[255];
+                Format(
+                    buffer, sizeof(buffer), "%.f%% (%T)",
+                        GetConVarFloat(cvar_vote_threshold) * 100,
+                        "Default",
+                            param1
+                );
+                    
+                return RedrawMenuItem(buffer);
+            }
+            else
+            {
+                return Handle_MenuTranslation(menu, action, param1, param2);
+            }
+        }
     }
+    return 0;
 }
 
 
@@ -1109,17 +1184,17 @@ CancelThresholdMenu(client)
 //
 DisplayFailActionMenu(client)
 {
-    new Handle:menu = CreateMenu(HandleMV_FailAction);
-    SetMenuTitle(menu, "Set Fail Action");
+    new Handle:menu = CreateMenu(HandleMV_FailAction, MenuAction_DisplayItem|MenuAction_Display);
+    SetMenuTitle(menu, "AM Fail Action Menu");
     
     if (GetConVarBool(cvar_fail_action))
     {
         AddMenuItem(menu, FAMENU_ITEM_INFO_NOTHING, "Do Nothing");
-        AddMenuItem(menu, FAMENU_ITEM_INFO_RUNOFF, "Perform Runoff Vote (default)");
+        AddMenuItem(menu, FAMENU_ITEM_INFO_RUNOFF, "Default Perform Runoff Vote");
     }
     else
     {
-        AddMenuItem(menu, FAMENU_ITEM_INFO_NOTHING, "Do Nothing (default)");
+        AddMenuItem(menu, FAMENU_ITEM_INFO_NOTHING, "Default Do Nothing");
         AddMenuItem(menu, FAMENU_ITEM_INFO_RUNOFF, "Perform Runoff Vote");
     }
     
@@ -1166,6 +1241,7 @@ public HandleMV_FailAction(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
 
@@ -1174,12 +1250,12 @@ DisplayMaxRunoffMenu(client)
 {
     runoff_trigger[client] = true;
     
-    new Handle:menu = CreateMenu(HandleMV_MaxRunoff);
-    SetMenuTitle(menu, "Set Maximum Amount of Runoffs");
+    new Handle:menu = CreateMenu(HandleMV_MaxRunoff, MenuAction_DisplayItem|MenuAction_Display);
+    SetMenuTitle(menu, "AM Max Runoff Menu");
     
-    AddMenuItem(menu, "", "Type in chat what maximum you would like", ITEMDRAW_DISABLED);
-    AddMenuItem(menu, "", "to set the number of runoffs to (>= 0).", ITEMDRAW_DISABLED);
-    AddMenuItem(menu, "", " 0 = unlimited", ITEMDRAW_DISABLED);
+    AddMenuItem(menu, "", "AM Max Runoff Menu Message 1", ITEMDRAW_DISABLED);
+    AddMenuItem(menu, "", "AM Max Runoff Menu Message 2", ITEMDRAW_DISABLED);
+    AddMenuItem(menu, "", "AM Max Runoff Menu Message 3", ITEMDRAW_DISABLED);
     AddMenuItem(menu, "", "", ITEMDRAW_SPACER);
     
     new runoffs;
@@ -1187,7 +1263,7 @@ DisplayMaxRunoffMenu(client)
     {
         decl String:fmt2[20];
         Format(fmt2, sizeof(fmt2), "%i (previously entered)", runoffs);
-        AddMenuItem(menu, "", fmt2);
+        AddMenuItem(menu, MRMENU_ITEM_INFO_PREV, fmt2);
     }
     
     decl String:fmt[20];
@@ -1205,6 +1281,10 @@ public HandleMV_MaxRunoff(Handle:menu, MenuAction:action, param1, param2)
 {
     switch (action)
     {
+        case MenuAction_Display:
+        {
+            Handle_MenuTranslation(menu, action, param1, param2);
+        }
         case MenuAction_Select:
         {
             runoff_trigger[param1] = false;
@@ -1241,7 +1321,45 @@ public HandleMV_MaxRunoff(Handle:menu, MenuAction:action, param1, param2)
         {
             CloseHandle(menu);
         }
+        case MenuAction_DisplayItem:
+        {
+            decl String:info[256];
+            GetMenuItem(menu, param2, info, sizeof(info));
+        
+            if (StrEqual(info, MRMENU_ITEM_INFO_PREV))
+            {
+                new maxrunoffs;
+                GetTrieValue(menu_tries[param1], "max_runoffs", maxrunoffs);
+            
+                decl String:buffer[255];
+                Format(
+                    buffer, sizeof(buffer), "%i (%T)",
+                        maxrunoffs,
+                        "Previously Entered",
+                            param1
+                );
+                    
+                return RedrawMenuItem(buffer);
+            }
+            else if (StrEqual(info, MRMENU_ITEM_INFO_DEFAULT))
+            {
+                decl String:buffer[255];
+                Format(
+                    buffer, sizeof(buffer), "%i (%T)",
+                        GetConVarInt(cvar_runoff_max),
+                        "Default",
+                            param1
+                );
+                    
+                return RedrawMenuItem(buffer);
+            }
+            else
+            {
+                return Handle_MenuTranslation(menu, action, param1, param2);
+            }
+        }
     }
+    return 0;
 }
 
 
@@ -1279,17 +1397,17 @@ CancelRunoffMenu(client)
 //
 DisplayRunoffFailActionMenu(client)
 {
-    new Handle:menu = CreateMenu(HandleMV_RunoffFailAction);
-    SetMenuTitle(menu, "Set Runoff Fail Action");
+    new Handle:menu = CreateMenu(HandleMV_RunoffFailAction, MenuAction_DisplayItem|MenuAction_Display);
+    SetMenuTitle(menu, "AM Runoff Fail Action Menu");
     
     if (GetConVarBool(cvar_runoff_fail_action))
     {
         AddMenuItem(menu, RFAMENU_ITEM_INFO_NOTHING, "Do Nothing");
-        AddMenuItem(menu, RFAMENU_ITEM_INFO_ACCEPT, "Accept Winner (default)");
+        AddMenuItem(menu, RFAMENU_ITEM_INFO_ACCEPT, "Default Accept Winner");
     }
     else
     {
-        AddMenuItem(menu, RFAMENU_ITEM_INFO_NOTHING, "Do Nothing (default)");
+        AddMenuItem(menu, RFAMENU_ITEM_INFO_NOTHING, "Default Do Nothing");
         AddMenuItem(menu, RFAMENU_ITEM_INFO_ACCEPT, "Accept Winner");
     }
     
@@ -1326,23 +1444,24 @@ public HandleMV_RunoffFailAction(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
 
 //
 DisplayExtendMenu(client)
 {
-    new Handle:menu = CreateMenu(HandleMV_Extend);
+    new Handle:menu = CreateMenu(HandleMV_Extend, MenuAction_DisplayItem|MenuAction_Display);
     SetMenuTitle(menu, "Add Extend Map Option?");
     
     if (GetConVarBool(cvar_extensions))
     {
         AddMenuItem(menu, EMENU_ITEM_INFO_NO, "No");
-        AddMenuItem(menu, EMENU_ITEM_INFO_YES, "Yes (default)");
+        AddMenuItem(menu, EMENU_ITEM_INFO_YES, "Default Yes");
     }
     else
     {
-        AddMenuItem(menu, EMENU_ITEM_INFO_NO, "No (default)");
+        AddMenuItem(menu, EMENU_ITEM_INFO_NO, "Default No");
         AddMenuItem(menu, EMENU_ITEM_INFO_YES, "Yes");
     }
     
@@ -1382,6 +1501,7 @@ public HandleMV_Extend(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
 
@@ -1398,17 +1518,17 @@ bool:RunoffIsEnabled(client)
 //
 DisplayDontChangeMenu(client)
 {
-    new Handle:menu = CreateMenu(HandleMV_DontChange);
-    SetMenuTitle(menu, "Add Don't Change Option?");
+    new Handle:menu = CreateMenu(HandleMV_DontChange, MenuAction_DisplayItem|MenuAction_Display);
+    SetMenuTitle(menu, "AM Don't Change Menu");
     
     if (GetConVarBool(cvar_dontchange))
     {
         AddMenuItem(menu, DCMENU_ITEM_INFO_NO, "No");
-        AddMenuItem(menu, DCMENU_ITEM_INFO_YES, "Yes (default)");
+        AddMenuItem(menu, DCMENU_ITEM_INFO_YES, "Default Yes");
     }
     else
     {
-        AddMenuItem(menu, DCMENU_ITEM_INFO_NO, "No (default)");
+        AddMenuItem(menu, DCMENU_ITEM_INFO_NO, "Default No");
         AddMenuItem(menu, DCMENU_ITEM_INFO_YES, "Yes");
     }
     
@@ -1458,6 +1578,7 @@ public HandleMV_DontChange(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
 
@@ -1481,8 +1602,8 @@ bool:SkippingAdminFlags(client)
 //
 DisplayAdminFlagsMenu(client)
 {
-    new Handle:menu = CreateMenu(HandleMV_AdminFlags);
-    SetMenuTitle(menu, "Make vote available to...");
+    new Handle:menu = CreateMenu(HandleMV_AdminFlags, MenuAction_DisplayItem|MenuAction_Display);
+    SetMenuTitle(menu, "AM Admin Flag Menu");
     
     decl String:flags[64];
     GetConVarString(cvar_flags, flags, sizeof(flags));
@@ -1526,14 +1647,15 @@ public HandleMV_AdminFlags(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
 
 //
 DisplayChangeWhenMenu(client)
 {
-    new Handle:menu = CreateMenu(HandleMV_When);
-    SetMenuTitle(menu, "Change Map When?");
+    new Handle:menu = CreateMenu(HandleMV_When, MenuAction_DisplayItem|MenuAction_Display);
+    SetMenuTitle(menu, "AM Change When Menu");
     
     SetMenuExitBackButton(menu, true);
 
@@ -1576,7 +1698,7 @@ public HandleMV_When(Handle:menu, MenuAction:action, param1, param2)
                     decl String:flags[64];
                     GetConVarString(cvar_defaultsflags, flags, sizeof(flags));
                     
-                    if (flags[0] != '\0' || !(GetUserFlagBits(param1) & ReadFlagString(flags)))
+                    if (!ClientHasAdminFlags(param1, flags))
                     {
                         if (VoteAutoPopulated(param1))
                         {
@@ -1614,6 +1736,7 @@ public HandleMV_When(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
 
@@ -1630,6 +1753,8 @@ bool:UsingDefaults(client)
 //
 DoMapVote(client)
 {
+    DEBUG_MESSAGE("Starting Map Vote")
+
     new Handle:trie = menu_tries[client];
     
     new Handle:selectedMaps;
@@ -1644,10 +1769,14 @@ DoMapVote(client)
         
     GetTrieValue(trie, "maps", selectedMaps);
     
+    DEBUG_MESSAGE("Creating vote mapcycle")
+    
     new bool:autoPop = VoteAutoPopulated(client);
     new Handle:mapcycle = autoPop
         ? map_kv
         : CreateVoteKV(selectedMaps);
+    
+    DEBUG_MESSAGE("Fetching vote parameters")
     
     GetTrieValue(trie, "type",               type);
     GetTrieValue(trie, "scramble",           scramble);
@@ -1665,6 +1794,8 @@ DoMapVote(client)
     
     CloseClientVoteTrie(client);
     
+    DEBUG_MESSAGE("Calling native")
+    
     UMC_StartVote(
         mapcycle, type, GetConVarInt(cvar_vote_time), vote_mem_arr, vote_catmem_arr,
         GetConVarInt(cvar_vote_catmem), scramble, GetConVarInt(cvar_block_slots),
@@ -1675,6 +1806,8 @@ DoMapVote(client)
         !ignoreExclusion
     );
     
+    DEBUG_MESSAGE("Cleanup")
+    
     if (!autoPop)
         CloseHandle(mapcycle);
 }
@@ -1683,13 +1816,18 @@ DoMapVote(client)
 //
 Handle:CreateVoteKV(Handle:maps)
 {
+    DEBUG_MESSAGE("Copying mapcycle")
     new Handle:result = CreateKeyValues("umc_rotation");
     KvRewind(map_kv);
     KvCopySubkeys(map_kv, result);
     
     if (!KvGotoFirstSubKey(result))
+    {
+        DEBUG_MESSAGE("Cannot find any groups, returning empty mapcycle.")
         return result;
+    }
     
+    DEBUG_MESSAGE("Starting group traversal")
     decl String:group[MAP_LENGTH];
     decl String:map[MAP_LENGTH];
     new bool:goBackMap;
@@ -1703,7 +1841,17 @@ Handle:CreateVoteKV(Handle:maps)
         KvGetSectionName(result, group, sizeof(group));
         
         if (!KvGotoFirstSubKey(result))
+        {
+            DEBUG_MESSAGE("No maps in group %s", group)
+            if (!KvGotoNextKey(result))
+            {
+                DEBUG_MESSAGE("End of group traversal.")
+                break;
+            }
             continue;
+        }
+        
+        DEBUG_MESSAGE("Starting map traversal")
         
         for ( ; ; )
         {
@@ -1711,42 +1859,65 @@ Handle:CreateVoteKV(Handle:maps)
             
             if (!FindMapInList(maps, map, group))
             {
+                DEBUG_MESSAGE("Map wasn't found in selected list. Deleting.")
                 if (KvDeleteThis(result) == -1)
                 {
+                    DEBUG_MESSAGE("Last map in group deleted")
                     goBackMap = false;
                     break;
                 }
+                else
+                    continue;
             }
             else
             {
                 groupMapCount++;
             }
             
-            KvGotoNextKey(result);
-        }
-        
-        if (goBackMap)
-            KvGoBack(result);
-        
-        if (!KvGotoFirstSubKey(result))
-        {
-            if (KvDeleteThis(result) == -1)
+            if (!KvGotoNextKey(result))
             {
-                goBackGroup = false;
+                DEBUG_MESSAGE("End of map traversal, found %i maps.", groupMapCount)
                 break;
             }
         }
+        
+        if (goBackMap)
+        {
+            DEBUG_MESSAGE("Returning to group level")
+            KvGoBack(result);
+        }
+        
+        if (!KvGotoFirstSubKey(result))
+        {
+            DEBUG_MESSAGE("All maps have been removed from group. Deleting group.")
+            if (KvDeleteThis(result) == -1)
+            {
+                DEBUG_MESSAGE("Last map group deleted")
+                goBackGroup = false;
+                break;
+            }
+            else
+                continue;
+        }
         else
         {
+            DEBUG_MESSAGE("Setting maps_invote for group.")
             KvGoBack(result);
             KvSetNum(result, "maps_invote", groupMapCount);
         }
             
-        KvGotoNextKey(result);
+        if (!KvGotoNextKey(result))
+        {
+            DEBUG_MESSAGE("End of group traversal.")
+            break;
+        }
     }
     
     if (goBackGroup)
+    {
+        DEBUG_MESSAGE("Returning to mapcycle root level")
         KvGoBack(result);
+    }
     
     return result;
 }
@@ -1776,7 +1947,7 @@ bool:FindMapInList(Handle:maps, const String:map[], const String:group[])
 //
 CreateAMNextMap(client)
 {
-    new Handle:menu = CreateAutoManualMenu(HandleAM_NextMap, "Select a Map");
+    new Handle:menu = CreateAutoManualMenu(HandleAM_NextMap, "Select A Map");
     DisplayMenu(menu, client, 0);
 }
 
@@ -1784,7 +1955,7 @@ CreateAMNextMap(client)
 //
 CreateAMChangeMap(client)
 {
-    new Handle:menu = CreateAutoManualMenu(HandleAM_ChangeMap, "Select a Map");
+    new Handle:menu = CreateAutoManualMenu(HandleAM_ChangeMap, "Select A Map");
     DisplayMenu(menu, client, 0);
 }
 
@@ -1813,6 +1984,7 @@ public HandleAM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
 
@@ -1845,6 +2017,10 @@ public HandleGM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
 {
     switch (action)
     {
+        case MenuAction_Display:
+        {
+            Handle_MenuTranslation(menu, action, param1, param2);
+        }
         case MenuAction_Select:
         {
             decl String:group[MAP_LENGTH];
@@ -1893,6 +2069,10 @@ public HandleMM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
 {
     switch (action)
     {
+        case MenuAction_Display:
+        {
+            Handle_MenuTranslation(menu, action, param1, param2);
+        }
         case MenuAction_Select:
         {
             decl String:map[MAP_LENGTH];
@@ -1939,8 +2119,8 @@ public HandleMM_ChangeMap(Handle:menu, MenuAction:action, param1, param2)
 //
 ManualChangeMapWhen(client)
 {
-    new Handle:menu = CreateMenu(Handle_ManualChangeWhenMenu);
-    SetMenuTitle(menu, "Change Map When?");
+    new Handle:menu = CreateMenu(Handle_ManualChangeWhenMenu, MenuAction_DisplayItem|MenuAction_Display);
+    SetMenuTitle(menu, "AM Change When Menu");
     
     SetMenuExitBackButton(menu, true);
 
@@ -1950,7 +2130,7 @@ ManualChangeMapWhen(client)
     
     decl String:info2[2];
     Format(info2, sizeof(info2), "%i", ChangeMapTime_RoundEnd);
-    AddMenuItem(menu, info2, "End of this round");
+    AddMenuItem(menu, info2, "End of Round");
     
     DisplayMenu(menu, client, 0);
 }
@@ -2001,6 +2181,7 @@ public Handle_ManualChangeWhenMenu(Handle:menu, MenuAction:action, param1, param
             CloseHandle(menu);
         }
     }
+    return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
 
@@ -2025,8 +2206,8 @@ DoManualMapChange(client)
 //
 AutoChangeMap(client)
 {
-    new Handle:menu = CreateMenu(Handle_AutoChangeWhenMenu);
-    SetMenuTitle(menu, "Change Map When?");
+    new Handle:menu = CreateMenu(Handle_AutoChangeWhenMenu, MenuAction_DisplayItem|MenuAction_Display);
+    SetMenuTitle(menu, "AM Change When Menu");
     
     SetMenuExitBackButton(menu, true);
 
@@ -2036,7 +2217,7 @@ AutoChangeMap(client)
     
     decl String:info2[2];
     Format(info2, sizeof(info2), "%i", ChangeMapTime_RoundEnd);
-    AddMenuItem(menu, info2, "End of this round");
+    AddMenuItem(menu, info2, "End of Round");
     
     DisplayMenu(menu, client, 0);
 }
@@ -2066,6 +2247,7 @@ public Handle_AutoChangeWhenMenu(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
 
@@ -2118,6 +2300,7 @@ public HandleAM_NextMap(Handle:menu, MenuAction:action, param1, param2)
             CloseHandle(menu);
         }
     }
+    return Handle_MenuTranslation(menu, action, param1, param2);
 }
 
 
@@ -2150,6 +2333,10 @@ public HandleGM_NextMap(Handle:menu, MenuAction:action, param1, param2)
 {
     switch (action)
     {
+        case MenuAction_Display:
+        {
+            Handle_MenuTranslation(menu, action, param1, param2);
+        }
         case MenuAction_Select:
         {
             decl String:group[MAP_LENGTH];
@@ -2198,6 +2385,10 @@ public HandleMM_NextMap(Handle:menu, MenuAction:action, param1, param2)
 {
     switch (action)
     {
+        case MenuAction_Display:
+        {
+            Handle_MenuTranslation(menu, action, param1, param2);
+        }
         case MenuAction_Select:
         {
             decl String:map[MAP_LENGTH];
@@ -2326,7 +2517,8 @@ stock Handle:FetchMapsFromGroup(Handle:kv, const String:group[])
         trie = CreateTrie();
         SetTrieString(trie, MAP_TRIE_MAP_KEY, map);
         SetTrieString(trie, MAP_TRIE_GROUP_KEY, group);
-        SetTrieValue(trie, "excluded", UMC_IsMapValid(mapcycle, map, group));
+        SetTrieValue(trie, "excluded", 
+            !UMC_IsMapValid(mapcycle, map, group, vote_mem_arr, vote_catmem_arr, false, true));
         PushArrayCell(result, trie);
     }
     while (KvGotoNextKey(kv));
@@ -2386,8 +2578,8 @@ FilterGroupArrayForAdmin(Handle:groups, admin)
 Handle:CreateGroupMenu(MenuHandler:handler, bool:limits, client)
 {
     //Initialize the menu
-    new Handle:menu = CreateMenu(handler);
-    SetMenuTitle(menu, "Select a Group");
+    new Handle:menu = CreateMenu(handler, MenuAction_DisplayItem|MenuAction_Display);
+    SetMenuTitle(menu, "Select A Group");
     
     SetMenuExitBackButton(menu, true);
     
@@ -2422,8 +2614,6 @@ Handle:CreateGroupMenu(MenuHandler:handler, bool:limits, client)
     //Add all maps from the nominations array to the menu.
     AddArrayToMenu(menu, groupArray);
     
-    //TODO: Filter out groups where all the maps cannot be accessed by the user (admin flags)
-    
     //No longer need the array.
     CloseHandle(groupArray);
 
@@ -2436,10 +2626,10 @@ Handle:CreateGroupMenu(MenuHandler:handler, bool:limits, client)
 Handle:CreateMapMenu(MenuHandler:handler, const String:group[], bool:limits, client)
 {
     //Initialize the menu
-    new Handle:menu = CreateMenu(handler);
+    new Handle:menu = CreateMenu(handler, MenuAction_DisplayItem|MenuAction_Display);
     
     //Set the title.
-    SetMenuTitle(menu, "Select a Map");
+    SetMenuTitle(menu, "Select A Map");
     
     SetMenuExitBackButton(menu, true);
     
@@ -2492,7 +2682,7 @@ Handle:CreateMapMenu(MenuHandler:handler, const String:group[], bool:limits, cli
         
         KvGetString(map_kv, ADMINMENU_ADMINFLAG_KEY, mAdminFlags, sizeof(mAdminFlags), gAdminFlags);
         
-        if (mAdminFlags[0] != '\0' && !(ReadFlagString(mAdminFlags) & GetUserFlagBits(client)))
+        if (!ClientHasAdminFlags(client, mAdminFlags))
             continue;
         
         KvGetString(map_kv, "display", display, sizeof(display), gDisp);
@@ -2540,7 +2730,7 @@ Handle:CreateMapMenu(MenuHandler:handler, const String:group[], bool:limits, cli
 //Builds a menu with Auto and Manual options.
 Handle:CreateAutoManualMenu(MenuHandler:handler, const String:title[])
 {
-    new Handle:menu = CreateMenu(handler);
+    new Handle:menu = CreateMenu(handler, MenuAction_DisplayItem|MenuAction_Display);
     SetMenuTitle(menu, title);
     
     AddMenuItem(menu, AMMENU_ITEM_INFO_AUTO, "Auto Select");

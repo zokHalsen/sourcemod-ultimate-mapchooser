@@ -24,31 +24,30 @@ public Plugin:myinfo =
 new Handle:cvar_time  = INVALID_HANDLE;
 new Handle:cvar_frag  = INVALID_HANDLE;
 new Handle:cvar_round = INVALID_HANDLE;
-//new Handle:cvar_win   = INVALID_HANDLE;
+new Handle:cvar_win   = INVALID_HANDLE;
 
 //Flags
 new bool:time_enabled;
 new bool:frag_enabled;
 new bool:round_enabled;
-//new bool:win_enabled;
+new bool:win_enabled;
 
 //Warning adt_arrays
 new Handle:time_array  = INVALID_HANDLE;
 new Handle:frag_array  = INVALID_HANDLE;
 new Handle:round_array = INVALID_HANDLE;
-//new Handle:win_array   = INVALID_HANDLE;
+new Handle:win_array   = INVALID_HANDLE;
 
 //Current warning indices
 new current_time;
 new current_frag;
 new current_round;
-//new current_win;
+new current_win;
 
 //TODO:
 //  -Possible bug where warnings are never updated (vote timer activates before OnConfigsExecuted
 //      finishes) Possible solution is to update the warnings when the timer ticks (use flags so its
 //      only done when necessary).
-//  -Implement win warnings.
 
 public OnPluginStart()
 {
@@ -70,11 +69,11 @@ public OnPluginStart()
         "Specifies which file round-based vote warnings are defined in (uses mp_maxrounds)."
     );
     
-    /*cvar_win = CreateConVar(
+    cvar_win = CreateConVar(
         "sm_umc_endvote_winwarnings",
         "",
         "Specifies which file win-based vote warnings are defined in (uses mp_winlimit)."
-    );*/
+    );
     
     AutoExecConfig(true, "umc-endvote-warnings");
     
@@ -82,7 +81,7 @@ public OnPluginStart()
     time_array  = CreateArray();
     frag_array  = CreateArray();
     round_array = CreateArray();
-    //win_array   = CreateArray();
+    win_array   = CreateArray();
     
     LoadTranslations("ultimate-mapchooser.phrases");
 }
@@ -94,17 +93,20 @@ public OnConfigsExecuted()
     ClearHandleArray(time_array);
     ClearHandleArray(frag_array);
     ClearHandleArray(round_array);
+    ClearHandleArray(win_array);
 
     //Store cvar values
-    decl String:timefile[256], String:fragfile[256], String:roundfile[256];
+    decl String:timefile[256], String:fragfile[256], String:roundfile[256], String:winfile[256];
     GetConVarString(cvar_time, timefile, sizeof(timefile));
     GetConVarString(cvar_frag, fragfile, sizeof(fragfile));
     GetConVarString(cvar_round, roundfile, sizeof(roundfile));
+    GetConVarString(cvar_win, winfile, sizeof(winfile));
     
     //Set vote warning flags
     time_enabled = strlen(timefile) > 0 && FileExists(timefile);
     frag_enabled = strlen(fragfile) > 0 && FileExists(fragfile);
     round_enabled = strlen(roundfile) > 0 && FileExists(roundfile);
+    win_enabled = strlen(winfile) > 0 && FileExists(winfile);
     
     //Initialize warning variables if...
     //    ...vote warnings are enabled.
@@ -114,6 +116,8 @@ public OnConfigsExecuted()
         GetVoteWarnings(fragfile, frag_array, current_frag);
     if (round_enabled)
         GetVoteWarnings(roundfile, round_array, current_round);
+    if (win_enabled)
+        GetVoteWarnings(winfile, win_array, current_win);
     
     //Set the starting points.
     //UpdateVoteWarnings(warnings_time_enabled, warnings_frag_enabled, warnings_round_enabled);
@@ -307,7 +311,7 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
 }
 
 
-UpdateWarnings(Handle:array, threshold, &warningTime)
+stock UpdateWarnings(Handle:array, threshold, &warningTime)
 {
     //Storage variables.
     new Handle:warning = INVALID_HANDLE;
@@ -331,6 +335,21 @@ UpdateWarnings(Handle:array, threshold, &warningTime)
 }
 
 
+UpdateWinWarnings(winsleft)
+{
+    new warningTime;
+    current_win = UpdateWarnings(win_array, winsleft, warningTime);
+    
+    if (current_win < GetArraySize(win_array))
+    {
+        LogMessage(
+            "First win-warning will appear at %i wins before the end of the map.",
+            warningTime
+        );
+    }
+}
+
+
 UpdateFragWarnings(fragsleft)
 {
     new warningTime;
@@ -339,7 +358,7 @@ UpdateFragWarnings(fragsleft)
     if (current_round < GetArraySize(round_array))
     {
         LogMessage(
-            "VOTE WARNINGS: First frag-warning will appear at %i frags before the end of map vote.",
+            "First frag-warning will appear at %i frags before the end of map vote.",
             warningTime
         );
     }
@@ -354,7 +373,7 @@ UpdateTimeWarnings(timeleft)
     if (current_time < GetArraySize(time_array))
     {
         LogMessage(
-            "VOTE WARNINGS: First time-warning will appear %i seconds before the end of map vote.",
+            "First time-warning will appear %i seconds before the end of map vote.",
             warningTime
         );
     }
@@ -369,7 +388,7 @@ UpdateRoundWarnings(roundsleft)
     if (current_round < GetArraySize(round_array))
     {
         LogMessage(
-            "VOTE WARNINGS: First round-warning will appear at %i rounds before the end of map vote.",
+            "First round-warning will appear at %i rounds before the end of map vote.",
             warningTime
         );
     }
@@ -377,7 +396,7 @@ UpdateRoundWarnings(roundsleft)
 
 
 //Perform a vote warning, does nothing if there is no warning defined for this time.
-DoVoteWarning(Handle:warningArray, &next, triggertime, param=0)
+stock DoVoteWarning(Handle:warningArray, &next, triggertime, param=0)
 {
     //Do nothing if...
     //    ...there are no more warnings to perform.
@@ -395,6 +414,8 @@ DoVoteWarning(Handle:warningArray, &next, triggertime, param=0)
     //    ...the time to trigger it has come.
     if (triggertime <= warningTime)
     {
+        DEBUG_MESSAGE("Displaying warning time: %i (trigger time: %i)", warningTime, triggertime)
+    
         DisplayVoteWarning(warning, param);
         
         //Move to the next warning.
@@ -424,6 +445,13 @@ TryDoFragWarning(frags, client)
 {
     if (frag_enabled)
         DoVoteWarning(frag_array, current_frag, frags, client);
+}
+
+
+TryDoWinWarning(wins, team)
+{
+    if (win_enabled)
+        DoVoteWarning(win_array, current_win, wins, team);
 }
 
 
@@ -469,6 +497,8 @@ DisplayVoteWarning(Handle:warning, param=0)
         ReplaceString(message, sizeof(message), "{PLAYER}", sBuffer, false);
     }
     
+    //TODO: Insert team replacement
+    
     //Insert a newline character if...
     //    ...the message has a place to insert it.
     if (StrContains(message, "\\n") != -1)
@@ -511,10 +541,10 @@ public UMC_EndVote_OnFragTimerUpdated(fragsleft, client)
 }
 
 
-/*public UMC_EndVote_OnWinTimerUpdated(winsleft, team)
+public UMC_EndVote_OnWinTimerUpdated(winsleft, team)
 {
-    //Coming soon :)
-}*/
+    UpdateWinWarnings(winsleft);
+}
 
 
 public UMC_EndVote_OnTimeTimerTicked(timeleft)
@@ -528,14 +558,15 @@ public UMC_EndVote_OnRoundTimerTicked(roundsleft)
     TryDoRoundWarning(roundsleft);
 }
 
+
 public UMC_EndVote_OnFragTimerTicked(fragsleft, client)
 {
     TryDoFragWarning(fragsleft, client);
 }
 
 
-/*public UMC_EndVote_OnWinTimerTicked(winsleft, team)
+public UMC_EndVote_OnWinTimerTicked(winsleft, team)
 {
-    //Coming soon :)
-}*/
+    TryDoWinWarning(winsleft, team);
+}
 

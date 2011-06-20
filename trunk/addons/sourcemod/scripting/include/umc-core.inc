@@ -213,7 +213,7 @@ native bool:UMC_NominateMap(Handle:kv, const String:map[], const String:group[],
  * 
  * @return True if the group is valid, false otherwise.
  */
-native bool:UMC_IsGroupValid(Handle:kv, const String:group[]);
+//native bool:UMC_IsGroupValid(Handle:kv, const String:group[]);
 
 
 /**
@@ -225,7 +225,8 @@ native bool:UMC_IsGroupValid(Handle:kv, const String:group[]);
  *
  * @return True if the map is valid, false otherwise.
  */
-native bool:UMC_IsMapValid(Handle:kv, const String:map[], const String:group[]);
+native bool:UMC_IsMapValid(Handle:kv, const String:map[], const String:group[], Handle:exMaps,
+                           Handle:exGroups, bool:isNom, bool:forMapChange);
 
 
 /**
@@ -324,6 +325,14 @@ forward UMC_RequestReloadMapcycle();
 native UMC_GetCurrentMapGroup(String:buffer[], size);
 
 
+/**
+ * Determines if UMC currently has a vote in progress.
+ *
+ * @return True if vote is in progress, false otherwise.
+ */
+native bool:UMC_IsVoteInProgress();
+
+
 //SourceMod Malarky
 public SharedPlugin:__pl_umccore =
 {
@@ -347,7 +356,8 @@ public __pl_umccore_SetNTVOptional()
     MarkNativeAsOptional("UMC_NominateMap");
     MarkNativeAsOptional("UMC_CreateValidMapArray");
     MarkNativeAsOptional("UMC_CreateValidMapGroupArray");
+    MarkNativeAsOptional("UMC_IsMapValid");
     //MarkNativeAsOptional("UMC_IsGroupValid");
-    //MarkNativeAsOptional("UMC_IsMapValid");
     //MarkNativeAsOptional("UMC_FilterMapcycle");
+    MarkNativeAsOptional("UMC_IsVoteInProgress");
 }

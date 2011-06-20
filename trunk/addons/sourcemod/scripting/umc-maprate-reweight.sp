@@ -29,6 +29,7 @@ public Plugin:myinfo =
 //Cvar
 new Handle:cvar_min_votes = INVALID_HANDLE;
 new Handle:cvar_scale     = INVALID_HANDLE;
+new Handle:cvar_default   = INVALID_HANDLE;
 
 //Our SQL information
 new String:table_name[255];
@@ -36,8 +37,6 @@ new String:db_name[255];
 
 //We are going to cache this information early on so that UMC isn't held up by an SQL query.
 new Handle:map_ratings = INVALID_HANDLE;
-//new Handle:maps_array = INVALID_HANDLE;
-//new Handle:average_ratings = INVALID_HANDLE;
 
 //Flag stating if we're ready to reweight (do we have information in the cache?)
 new bool:reweight = false;
@@ -48,11 +47,18 @@ new bool:reweight = false;
 //Initialize the cache.
 public OnPluginStart()
 {
+    cvar_default = CreateConVar(
+        "sm_umc_maprate_default",
+        "3",
+        "Weight given to maps that do not have the specified minimum amount of ratings.",
+        0, true, 1.0
+    );
+    
     cvar_min_votes = CreateConVar(
         "sm_umc_maprate_minvotes",
         "5",
         "Minimum number of ratings required for a map in order for it to be reweighted.",
-        0, true, 0.0
+        0, true, 1.0
     );
     
     cvar_scale = CreateConVar(
@@ -69,8 +75,6 @@ public OnPluginStart()
         "Tests how Map Rate Reweighting will reweight a map.\nUsage: \"sm_umc_maprate_testreweight <map>\""
     );
     
-    //maps_array = CreateArray(ByteCountToCells(MAP_LENGTH));
-    //average_ratings = CreateArray();
     map_ratings = CreateTrie();
 }
 
@@ -87,11 +91,8 @@ public Action:Command_TestReweight(client, args)
     decl String:map[MAP_LENGTH];
     GetCmdArg(1, map, sizeof(map));
     
-    new Float:weight;
-    if (!GetTrieValue(map_ratings, map, weight))
-    {
-        weight = 1.0;
-    }
+    new Float:weight = FetchMapWeight(map);
+    
     ReplyToCommand(
         client, "\x03[UMC]\x01 Map \"%s\" will be reweighted by a factor of %f", map, weight
     );
@@ -155,9 +156,6 @@ public Handle_MapRatingQuery(Handle:owner, Handle:hQuery, const String:error[], 
         return;
     }
     
-    //ClearArray(maps_array);
-    //ClearArray(average_ratings);
-    
     decl String:map[64];
     new Float:average;
     while (SQL_FetchRow(hQuery))
@@ -166,25 +164,24 @@ public Handle_MapRatingQuery(Handle:owner, Handle:hQuery, const String:error[], 
         average = SQL_FetchFloat(hQuery, 1);
         
         SetTrieValue(map_ratings, map, average);
-        
-        //PushArrayString(maps_array, map);
-        //PushArrayCell(average_ratings, average);
     }
     reweight = true;  
 }
 
 
-//Fetches the weight of a map.
-/*bool:FetchMapWeight(const String:map[], &Float:weight)
+//
+Float:FetchMapWeight(const String:map[])
 {
-    new index = FindStringInArray(maps_array, map);
-    if (index >= 0)
+    new Float:weight;
+    if (GetTrieValue(map_ratings, map, weight))
     {
-        weight = GetArrayCell(average_ratings, index);
-        return true;
+        return Pow(weight, GetConVarFloat(cvar_scale));
     }
-    return false;
-}*/
+    else
+    {
+        return GetConVarFloat(cvar_default);
+    }
+}
 
 
 //Reweights a map when UMC requests,
@@ -192,14 +189,11 @@ public UMC_OnReweightMap(Handle:kv, const String:map[], const String:group[])
 {
     if (!reweight) return;
     
-    new Float:weight;
-    //if (FetchMapWeight(map, weight))
-    if (GetTrieValue(map_ratings, map, weight))
-    {
-        UMC_AddWeightModifier(Pow(weight, GetConVarFloat(cvar_scale)));
+    new Float:weight = FetchMapWeight(map);
+    UMC_AddWeightModifier(weight);
+    
 #if UMC_DEBUG
-        LogMessage("Map %s was reweighted by %f", map, Pow(weight, GetConVarFloat(cvar_scale)));
+    LogMessage("Map %s was reweighted by %f", map, weight);
 #endif
-    }
 }
 

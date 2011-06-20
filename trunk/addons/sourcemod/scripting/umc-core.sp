@@ -51,6 +51,10 @@ Added admin flags for admins who can ignore map exclusion in the admin menu.
 -New cvar "sm_umc_am_adminflags_exclude" to control this feature.
 Added admin flags for admins who can override default settings in the admin menu.
 -New cvar "sm_umc_am_adminflags_defaults" to control this feature.
+Added mp_winlimit-based vote warnings. [ENDVOTE-WARNINGS]
+Turned basic time-based vote warnings on by default.
+Added ability for sound to be played during countdown between Runoff/Tiered votes. [CORE]
+-New "sm_umc_countdown_sound" cvar to specify the sound.
 Fixed bug with nominations not using group exclusion settings.
 Fixed bug with tiered nomination menu excluding groups unnecessarily.
 Fixed memory leak when parsing nominations for map group vote menus.
@@ -381,6 +385,8 @@ new Handle:cvar_runoff_slots       = INVALID_HANDLE;
 new Handle:cvar_extend_display     = INVALID_HANDLE;
 new Handle:cvar_dontchange_display = INVALID_HANDLE;
 new Handle:cvar_valvemenu          = INVALID_HANDLE;
+new Handle:cvar_version            = INVALID_HANDLE;
+new Handle:cvar_count_sound        = INVALID_HANDLE;
 
 //Stores the number of runoffs available.
 new remaining_runoffs;
@@ -417,6 +423,9 @@ new UMC_ChangeMapTime:change_map_when;
 
 //Stores the winning map from a native-induced vote.
 //new String:normal_winning_map[MAP_LENGTH];
+
+//
+new String:countdown_sound[PLATFORM_MAX_PATH];
 
 /* VOTE PARAMETERS */
 new String:stored_start_sound[PLATFORM_MAX_PATH], String:stored_end_sound[PLATFORM_MAX_PATH],
@@ -515,6 +524,8 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
     CreateNative("UMC_NominateMap", Native_UMCNominateMap);
     CreateNative("UMC_CreateValidMapArray", Native_UMCCreateMapArray);
     CreateNative("UMC_CreateValidMapGroupArray", Native_UMCCreateGroupArray);
+    CreateNative("UMC_IsMapValid", Native_UMCIsMapValid);
+    CreateNative("UMC_IsVoteInProgress", Native_UMCIsVoteInProgress);
     
     return APLRes_Success;
 }
@@ -523,6 +534,12 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 //Called when the plugin is finished loading.
 public OnPluginStart()
 {
+    cvar_count_sound = CreateConVar(
+        "sm_umc_countdown_sound",
+        "",
+        "Specifies a sound to be played each second during the countdown time between runoff and tiered votes. (Sound will be precached and added to the download table.)"
+    );
+    
     cvar_valvemenu = CreateConVar(
         "sm_umc_menu_esc",
         "0",
@@ -585,7 +602,7 @@ public OnPluginStart()
     );
 
     //Version
-    CreateConVar(
+    cvar_version = CreateConVar(
         "improved_map_randomizer_version", PL_VERSION, "Ultimate Mapchooser's version",
         FCVAR_NOTIFY|FCVAR_DONTRECORD|FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED
     );
@@ -670,6 +687,15 @@ public OnMapStart()
     //Update the current category.
     strcopy(current_cat, sizeof(current_cat), next_cat);
     strcopy(next_cat, sizeof(next_cat), INVALID_GROUP);
+    
+    CreateTimer(5.0, UpdateTrackingCvar);
+}
+
+
+//
+public Action:UpdateTrackingCvar(Handle:timer)
+{
+    SetConVarString(cvar_version, PL_VERSION, false, false);
 }
 
 
@@ -692,6 +718,9 @@ public OnConfigsExecuted()
     vote_active = false; //Assuming the case where this is still active was caught by VoteComplete()
     
     change_map_round = false;
+    
+    GetConVarString(cvar_count_sound, countdown_sound, sizeof(countdown_sound));
+    CacheSound(countdown_sound);
 }
 
 
@@ -829,6 +858,17 @@ Handle:CreateMapArray(Handle:kv, Handle:mapcycle, const String:group[], Handle:e
         oneSection = true;
     }
     
+#if UMC_DEBUG
+    decl String:emap[MAP_LENGTH], String:egroup[MAP_LENGTH];
+    new exGSize = GetArraySize(exGroups);
+    for (new i = 0; i < exGSize; i++)
+    {
+        GetArrayString(exGroups, i, egroup, sizeof(egroup));
+        GetArrayString(exMaps, i, emap, sizeof(emap));
+        LogMessage("%20s   |    %20s", emap, egroup);
+    }
+#endif
+    
     new Handle:result = CreateArray();
     decl String:mapName[MAP_LENGTH], String:groupName[MAP_LENGTH];
     new cIndex;
@@ -841,11 +881,20 @@ Handle:CreateMapArray(Handle:kv, Handle:mapcycle, const String:group[], Handle:e
             cIndex = FindStringInArray(exGroups, groupName);
             if (cIndex != -1 && cIndex < numExGroups)
             {
-                continue;
+                if (!oneSection)
+                    continue;
+                else
+                    break;
             }
         }
         
-        if (!KvGotoFirstSubKey(kv)) continue;     
+        if (!KvGotoFirstSubKey(kv))
+        {
+            if (!oneSection)
+                continue;
+            else
+                break;
+        }
         
         do
         {
@@ -859,7 +908,7 @@ Handle:CreateMapArray(Handle:kv, Handle:mapcycle, const String:group[], Handle:e
         
         KvGoBack(kv);
         
-        if (oneSection) break;    
+        if (oneSection) break;
     }
     while (KvGotoNextKey(kv));
     
@@ -1089,10 +1138,8 @@ public Native_UMCStartVote(Handle:plugin, numParams)
         //  ...the filename is defined.
         if (strlen(startSound) > 0)
             EmitSoundToAll(startSound);
-    
-   
+        
         vote_active = true;
-    
         
         return _:VoteMenuToAllWithFlags(menu, time, adminFlags);
     }
@@ -1168,14 +1215,11 @@ public Native_UMCSetNextMap(Handle:plugin, numParams)
         GetNativeString(3, group, len+1);
 
     if (!IsMapValid(map))
-
     {
-
         LogError("SETMAP: Map %s is invalid!", map);
         return;
-
     }
-  
+    
     new UMC_ChangeMapTime:when = UMC_ChangeMapTime:GetNativeCell(4);
     
     decl String:reason[PLATFORM_MAX_PATH];
@@ -1185,10 +1229,48 @@ public Native_UMCSetNextMap(Handle:plugin, numParams)
 }
 
 
-// native CanMapChooserStartVote();
-public Native_CanVoteStart(Handle:plugin, numParams)
+//
+public Native_UMCIsVoteInProgress(Handle:plugin, numParams)
 {
-    return !vote_inprogress;
+    return vote_inprogress;
+}
+
+
+//
+public Native_UMCIsMapValid(Handle:plugin, numParams)
+{
+    new Handle:arg = Handle:GetNativeCell(1);
+    new Handle:kv = CreateKeyValues("umc_rotation");
+    KvCopySubkeys(arg, kv);
+    
+    new len;
+    GetNativeStringLength(2, len);
+    new String:map[len+1];
+    if (len > 0)
+        GetNativeString(2, map, len+1);
+    GetNativeStringLength(3, len);
+    new String:group[len+1];
+    if (len > 0)
+        GetNativeString(3, group, len+1);
+        
+    new Handle:exMaps = Handle:GetNativeCell(4);
+    new Handle:exGroups = Handle:GetNativeCell(5);
+    
+    new bool:isNom = bool:GetNativeCell(6);
+    new bool:forMapChange = bool:GetNativeCell(7);
+    
+    if (!KvJumpToKey(kv, group))
+    {
+        LogError("NATIVE: No group '%s' in mapcycle.", group);
+        return _:false;
+    }
+    if (!KvJumpToKey(kv, map))
+    {
+        LogError("NATIVE: No map %s found in group '%s'", map, group);
+        return _:false;
+    }
+    
+    return _:IsValidMap(kv, arg, group, exMaps, exGroups, isNom, forMapChange);
 }
 
 
@@ -3254,6 +3336,9 @@ public Action:Handle_TieredVoteTimer(Handle:timer, Handle:exGroups)
     
     if (tiered_delay > 0)
     {
+        if (strlen(countdown_sound) > 0)
+            EmitSoundToAll(countdown_sound);
+
         tiered_delay--;
         return Plugin_Continue;
     }
