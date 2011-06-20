@@ -7,7 +7,6 @@
 #include <sourcemod>
 #include <umc-core>
 #include <umc_utils>
-#include <umc-playerlimits>
 #include <regex>
 
 public Plugin:myinfo =
@@ -38,7 +37,7 @@ public OnPluginStart()
     cvar_prev = CreateConVar(
         "sm_umc_prefixexclude_memory",
         "0",
-        "Specifies how many previously played prefixes to remember. 1 = Current Only",
+        "Specifies how many previously played prefixes to remember. 1 = Current Only, 0 = Disable",
         0, true, 0.0
     );
 
@@ -62,7 +61,7 @@ public OnPluginStart()
 }
 
 
-public OnMapStart()
+public OnConfigsExecuted()
 {
     decl String:prefix[MAP_LENGTH];
     GetCurrentMapPrefix(prefix, sizeof(prefix));
@@ -96,6 +95,11 @@ stock GetMapPrefix(const String:map[], String:buffer[], maxlen)
 public Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const String:group[],
                                         bool:isNomination, bool:forMapChange)
 {
+    new size = GetArraySize(prefix_array);
+    
+    if (size == 0)
+        return Plugin_Continue;
+
     if (isNomination && GetConVarBool(cvar_nom_ignore))
         return Plugin_Continue;
         
@@ -106,16 +110,11 @@ public Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const Str
     GetMapPrefix(map, mapPrefix, sizeof(mapPrefix));
     
     new amt = GetConVarInt(cvar_amt);
-    
     decl String:prefix[MAP_LENGTH];
-    new size = GetArraySize(prefix_array);
     for (new i = 0; i < size; i++)
     {
         GetArrayString(prefix_array, i, prefix, sizeof(prefix));
-        if (StrEqual(mapPrefix, prefix, false))
-            amt--;
-        
-        if (amt == 0)
+        if (StrEqual(mapPrefix, prefix, false) && (--amt == 0))
         {
             DEBUG_MESSAGE("Map %s is excluded due to Prefix Exclusion.")
             return Plugin_Stop;

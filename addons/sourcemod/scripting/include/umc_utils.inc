@@ -522,7 +522,7 @@ stock InsertArrayCell(Handle:arr, index, any:cell)
 }
 
 
-//Deletes values off the beginning of an array until it is down to the given size.
+//Deletes values off the end of an array until it is down to the given size.
 stock TrimArray(Handle:arr, size)
 {
     //Remove elements from the start of an array while...
@@ -1040,3 +1040,12 @@ stock bool:VoteMenuToAllWithFlags(Handle:menu, time, const String:flagstring[]="
         return bool:VoteMenuToAll(menu, time);
     }
 }
+
+
+//
+stock bool:ClientHasAdminFlags(client, const String:flagString[])
+{
+    return strlen(flagString) == 0 || (ReadFlagString(flagString) & GetUserFlagBits(client));
+}
+
+
