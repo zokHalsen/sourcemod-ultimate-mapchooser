@@ -36,6 +36,11 @@
 = List of CVars =
   The cvar list for the Core module is located in *cfg/sourcemod/ultimate-mapchooser.cfg*.
   {{{
+// Specifies a sound to be played each second during the countdown time between runoff and tiered votes. (Sound will be precached and added to the download table.)
+// -
+// Default: ""
+sm_umc_countdown_sound ""
+
 // Determines where in votes the "Don't Change" option will be displayed.
 //  0 - Bottom,
 //  1 - Top
