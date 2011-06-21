@@ -6,7 +6,7 @@
 
   Core also contains a few universal settings which control some general behavior of votes.
 
-  Core defines two map group options, *"maps_invote"* and *"display-template"*, and one map option, *"display"*.
+  Core defines two map group options, *"maps_invote"* and *"display-template"*, and two map options, *"display"* and *"nominate_group"*.
   {{{
 "umc_mapcycle"
 {
@@ -19,6 +19,7 @@
         "A Map"
         {
             "display"  "DISPLAY_STRING"
+            "nominate_group"  "GROUP_NAME"
             ...
         }
     }
@@ -26,6 +27,8 @@
 }
 }}}
   Where *X* is the number of maps which should appear in the vote (integer greater than or equal to 0), *TEMPLATE_STRING* is a string that will be displayed for any maps from the group in a vote (it can contain the sub-string "{MAP}" which will be replaced with the name of the map), and *DISPLAY_STRING* is a string that will be displayed for that map in a vote, overriding whatever was specified by "display-template".
+
+  <b>GROUP_NAME</b> is the name of a map group which you want this map to be associated with if it is nominated. If left blank, the name of the group the map belongs to is used (in this example, "A Group"). This is particularly useful if you are using the Tiered Nomination Menu (see _sm_umc_nominate_tiermenu_ in the [ModuleNominate Nomination] module), since you can then design this UMC-Mapcycle for the nomination menu and use a UMC-Mapcycle with different groups for other modules.
 
 = List of Commands =
   Core provides the following commands:
