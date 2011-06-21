@@ -6,8 +6,31 @@
 
   _*sm_nominate*_ -- Displays a nomination menu to the client who used the command.
 
-  Maps appearing in the nomination menu follow the Nomination and Display Exclusion Guidelines, outlined [AboutExclusion here].
+  Maps appearing in the nomination menu follow the Nomination and Display Exclusion guidelines, outlined [AboutExclusion here].
 
+  The Nomination module also defined two new map options, *nominate_group* and *nominate_flags*, as well as one new map group option, also called *nominate_flags*.
+
+  {{{
+"umc_mapcycle"
+{
+    "A Group"
+    {
+        "nominate_flags"  "FLAG_STRING"
+        ...
+
+        "A Map"
+        {
+            "nominate_flags"  "FLAG_STRING"
+            "nominate_group"  "GROUP_NAME"
+            ...
+        }
+    }
+    ...
+}
+}}}
+  *FLAG_STRING* is a string containing SourceMod admin flags, one of which an admin must require in order to nominate that map. The *nominate_flags* at the group level defines the *nominate_flags* option for all maps in the group, manually defining *nominate_flags* for a map overrides the group setting.
+
+  *GROUP_NAME* is the name of a map group which you want this nomination to be associated with. If left blank, the name of the group the map belongs to is used (in this example, "A Group"). This is particularly useful if you are using the Tiered Nomination Menu (see _sm_umc_nominate_tiermenu_ below), since you can then design this UMC-Mapcycle for the nomination menu and use a UMC-Mapcycle with different groups for other modules.
 
 = List of CVars =
   The list of cvars for the Nomination module is located in *cfg/sourcemod/umc-nominate.cfg*.
