@@ -23,7 +23,7 @@
     ...
 }
 }}}
-Where GROUPNAME is the name of the mapgroup to be selected from next time, or nothing ("") if it should select from every group.
+Where *GROUPNAME* is the name of the mapgroup to be selected from next time, or nothing ("") if it should select from every group.
 
 
 =Example=
