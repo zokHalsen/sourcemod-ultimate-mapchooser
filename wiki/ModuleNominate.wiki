@@ -20,7 +20,6 @@
         "A Map"
         {
             "nominate_flags"  "FLAG_STRING"
-            "nominate_group"  "GROUP_NAME"
             ...
         }
     }
