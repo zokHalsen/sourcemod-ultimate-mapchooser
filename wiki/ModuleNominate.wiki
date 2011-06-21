@@ -27,7 +27,7 @@
     ...
 }
 }}}
-  <b>FLAG_STRING</b> is a string containing SourceMod admin flags, one of which an admin must require in order to nominate that map. The *nominate_flags* at the group level defines the *nominate_flags* option for all maps in the group, manually defining *nominate_flags* for a map overrides the group setting.
+  <b>FLAG_STRING</b> is a string containing SourceMod admin flags, one of which an admin must require in order to nominate that map. The *nominate_flags* at the group level defines the *nominate_flags* option for all maps in the group, manually defining *nominate_flags* for a map overrides the group setting. If the group-level *nominate_flags* is left blank or omitted, the flags specified in the _sm_umc_nominate_adminflags_ cvar are used (see cvars below).
 
   <b>GROUP_NAME</b> is the name of a map group which you want this nomination to be associated with. If left blank, the name of the group the map belongs to is used (in this example, "A Group"). This is particularly useful if you are using the Tiered Nomination Menu (see _sm_umc_nominate_tiermenu_ below), since you can then design this UMC-Mapcycle for the nomination menu and use a UMC-Mapcycle with different groups for other modules.
 
