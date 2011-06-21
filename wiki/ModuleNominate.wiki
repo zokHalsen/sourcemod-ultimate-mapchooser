@@ -9,7 +9,6 @@
   Maps appearing in the nomination menu follow the Nomination and Display Exclusion guidelines, outlined [AboutExclusion here].
 
   The Nomination module also defined two new map options, *nominate_group* and *nominate_flags*, as well as one new map group option, also called *nominate_flags*.
-
   {{{
 "umc_mapcycle"
 {
