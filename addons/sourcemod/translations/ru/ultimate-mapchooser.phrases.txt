@@ -1,5 +1,5 @@
 //Phrases for Ultimate Mapchooser by Steell
-//Russian Translation by FrozDark and petro_f
+//Russian Translation by FrozDark and petro_f and b82a
 
 "Phrases"
 {
@@ -201,5 +201,15 @@
     "Selective Runoff"
     {
         "ru" "Голосование для игроков, которые не голосовали или их голос не был учтен в предыдущем голосовании."
+    }
+    
+    "No RTV Admin"
+    {
+        "ru"    "У вас нет прав для запуска команды RockTheVote."
+    }
+    
+    "No Nominate Admin"
+    {
+        "ru"    "У вас нет прав для номинирования карты."
     }
 }
