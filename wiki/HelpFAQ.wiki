@@ -1,6 +1,6 @@
 #summary Frequently Asked Questions
 
-==Why are my nominated maps appearing in votes?==
+==Why are my nominated maps not appearing in votes?==
 
 The most likely culprit is that the map you're nominating has a different group name than a group that's actually in the vote. This commonly happens when you have separate groups for voting/nominating, and it happens more often when there are separate UMC-Mapcycles for voting/nominating.
 
