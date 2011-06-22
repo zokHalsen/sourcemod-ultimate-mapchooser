@@ -119,7 +119,7 @@
     
     "AM Max Runoff Menu"
     {
-        "en"    "Set Maximum Amound of Runoffs"
+        "en"    "Set Maximum Amount of Runoffs"
     }
     
     "AM Max Runoff Menu Message 1"
