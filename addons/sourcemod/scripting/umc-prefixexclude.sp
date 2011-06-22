@@ -97,7 +97,7 @@ public Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const Str
 {
     new size = GetArraySize(prefix_array);
     
-    if (size == 0)
+    if (size == 0 || GetConVarInt(cvar_prev) == 0)
         return Plugin_Continue;
 
     if (isNomination && GetConVarBool(cvar_nom_ignore))

@@ -1,0 +1,228 @@
+"Phrases"
+{   
+    "AM Stop Vote"
+    {
+        "pt"    "Parar votação atual do UMC"
+    }
+    
+    "AM Start Vote"
+    {
+        "pt"    "Começar uma votação de mapa"
+    }
+    
+    "AM Vote Type"
+    {
+        "pt"    "Selecionar o tipo de votação"
+    }
+    
+    "Maps"
+    {
+        "pt"    "Mapas"
+    }
+    
+    "Groups"
+    {
+        "pt"    "Grupos"
+    }
+    
+    "Tiered"
+    {
+        "pt"    "Camadas"
+    }
+    
+    "AM Populate Vote"
+    {
+        "pt"    "Adicionar mapas à votação"
+    }
+    
+    "AM Vote Settings"
+    {
+        "pt"    "Configurações de Votação"
+    }
+    
+    "AM-VS Defaults"
+    {
+        "pt"    "Usar Padrões"
+    }
+    
+    "Manually Choose"
+    {
+        "pt"    "Escolher Manualmente"
+    }
+    
+    "AM Scramble Menu"
+    {
+        "pt"    "Misturar menu de votação?"
+    }
+    
+    "Default Yes"
+    {
+        "pt"    "Sim (padrão)"
+    }
+    
+    "Default No"
+    {
+        "pt"    "Não (padrão)"
+    }
+    
+    "AM Threshold Menu"
+    {
+        "pt"    "Mudar limiar da votação"
+    }
+    
+    "AM Threshold Menu Message 1"
+    {
+        "pt"    "Digite o limiar que deseja"
+    }
+    
+    "AM Threshold Menu Message 2"
+    {
+        "pt"    "mudar na votação [0 a 100]."
+    }
+    
+    "Default"
+    {
+        "pt"    "padrão"
+    }
+    
+    "Previously Entered"
+    {
+        "pt"    "ingressou anteriormente"
+    }
+    
+    "AM Fail Action Menu"
+    {
+        "pt"    "Estabelecer ação falha"
+    }
+    
+    "Do Nothing"
+    {
+        "pt"    "Fazer nada"
+    }
+    
+    "Perform Runoff Vote"
+    {
+        "pt"    "Fazer votação de decisão"
+    }
+    
+    "Default Do Nothing"
+    {
+        "pt"    "Fazer nada (padrão)"
+    }
+    
+    "Default Perform Runoff Vote"
+    {
+        "pt"    "Fazer votação de decisão (padrão)"
+    }
+    
+    "AM Max Runoff Menu"
+    {
+        "pt"    "Estabelecer máximo de votações de decisão"
+    }
+    
+    "AM Max Runoff Menu Message 1"
+    {
+        "pt"    "Digite o máximo que deseja"
+    }
+    
+    "AM Max Runoff Menu Message 2"
+    {
+        "pt"    "de votações de decisão (>= 0)."
+    }
+    
+    "AM Max Runoff Menu Message 3"
+    {
+        //Note to translators:  keep the leading space in this phrase.
+        "pt"    " 0 = ilimitado"
+    }
+    
+    "AM Runoff Fail Action Menu"
+    {
+        "pt"    "Estabelecer ação em caso de votação de decisão falha"
+    }
+    
+    "Accept Winner"
+    {
+        "pt"    "Aceitar vencendor"
+    }
+    
+    "Default Accept Winner"
+    {
+        "pt"    "Aceitar vencendor (padrão)"
+    }
+    
+    "AM Extend Menu"
+    {
+        "pt"    "Adicionar opção para extender mapa?"
+    }
+    
+    "AM Don't Change Menu"
+    {
+        "pt"    "Adicionar opção para não mudar?"
+    }
+    
+    "AM Admin Flag Menu"
+    {
+        "pt"    "Fazer uma votação para..."
+    }
+    
+    "Everyone"
+    {
+        "pt"    "Todos"
+    }
+    
+    "Admins Only"
+    {
+        "pt"    "Somente admins"
+    }
+    
+    "AM Change When Menu"
+    {
+        "pt"    "Quando mudar o mapa?"
+    }
+    
+    "Now"
+    {
+        "pt"    "Agora"
+    }
+    
+    "End of Round"
+    {
+        "pt"    "Fim dessa rodada"
+    }
+    
+    "End of Map"
+    {
+        "pt"    "Fim do mapa"
+    }
+    
+    "Select A Map"
+    {
+        "pt"    "Selecionar um Mapa"
+    }
+    
+    "Select A Group"
+    {
+        "pt"    "Selecionar um Grupo"
+    }
+    
+    "Auto Select"
+    {
+        "pt"    "Seleção automática"
+    }
+    
+    "Manual Select"
+    {
+        "pt"    "Seleção manual"
+    }
+    
+    "AM Change Map"
+    {
+        "pt"    "Alterar Mapa"
+    }
+    
+    "AM Set Next Map"
+    {
+        "pt"    "Conjunto Mapa Próximo"
+    }
+}

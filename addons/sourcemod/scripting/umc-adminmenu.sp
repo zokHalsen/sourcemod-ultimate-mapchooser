@@ -324,6 +324,10 @@ public OnPluginStart()
         
     runoff_regex    = CompileRegex("^([0-9]+)\\s*$");
     threshold_regex = CompileRegex("^([0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)%?\\s*$");
+    
+    //Load the translations file
+    LoadTranslations("ultimate-mapchooser.phrases");
+    LoadTranslations("ultimate-mapchooser-adminmenu.phrases");
 }
 
 
@@ -484,31 +488,31 @@ public Adm_CategoryHandler(Handle:topmenu, TopMenuAction:action, TopMenuObject:o
 
 
 //Handles the Change Map option in the menu.
-public UMCMenu_ChangeMap(Handle:topmenu, TopMenuAction:action, TopMenuObject:objectID, param,
+public UMCMenu_ChangeMap(Handle:topmenu, TopMenuAction:action, TopMenuObject:objectID, client,
                          String:buffer[], maxlength)
 {
     if (action == TopMenuAction_DisplayOption)
     {
-        Format(buffer, maxlength, "Change Map");
+        Format(buffer, maxlength, "%T", "AM Change Map", client);
     }
     else if (action == TopMenuAction_SelectOption)
     {
-        CreateAMChangeMap(param);
+        CreateAMChangeMap(client);
     }
 }
 
 
 //Handles the Change Map option in the menu.
-public UMCMenu_NextMap(Handle:topmenu, TopMenuAction:action, TopMenuObject:objectID, param,
+public UMCMenu_NextMap(Handle:topmenu, TopMenuAction:action, TopMenuObject:objectID, client,
                        String:buffer[], maxlength)
 {
     if (action == TopMenuAction_DisplayOption)
     {
-        Format(buffer, maxlength, "Set Next Map");
+        Format(buffer, maxlength, "%T", "AM Set Next Map", client);
     }
     else if (action == TopMenuAction_SelectOption)
     {
-        CreateAMNextMap(param);
+        CreateAMNextMap(client);
     }
 }
 

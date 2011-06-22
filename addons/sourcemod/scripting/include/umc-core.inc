@@ -199,10 +199,12 @@ native bool:UMC_IsMapNominated(const String:map[], const String:group[]);
  * @param map   The name of the map.
  * @param group The name of the map group containing the map.
  * @param client    The client who is nominating this map.
+ * @param nominationGroup   The group which this nomination should be associated with. If INVALID_GROUP, it will be associated with the given group.
  *
  * @return True on success, false otherwise.
  */
-native bool:UMC_NominateMap(Handle:kv, const String:map[], const String:group[], client);
+native bool:UMC_NominateMap(Handle:kv, const String:map[], const String:group[], client, 
+                            const String:nominationGroup[]=INVALID_HANDLE);
  
 
 /**
