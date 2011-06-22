@@ -59,6 +59,18 @@
 //          "command"   "any valid console command"                          //
 //            //Defined in "umc-mapcommands.smx"                             //
 //                                                                           //
+//          //Players need to have at least one admin flag specified in this //
+//          //string in order to nominate this map.                          //
+//          // (Default value: "")                                           //
+//          "nominate_flags"    "sequence of admin flags"                    //
+//            //Defined in "umc-nominate.smx"                                //
+//                                                                           //
+//          //Admins need to have at least one admin flag specified in this  //
+//          //string in order to see this map in the admin menu.             //
+//          // (Default value: "")                                           //
+//          "adminmenu_flags"   "sequence of admin flags"                    //
+//            //Defined in "umc-adminmenu.smx"                               //
+//                                                                           //
 //          "MAP1" //Name of a map, must be a valid map.                     //
 //          {                                                                //
 //              //Text to display for this map in the vote. If left blank    //
@@ -77,6 +89,11 @@
 //              // (Default value: 1)                                        //
 //              "weight"        "float > 0"                                  //
 //                //Defined in "umc-weight.smx"                              //
+//                                                                           //
+//              //Overrides the option of the same name in the group level.  //
+//              // (Default value: "")
+//              "next_mapgroup"     "Group Name"                             //
+//                //Defined in "umc-randcycle.smx"                           //
 //                                                                           //
 //              //Defines the number of players required to be on the        //
 //              //server in order for this map to be used.                   //
@@ -98,6 +115,29 @@
 //              // (Default value: "")                                       //
 //              "command"       "any valid console command"                  //
 //                //Defined in "umc-mapcommands.smx"                         //
+//                                                                           //
+//              //Players need to have at least one admin flag specified in  //
+//              //this string in order to nominate this map. This overrides  //
+//              //the option  specified by this group for this map.          //
+//              // (Default value: "")                                       //
+//              "nominate_flags"    "sequence of admin flags"                //
+//                //Defined in "umc-nominate.smx"                            //
+//                                                                           //
+//              //Admins need to have at least one admin flag specified in   //
+//              //this string in order to see this map in the admin menu.    //
+//              //This overrides the option specified by this group for this //
+//              //map.                                                       //
+//              // (Default value: "")                                       //
+//              "adminmenu_flags"   "sequence of admin flags"                //
+//                //Defined in "umc-adminmenu.smx"                           //
+//                                                                           //
+//              //When this map is nominated, it is associated with the group//
+//              //specified by this setting, overriding the group that it's  //
+//              //physically located in within this definition file. If blank//
+//              //it uses the group it's currently located in.               //
+//              // (Default value: "")                                       //
+//              "nominate_group"    "Group Name"                             //
+//                //Defined in "umc-core.smx"                                //
 //          }                                                                //
 //                                                                           //
 //          "MAP2"                                                           //
@@ -126,8 +166,10 @@
 //      }                                                                    //
 // }                                                                         //
 //***************************************************************************//
+//*                      ^YOU MAY DELETE THIS SECTION^                      *//
 ///////////////////////////////////////////////////////////////////////////////
 
 "umc_rotation"
 {
+
 }

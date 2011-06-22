@@ -1,5 +1,5 @@
 //Phrases for Ultimate Mapchooser by Steell
-//German translation by Leitwolf
+//German translation by Leitwolf and Mad Hatter
 
 "Phrases"
 {
@@ -161,10 +161,21 @@
     {
     		"de"	"Kartenabstimmung gestartet. Karte ändert sich, sobald die Abstimmung vorbei ist."
     }
+    
     "Default Warning"
     {
         //{TIME} is where the time in seconds is going to be placed.
         //Please keep {TIME} in this string, it is not an error.
     		"de"	"{TIME} Sekunden bis zur Abstimmung."
+    }
+    
+    "No RTV Admin"
+    {
+        "de"    "Nicht gen¸gend Rechte f¸r 'Rock the Vote'."
+    }
+    
+    "No Nominate Admin"
+    {
+        "de"    "Nicht gen¸gend Rechte zum Nominieren einer Karte."
     }
 }

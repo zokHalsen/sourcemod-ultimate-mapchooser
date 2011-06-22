@@ -38,10 +38,12 @@ public Plugin:myinfo =
 //Changelog:
 /*
 3.1 (6//11)
+Added new map option to associate a nomination with a different group.
+-New "nominate_group" option at the map-level of the mapcycle definition.
 Added admin flag for ability to see vote menu.
 -New "adminflags" cvar in ADMINMENU, ENDVOTE, PLAYERCOUNTMONITOR, ROCKTHEVOTE, and VOTECOMMAND.
 Added admin flag for ability to enter rtv. [RTV]
--New "enterandminflags" cvar in RTV.
+-New "enteradminflags" cvar in RTV.
 Added ability to specify flags for maps, limiting which players can nominate them.
 -New group and map option in mapcycle "nominate_flags" to specify flags.
 -New cvar "adminflags" in NOMINATE to set default.
@@ -55,7 +57,10 @@ Added mp_winlimit-based vote warnings. [ENDVOTE-WARNINGS]
 Turned basic time-based vote warnings on by default.
 Added ability for sound to be played during countdown between Runoff/Tiered votes. [CORE]
 -New "sm_umc_countdown_sound" cvar to specify the sound.
+Added ability to specify a default weight for maps that do not have enough Map Rate ratings. [MAPRATE-REWEIGHT]
+-New "sm_umc_maprate_default" cvar to control this feature.
 Fixed bug with nominations not using group exclusion settings.
+Fixed bug with nominations not passing their own mapcycle to forwards.
 Fixed bug with tiered nomination menu excluding groups unnecessarily.
 Fixed memory leak when parsing nominations for map group vote menus.
 Fixed bug which could cause groups with no valid maps to be added to group votes.
@@ -1006,7 +1011,19 @@ public Native_UMCNominateMap(Handle:plugin, numParams)
     if (len > 0)
         GetNativeString(3, group, len+1);
         
-    return _:InternalNominateMap(kv, map, group, GetNativeCell(4));
+    new String:nomGroup[MAP_LENGTH];
+    if (numParams > 4)
+    {
+        GetNativeStringLength(5, len);
+        if (len > 0)
+            GetNativeString(5, nomGroup, sizeof(nomGroup));
+    }
+    else
+    {
+        strcopy(nomGroup, sizeof(nomGroup), INVALID_GROUP);
+    }
+        
+    return _:InternalNominateMap(kv, map, group, GetNativeCell(4), nomGroup);
 }
 
 
@@ -1482,6 +1499,9 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     
     new tierAmount = GetConVarInt(cvar_vote_tieramount);
     
+    new Handle:nomKV;
+    decl String:nomGroup[MAP_LENGTH];
+    
     DEBUG_MESSAGE("Performing Traversal")
     //Add maps to vote array from current category.
     do
@@ -1589,9 +1609,6 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                     //Get the map name from the nomination.
                     GetTrieString(trie, MAP_TRIE_MAP_KEY, mapName, sizeof(mapName));
                     
-                    new Handle:nomKV;
-                    GetTrieValue(trie, "mapcycle", nomKV);
-                    
                     DEBUG_MESSAGE("Determining what to do with the nomination.")
                     
                     //Add map to list of possible maps to be added to vote from the nominations 
@@ -1615,13 +1632,16 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                         //Increment number of noms fetched.
                         nomCounter++;
                         
+                        //Fetch mapcycle for weighting
+                        GetTrieValue(trie, "mapcycle", nomKV);
+                        
                         //Add map name to the pool.
                         PushArrayString(nameArr, mapName);
                         
                         //Add map weight to the pool.
                         PushArrayCell(weightArr, GetMapWeight(nomKV, mapName, catName));
                         
-                        PushArrayCell(cycleArr, nomKV);
+                        PushArrayCell(cycleArr, trie);
                     }
                 }
                 
@@ -1645,7 +1665,10 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                         //Get a random map from the pool.
                         GetWeightedRandomSubKey(mapName, sizeof(mapName), weightArr, nameArr, index);
                         
-                        new Handle:nomKV = GetArrayCell(cycleArr, index);
+                        new Handle:nom = GetArrayCell(cycleArr, index);
+                        GetTrieValue(nom, "mapcycle", nomKV);
+                        
+                        GetTrieString(nom, "nom_group", nomGroup, sizeof(nomGroup));
                         
                         DEBUG_MESSAGE("Determining where to place the map in the vote.")
                         //Get the position in the vote array to add the map to
@@ -1653,6 +1676,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                         
                         DEBUG_MESSAGE("Fetching extra info for the map from the mapcycle.")
                         //Get extra fields from the map
+                        KvJumpToKey(nomKV, nomGroup);
                         KvJumpToKey(nomKV, mapName);
                         KvGetString(nomKV, "display", display, sizeof(display), gDisp);
                         
@@ -1663,10 +1687,17 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                             ReplaceString(display, sizeof(display), "{MAP}", mapName, false);
                         
                         KvGoBack(nomKV);
+                        KvGoBack(nomKV);
                         
                         DEBUG_MESSAGE("Adding nomination to the vote.")
                         
                         new Handle:map = CreateMapTrie(mapName, catName);
+                        
+                        new Handle:nomMapcycle = CreateKeyValues("umc_mapcycle");
+                        KvCopySubkeys(nomKV, nomMapcycle);
+                        
+                        SetTrieValue(map, "mapcycle", nomMapcycle);
+                        
                         InsertArrayCell(map_vote, position, map);
                         InsertArrayString(map_vote_display, position, display);
                         
@@ -1714,9 +1745,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                 DEBUG_MESSAGE("Fetching nomination info.")
                 //Get map name.
                 new Handle:nom = GetArrayCell(nominationsFromCat, i);
-                new Handle:nomKV;
                 GetTrieString(nom, MAP_TRIE_MAP_KEY, mapName, sizeof(mapName));
-                GetTrieValue(nom, "mapcycle", nomKV);
                 
                 DEBUG_MESSAGE("Determining what to do with the nomination.")
                 
@@ -1737,7 +1766,11 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                 }
                 else
                 {
+                    GetTrieValue(nom, "mapcycle", nomKV);
+                    GetTrieString(nom, "nom_group", nomGroup, sizeof(nomGroup));
+                
                     //Get extra fields from the map
+                    KvJumpToKey(nomKV, nomGroup);
                     KvJumpToKey(nomKV, mapName);
                     KvGetString(nomKV, "display", display, sizeof(display), gDisp);
                     
@@ -1748,6 +1781,7 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                         ReplaceString(display, sizeof(display), "{MAP}", mapName, false);
                         
                     KvGoBack(nomKV);
+                    KvGoBack(nomKV);
                     
                     DEBUG_MESSAGE("Determining where to place the map in the vote.")
                     //Get the position in the vote array to add the map to.
@@ -1756,6 +1790,12 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                     DEBUG_MESSAGE("Adding nomination to the vote.")
                     
                     new Handle:map = CreateMapTrie(mapName, catName);
+                        
+                    new Handle:nomMapcycle = CreateKeyValues("umc_mapcycle");
+                    KvCopySubkeys(nomKV, nomMapcycle);
+                    
+                    SetTrieValue(map, "mapcycle", nomMapcycle);
+                    
                     InsertArrayCell(map_vote, position, map);
                     InsertArrayString(map_vote_display, position, display);
                     
@@ -1868,9 +1908,9 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                 Call_Finish();
                 
                 DEBUG_MESSAGE("Removing nomination.")
-                new Handle:nomKV;
-                GetTrieValue(nom, "mapcycle", nomKV);
-                CloseHandle(nomKV);
+                new Handle:oldnomKV;
+                GetTrieValue(nom, "mapcycle", oldnomKV);
+                CloseHandle(oldnomKV);
                 CloseHandle(nom);
                 RemoveFromArray(nominations_arr, nomIndex);
                 if (verboseLogs)
@@ -1900,6 +1940,12 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
             DEBUG_MESSAGE("Adding map to the vote.")
                     
             new Handle:map = CreateMapTrie(mapName, catName);
+            
+            new Handle:nomMapcycle = CreateKeyValues("umc_mapcycle");
+            KvCopySubkeys(nomKV, nomMapcycle);
+            
+            SetTrieValue(map, "mapcycle", nomMapcycle);
+            
             InsertArrayCell(map_vote, position, map);
             InsertArrayString(map_vote_display, position, display);
             
@@ -2042,6 +2088,7 @@ Handle:BuildCatVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
     
     decl String:catName[MAP_LENGTH]; //Buffer to store category name in.
     decl String:mapName[MAP_LENGTH];
+    decl String:nomGroup[MAP_LENGTH];
     new voteCounter = 0;      //Number of categories in the vote.
     new Handle:catArray = CreateArray(ByteCountToCells(MAP_LENGTH), 0); //Array of categories in the vote.
     
@@ -2072,7 +2119,12 @@ Handle:BuildCatVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                 nomKV = CreateKeyValues("umc_rotation");
                 KvCopySubkeys(nomMapcycle, nomKV);
                 
+                GetTrieString(nom, "nom_group", nomGroup, sizeof(nomGroup));
+                
                 GetTrieString(nom, MAP_TRIE_MAP_KEY, mapName, sizeof(mapName));
+                
+                KvJumpToKey(nomKV, nomGroup);
+                
                 if (!exclude || IsValidMapFromCat(nomKV, nomMapcycle, mapName, .isNom=true))
                 {
                     haveNoms = true;            
@@ -2377,7 +2429,17 @@ VoteCompleted()
 //Utility function to clear all the voting storage arrays.
 ClearVoteArrays()
 {
-    ClearHandleArray(map_vote);
+    new size = GetArraySize(map_vote);
+    new Handle:mapTrie;
+    new Handle:kv;
+    for (new i = 0; i < size; i++)
+    {
+        mapTrie = GetArrayCell(map_vote, i);
+        GetTrieValue(mapTrie, "mapcycle", kv);
+        CloseHandle(kv);
+        CloseHandle(mapTrie);
+    }
+    ClearArray(map_vote);
 }
 
 
@@ -2991,9 +3053,12 @@ public Handle_MapVoteWinner(const String:info[], const String:disp[], Float:perc
         new Handle:mapData = GetArrayCell(map_vote, index);
         GetTrieString(mapData, MAP_TRIE_MAP_KEY, map, sizeof(map));
         GetTrieString(mapData, MAP_TRIE_GROUP_KEY, group, sizeof(group));
+
+        new Handle:mapcycle;
+        GetTrieValue(mapData, "mapcycle", mapcycle);
         
         //Set it.
-        DoMapChange(change_map_when, stored_kv, map, group, stored_reason);
+        DoMapChange(change_map_when, mapcycle, map, group, stored_reason);
         
         LogMessage("MAPVOTE: Players voted for map '%s' from group '%s'", map, group);
     }
@@ -3098,6 +3163,7 @@ public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:perce
             
             //Buffer to store the map name
             decl String:nameBuffer[MAP_LENGTH];
+            decl String:nomGroup[MAP_LENGTH];
             
             //A nomination.
             new Handle:trie = INVALID_HANDLE;
@@ -3119,31 +3185,25 @@ public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:perce
                 
                 GetTrieValue(trie, "mapcycle", nomKV);
                 
-                //Add the map to the storage arrays if...
-                //    ...the server has the required amount of players for the map.
-                //if (IsValidMapFromCat(kv, nameBuffer, .isNom=true))
-                //{
-                //Increment the nomination counter.
                 counter++;
                 
                 //Add the map to the map name array.
                 PushArrayString(nameArr, nameBuffer);
-                
-                //Add the map's weight to the map weight array.
-                //GetTrieValue(trie, "weight", weight);
-                //PushArrayCell(weightArr, weight);
                 PushArrayCell(weightArr, GetMapWeight(nomKV, nameBuffer, cat));
-                //}
-                
-                PushArrayCell(cycleArr, nomKV);
+                PushArrayCell(cycleArr, trie);
             }
             
             //Pick a random map from the nominations if...
             //    ...there are nominations to choose from.
             if (counter > 0 && GetWeightedRandomSubKey(map, sizeof(map), weightArr, nameArr, index))
             {
-                nomKV = GetArrayCell(cycleArr, index);
-                DoMapChange(change_map_when, nomKV, map, cat, stored_reason);
+                trie = GetArrayCell(cycleArr, index);
+                
+                GetTrieValue(trie, "mapcycle", nomKV);
+                
+                GetTrieString(trie, "nom_group", nomGroup, sizeof(nomGroup));
+                
+                DoMapChange(change_map_when, nomKV, map, nomGroup, stored_reason);
             }
             else //Otherwise, we select a map randomly from the category.
             {
@@ -3168,7 +3228,6 @@ public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:perce
         
         //We no longer need the copy of the mapcycle.
         CloseHandle(kv);
-        
         
         PrintToChatAll(
             "\x03[UMC]\x01 %t %t (%t)",
@@ -3910,7 +3969,8 @@ Handle:FilterNominationsArray(Handle:nominations, bool:forMapChange=true)
 
 
 //Nominated a map and group
-bool:InternalNominateMap(Handle:kv, const String:map[], const String:group[], client)
+bool:InternalNominateMap(Handle:kv, const String:map[], const String:group[], client,
+                         const String:nomGroup[])
 {
     DEBUG_MESSAGE("Adding map '%s' from group '%s' to nominations.", map, group)
     if (FindNominationIndex(map, group) != -1)
@@ -3921,9 +3981,10 @@ bool:InternalNominateMap(Handle:kv, const String:map[], const String:group[], cl
     
     DEBUG_MESSAGE("Setting up nomination trie")
     //Create the nomination trie.
-    new Handle:nomination = CreateMapTrie(map, group);
+    new Handle:nomination = CreateMapTrie(map, StrEqual(nomGroup, INVALID_GROUP) ? group : nomGroup);
     SetTrieValue(nomination, "client", client); //Add the client
     SetTrieValue(nomination, "mapcycle", kv); //Add the mapcycle
+    SetTrieString(nomination, "nom_group", group);
     
     //Get and add the nominated map's weight.
     //SetTrieValue(nomination, "weight", GetArrayCell(nomination_weights[client], param2));

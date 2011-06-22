@@ -38,7 +38,8 @@ new Handle:map_kv = INVALID_HANDLE;
 new Handle:vote_mem_arr    = INVALID_HANDLE;
 new Handle:vote_catmem_arr = INVALID_HANDLE;
 
-new Handle:nom_menu_groups[MAXPLAYERS+1] = { INVALID_HANDLE, ... };
+new Handle:nom_menu_groups[MAXPLAYERS+1]    = { INVALID_HANDLE, ... };
+new Handle:nom_menu_nomgroups[MAXPLAYERS+1] = { INVALID_HANDLE, ... };
 //EACH INDEX OF THE ABOVE TWO ARRAYS CORRESPONDS TO A NOMINATION MENU FOR A PARTICULAR CLIENT.
 
 //Has a vote neem completed?
@@ -50,6 +51,9 @@ new bool:can_nominate;
 //TODO: Add cvar for enable/disable exclusion from prev. maps.
 //      Possible bug: nomination menu doesn't want to display twice for a client in a map.
 //      Alphabetize based off of display, not actual map name.
+//
+//      New map option called "nomination_group" that sets the "real" map group to be used when
+//      the map is nominated for a vote. Useful for tiered nomination menu.
 
 //************************************************************************************************//
 //                                        SOURCEMOD EVENTS                                        //
@@ -145,6 +149,15 @@ public OnConfigsExecuted()
     
     new Handle:groupArray = INVALID_HANDLE;
     for (new i = 0; i < sizeof(nom_menu_groups); i++)
+    {
+        groupArray = nom_menu_groups[i];
+        if (groupArray != INVALID_HANDLE)
+        {
+            CloseHandle(groupArray);
+            nom_menu_groups[i] = INVALID_HANDLE;
+        }
+    }
+    for (new i = 0; i < sizeof(nom_menu_nomgroups); i++)
     {
         groupArray = nom_menu_groups[i];
         if (groupArray != INVALID_HANDLE)
@@ -331,11 +344,13 @@ Handle:BuildNominationMenu(client, const String:cat[]=INVALID_GROUP)
     //Variables
     new numCells = ByteCountToCells(MAP_LENGTH);
     nom_menu_groups[client] = CreateArray(numCells);
+    nom_menu_nomgroups[client] = CreateArray(numCells);
     new Handle:menuItems = CreateArray(numCells);
     new Handle:menuItemDisplay = CreateArray(numCells);
     decl String:display[MAP_LENGTH], String:gDisp[MAP_LENGTH];
     new Handle:mapTrie = INVALID_HANDLE;
     decl String:mapBuff[MAP_LENGTH], String:groupBuff[MAP_LENGTH];
+    decl String:group[MAP_LENGTH];
     
     decl String:dAdminFlags[64], String:gAdminFlags[64], String:mAdminFlags[64];
     GetConVarString(cvar_flags, dAdminFlags, sizeof(dAdminFlags));
@@ -347,10 +362,18 @@ Handle:BuildNominationMenu(client, const String:cat[]=INVALID_GROUP)
         GetTrieString(mapTrie, MAP_TRIE_MAP_KEY, mapBuff, sizeof(mapBuff));
         GetTrieString(mapTrie, MAP_TRIE_GROUP_KEY, groupBuff, sizeof(groupBuff));
         
-        if (UMC_IsMapNominated(mapBuff, groupBuff))
-            continue;
-        
         KvJumpToKey(map_kv, groupBuff);
+        
+        KvGetString(map_kv, "nominate_group", group, sizeof(group), INVALID_GROUP);
+        
+        if (StrEqual(group, INVALID_GROUP))
+            strcopy(group, sizeof(group), groupBuff);
+        
+        if (UMC_IsMapNominated(mapBuff, group))
+        {
+            KvGoBack(map_kv);
+            continue;
+        }
         
         KvGetString(map_kv, "display-template", gDisp, sizeof(gDisp), "{MAP}");
         KvGetString(map_kv, NOMINATE_ADMINFLAG_KEY, gAdminFlags, sizeof(gAdminFlags), dAdminFlags);
@@ -376,11 +399,12 @@ Handle:BuildNominationMenu(client, const String:cat[]=INVALID_GROUP)
             display = mapBuff;
         else
             ReplaceString(display, sizeof(display), "{MAP}", mapBuff, false);
-            
+                
         //Add map data to the arrays.
         PushArrayString(menuItems, mapBuff);
         PushArrayString(menuItemDisplay, display);
         PushArrayString(nom_menu_groups[client], groupBuff);
+        PushArrayString(nom_menu_nomgroups[client], group);
         
         KvRewind(map_kv);
     }
@@ -489,14 +513,15 @@ public Handle_NominationMenu(Handle:menu, MenuAction:action, client, param2)
         case MenuAction_Select: //The client has picked something.
         {
             //Get the selected map.
-            decl String:map[MAP_LENGTH], String:group[MAP_LENGTH];
+            decl String:map[MAP_LENGTH], String:group[MAP_LENGTH], String:nomGroup[MAP_LENGTH];
             GetMenuItem(menu, param2, map, sizeof(map));
             GetArrayString(nom_menu_groups[client], param2, group, sizeof(group));
+            GetArrayString(nom_menu_nomgroups[client], param2, nomGroup, sizeof(nomGroup));
             
             KvRewind(map_kv);
             
             //Nominate it.
-            UMC_NominateMap(map_kv, map, group, client);
+            UMC_NominateMap(map_kv, map, group, client, nomGroup);
             
             //Display a message.
             decl String:clientName[MAX_NAME_LENGTH];
@@ -506,7 +531,9 @@ public Handle_NominationMenu(Handle:menu, MenuAction:action, client, param2)
             
             //Close handles for stored data for the client's menu.
             CloseHandle(nom_menu_groups[client]);
+            CloseHandle(nom_menu_nomgroups[client]);
             nom_menu_groups[client] = INVALID_HANDLE;
+            nom_menu_nomgroups[client] = INVALID_HANDLE;
         }
         case MenuAction_End: //The client has closed the menu.
         {
