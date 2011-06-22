@@ -1,4 +1,5 @@
 #summary Frequently Asked Questions
+#labels Featured
 
 ==Why are my nominated maps not appearing in votes?==
 
