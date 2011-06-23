@@ -892,9 +892,9 @@ AddToVoteList(client, const String:map[], const String:group[])
 DisplayDefaultsMenu(client)
 {
     new Handle:menu = CreateMenu(HandleMV_Defaults, MenuAction_DisplayItem|MenuAction_Display);
-    SetMenuTitle(menu, "Vote Settings");
+    SetMenuTitle(menu, "AM Vote Settings");
     
-    AddMenuItem(menu, DMENU_ITEM_INFO_DEFAULTS, "Use Defaults");
+    AddMenuItem(menu, DMENU_ITEM_INFO_DEFAULTS, "AM-VS Defaults");
     AddMenuItem(menu, DMENU_ITEM_INFO_MANUAL, "Manually Choose");
     
     SetMenuExitBackButton(menu, true);
