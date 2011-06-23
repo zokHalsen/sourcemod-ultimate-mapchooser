@@ -37,6 +37,11 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
+3.1.2 (6/24/11)
+Disabled Prefix Exclusion by default.
+Fixed issue with Map Votes not starting when there are no nominations.
+Fixed issues where cancelled votes could cause memory leaks.
+
 3.1.1 (6/23/11)
 Fixed translation typo in Admin Menu
 Fixed translation bug in Admin Menu
@@ -1168,7 +1173,10 @@ public Native_UMCStartVote(Handle:plugin, numParams)
         return _:VoteMenuToAllWithFlags(menu, time, adminFlags);
     }
     else
+    {
+        DeleteVoteParams();
         return _:false;
+    }
 }
 
 
@@ -1549,15 +1557,13 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
         if (exclude)
         {
             tempCatNoms = GetCatNominations(catName);
-            nominationsFromCat = FilterNominationsArray(tempCatNoms);
-              
+            nominationsFromCat = FilterNominationsArray(tempCatNoms);        
 #if UMC_DEBUG
             DEBUG_MESSAGE("Unfiltered:")
             PrintNominationArray(tempCatNoms);
             DEBUG_MESSAGE("Filtered:")
             PrintNominationArray(nominationsFromCat);
 #endif
-            
             CloseHandle(tempCatNoms);
         }
         else
@@ -1968,10 +1974,10 @@ Handle:BuildMapVoteMenu(VoteHandler:callback, bool:scramble, bool:extend, bool:d
                     
             new Handle:map = CreateMapTrie(mapName, catName);
             
-            new Handle:nomMapcycle = CreateKeyValues("umc_mapcycle");
-            KvCopySubkeys(nomKV, nomMapcycle);
+            new Handle:mapMapcycle = CreateKeyValues("umc_mapcycle");
+            KvCopySubkeys(stored_kv, mapMapcycle);
             
-            SetTrieValue(map, "mapcycle", nomMapcycle);
+            SetTrieValue(map, "mapcycle", mapMapcycle);
             
             InsertArrayCell(map_vote, position, map);
             InsertArrayString(map_vote_display, position, display);
@@ -2397,7 +2403,7 @@ public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
         case MenuAction_VoteCancel:
         {
             DEBUG_MESSAGE("Vote Cancelled")
-            VoteCompleted();
+            VoteCancelled();
         }
         case MenuAction_Display:
         {
@@ -2433,7 +2439,7 @@ public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
 
 
 //Called right after the vote menu is destroyed.
-VoteCompleted()
+VoteCancelled()
 {
     //Catches the case where a vote occurred but nobody voted.
     if (vote_active)
@@ -2695,10 +2701,6 @@ ProcessVoteResults(Handle:menu, num_votes, num_clients, const client_info[][2], 
         else
         {
             DoRunoffVote(menu, runoff_callback);
-            
-            //Empty storage if we're revoting completely.
-            if (!GetConVarBool(cvar_runoff_selective))
-                EmptyStorage();
         }
     }
     else //Otherwise set the results.
@@ -2758,7 +2760,11 @@ DoRunoffVote(Handle:menu, VoteHandler:callback)
     //Setup the timer if...
     //  ...the menu was built successfully
     if (runoff_menu != INVALID_HANDLE)
-    {
+    {        
+        //Empty storage if we're revoting completely.
+        if (!GetConVarBool(cvar_runoff_selective))
+            EmptyStorage();
+        
         //Setup timer to delay the start of the runoff vote.
         runoff_delay = 7;
         
@@ -2782,6 +2788,10 @@ DoRunoffVote(Handle:menu, VoteHandler:callback)
     {
         LogError("RUNOFF: Unable to create runoff vote menu, runoff aborted.");
         CloseHandle(runoff_clients);
+        VoteFailed();
+        EmptyStorage();
+        DeleteVoteParams();
+        ClearVoteArrays();
     }
 }
 
@@ -3474,7 +3484,11 @@ public Action:Handle_TieredVoteTimer(Handle:timer, Handle:exGroups)
         vote_active = true;
     }
     else
+    {
         LogError("MAPVOTE (Tiered): Unable to create second stage vote menu. Vote aborted.");
+        VoteFailed();
+        DeleteVoteParams();
+    }
         
     return Plugin_Stop;
 }
@@ -3552,9 +3566,13 @@ DoMapChange(UMC_ChangeMapTime:when, Handle:kv, const String:map[], const String:
 //Deletes the stored parameters for the vote.
 DeleteVoteParams()
 {
+    DEBUG_MESSAGE("Deleting Vote Parameters")
     CloseHandle(stored_kv);
     CloseHandle(stored_exmaps);
     CloseHandle(stored_exgroups);
+    stored_kv = INVALID_HANDLE;
+    stored_exmaps = INVALID_HANDLE;
+    stored_exgroups = INVALID_HANDLE;
 }
 
 
@@ -3855,11 +3873,12 @@ FilterMapcycle(Handle:kv, Handle:originalMapcycle, Handle:exMaps, Handle:exGroup
     }
     new bool:excludeGroup = false;
     for ( ; ; )
-    {    
+    {
+        KvGetSectionName(kv, group, sizeof(group));
+        
         //Check if the map group is in the excluded array.
         if (checkGrEx)
         {
-            KvGetSectionName(kv, group, sizeof(group));
             excludeGroup = false;
             
             for (new i = 0; i < len; i++)

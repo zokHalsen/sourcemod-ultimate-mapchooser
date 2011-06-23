@@ -1,4 +1,4 @@
-// Mapcycle definition for Ultimate Mapchooser v3.0 by Steell
+// Mapcycle definition for Ultimate Mapchooser v3.1 by Steell
 
 ///////////////////////////////////////////////////////////////////////////////
 //***************************************************************************//

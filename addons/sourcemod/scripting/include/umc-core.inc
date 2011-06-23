@@ -7,7 +7,7 @@
 
 #pragma semicolon 1
 
-#define PL_VERSION "3.1.1"
+#define PL_VERSION "3.1.2"
 
 #define UMC_DEBUG 0
 
@@ -370,4 +370,5 @@ public __pl_umccore_SetNTVOptional()
     //MarkNativeAsOptional("UMC_IsGroupValid");
     //MarkNativeAsOptional("UMC_FilterMapcycle");
     MarkNativeAsOptional("UMC_IsVoteInProgress");
+    MarkNativeAsOptional("UMC_StopVote");
 }

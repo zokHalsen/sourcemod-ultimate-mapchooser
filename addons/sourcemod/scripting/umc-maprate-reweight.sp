@@ -85,18 +85,18 @@ public Action:Command_TestReweight(client, args)
     if (args < 1)
     {
         ReplyToCommand(client, "\x03[UMC]\x01 Usage: sm_umc_maprate_testreweight <map>");
-        return Plugin_Handled;
     }
-    
-    decl String:map[MAP_LENGTH];
-    GetCmdArg(1, map, sizeof(map));
-    
-    new Float:weight = FetchMapWeight(map);
-    
-    ReplyToCommand(
-        client, "\x03[UMC]\x01 Map \"%s\" will be reweighted by a factor of %f", map, weight
-    );
-    
+    else
+    {
+        decl String:map[MAP_LENGTH];
+        GetCmdArg(1, map, sizeof(map));
+        
+        ReplyToCommand(
+            client,
+            "\x03[UMC]\x01 Map %s will be reweighted by a factor of %f",
+            map, FetchMapWeight(map);
+        );
+    }
     return Plugin_Handled;
 }
 
