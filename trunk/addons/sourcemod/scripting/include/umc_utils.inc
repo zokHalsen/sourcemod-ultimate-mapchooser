@@ -1020,17 +1020,16 @@ stock PrintNominationArray(Handle:array)
 //
 stock bool:VoteMenuToAllWithFlags(Handle:menu, time, const String:flagstring[]="")
 {
-    if (flagstring[0] != '\0')
+    if (strlen(flagstring) > 0)
     {
         new flags = ReadFlagString(flagstring);
-        new clients[MAXPLAYERS];
+        decl clients[MAXPLAYERS];
         new count = 0;
         for (new i = 1; i <= MaxClients; i++)
         {
-            if (flags & GetUserFlagBits(i))
+            if (IsClientInGame(i) && (flags & GetUserFlagBits(i)))
             {
-                clients[count] = i;
-                count++;
+                clients[count++] = i;
             }
         }
         return VoteMenu(menu, clients, count, time);
