@@ -335,6 +335,14 @@ native UMC_GetCurrentMapGroup(String:buffer[], size);
 native bool:UMC_IsVoteInProgress();
 
 
+/**
+ * Stops a UMC vote that is currently in progress.
+ *
+ * @return True on success, false otherwise.
+ */
+native bool:UMC_StopVote();
+
+
 //SourceMod Malarky
 public SharedPlugin:__pl_umccore =
 {

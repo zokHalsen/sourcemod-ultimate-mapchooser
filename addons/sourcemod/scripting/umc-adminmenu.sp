@@ -574,8 +574,16 @@ public UMCMenu_MapVote(Handle:topmenu, TopMenuAction:action, TopMenuObject:objec
             bool UsingDefaults(client)
         */
         
-        menu_tries[client] = CreateVoteMenuTrie(client);
-        DisplayVoteTypeMenu(client);
+        if (UMC_IsVoteInProgress())
+        {
+            UMC_StopVote();
+            RedisplayAdminMenu(topmenu, client);
+        }
+        else
+        {
+            menu_tries[client] = CreateVoteMenuTrie(client);
+            DisplayVoteTypeMenu(client);
+        }
     }
 }
 
