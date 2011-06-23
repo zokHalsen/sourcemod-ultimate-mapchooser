@@ -1,0 +1,46 @@
+#summary Neat things you can accomplish with Ultimate Mapchooser.
+#labels Featured
+
+= About This Page =
+
+  When I first wrote Ultimate Mapchooser (originally called Improved Map Randomizer) I had a very specific vision of a plugin that allowed server owners to make sure certain maps would appear in votes. One year later and the plugin has become a massive project filled with many different features, which when combined can result in endless possible settings, more than I can even imagine.
+
+  This wiki page contains some examples of things which you may not have realized you can do with UMC at first glance. They server as a testament to the flexibility and customizability of the plugin.
+
+
+=Insert a Map Group into a Map Vote=
+  You can add what looks like a Map Group to a vote that only contains maps. This requires the type of vote to me a *map* vote (as opposed to a *group* or *tiered* vote), and it requires the use of the *display-template* Map Group option.
+
+==How To==
+  Take this UMC-Mapcycle as an example:
+  {{{
+"umc_mapcycle"
+{
+    "Some Maps"
+    {
+        "maps_invote"  "3"
+
+        "cp_dustbowl" {}
+        "cp_granary" {}
+        "cp_gravelpit" {}
+        "cp_well" {}
+        "cp_fastlane" {}
+        "cp_badlands" {}
+        "pl_goldrush" {}
+        "pl_badwater" {}
+    }
+
+    "Random Choice"
+    {
+        "maps_invote"  "1"
+        "display-template"  "Random Map"
+
+        "ctf_2fort" {}
+        "ctf_well" {}
+        "koth_viaduct" {}
+        "plr_pipeline" {}
+        "pl_hoodoo_final" {}
+    }
+}
+}}}
+  This will create a vote with 4 choices: the first three (assuming the menu isn't scrambled) will be taken from the "Some Maps" Map Group, and the third map will be taken from the "Random Choice" Map Group. However, since the *display-template* option is set to "Random Map", then whatever map is selected from this group to be in the vote, it will appear in the vote as "Random Map".
