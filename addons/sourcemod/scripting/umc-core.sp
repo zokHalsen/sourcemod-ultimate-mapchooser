@@ -41,6 +41,7 @@ public Plugin:myinfo =
 Fixed translation typo in Admin Menu
 Fixed translation bug in Admin Menu
 Fixed issue where admin flags would sometimes cause votes not to appear.
+Fixed bug in the Admin Menu where Stopping an active vote would do nothing.
 
 3.1 (6/22/11)
 Added new map option to associate a nomination with a different group.
@@ -2938,6 +2939,7 @@ public Action:Handle_RunoffVoteTimer(Handle:timer)
         EmptyStorage();
         DeleteVoteParams();
         ClearVoteArrays();
+        return Plugin_Stop;
     }
     
     DisplayRunoffMessage(runoff_delay);
@@ -3305,7 +3307,7 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
                 total_votes
         );
         LogMessage("MAPVOTE: Players voted to extend the map.");
-        ExtendMap();
+        DeleteVoteParams();
     }
     else if (StrEqual(cat, DONT_CHANGE_OPTION))
     {
@@ -3319,7 +3321,7 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
         );
         
         LogMessage("MAPVOTE: Players voted to stay on the map (Don't Change).");
-        VoteFailed();
+        DeleteVoteParams();
     }
     else //Otherwise, we set up the second stage of the tiered vote
     {
@@ -3412,9 +3414,8 @@ public Action:Handle_TieredVoteTimer(Handle:timer, Handle:exGroups)
     if (!vote_inprogress)
     {
         VoteFailed();
-        EmptyStorage();
         DeleteVoteParams();
-        ClearVoteArrays();
+        return Plugin_Stop;
     }
     
     DisplayTierMessage(tiered_delay);
