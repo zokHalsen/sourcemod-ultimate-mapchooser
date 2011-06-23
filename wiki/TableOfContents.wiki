@@ -21,4 +21,5 @@
     * [ModulePlayerCountMonitor Player Count Monitor]
     * [ModuleMapRateReweight Map Rate Map-Reweighting]
     * [ModulePrefixExclude Map Prefix Exclusion]
+  * [CoolStuff Cool Things You Can Do With UMC]
   * [Development Development]
