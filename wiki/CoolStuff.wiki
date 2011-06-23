@@ -61,7 +61,7 @@
         //...other ZF maps
     }
 
-    "VS Saxtion Hale!"
+    "VS Saxton Hale!"
     {
         "command"  "sm_exec vs-saxton-hale.cfg"
 
