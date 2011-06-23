@@ -5,6 +5,7 @@
   * [AboutWeighting About Map Weighting]
   * Modules
     * [ModuleCore Core]
+    * [ModuleAdminMenu Admin Menu]
     * [ModuleEndVote End of Map Vote]
     * [ModuleRTV Rock The Vote]
     * [ModuleNominate Nominations]
