@@ -37,7 +37,12 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
-3.1 (6//11)
+3.1.1 (6/23/11)
+Fixed translation typo in Admin Menu
+Fixed translation bug in Admin Menu
+Fixed issue where admin flags would sometimes cause votes not to appear.
+
+3.1 (6/22/11)
 Added new map option to associate a nomination with a different group.
 -New "nominate_group" option at the map-level of the mapcycle definition.
 Added admin flag for ability to see vote menu.
