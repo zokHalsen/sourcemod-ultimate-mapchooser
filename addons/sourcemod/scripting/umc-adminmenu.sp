@@ -822,7 +822,8 @@ public HandleMV_Groups(Handle:menu, MenuAction:action, param1, param2)
         {
             CloseHandle(menu);
         }
-        case MenuAction_DisplayItem:
+        //TODO
+        /*case MenuAction_DisplayItem:
         {
             decl String:group[MAP_LENGTH];
             GetMenuItem(menu, param2, group, sizeof(group));
@@ -831,7 +832,7 @@ public HandleMV_Groups(Handle:menu, MenuAction:action, param1, param2)
             {
                 return Handle_MenuTranslation(menu, action, param1, param2);
             }
-        }
+        }*/
     }    
     return 0;
 }
