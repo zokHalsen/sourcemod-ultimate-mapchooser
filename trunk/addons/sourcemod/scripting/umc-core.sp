@@ -536,6 +536,7 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
     CreateNative("UMC_CreateValidMapGroupArray", Native_UMCCreateGroupArray);
     CreateNative("UMC_IsMapValid", Native_UMCIsMapValid);
     CreateNative("UMC_IsVoteInProgress", Native_UMCIsVoteInProgress);
+    CreateNative("UMC_StopVote", Native_UMCStopVote);
     
     return APLRes_Success;
 }
@@ -1255,6 +1256,26 @@ public Native_UMCSetNextMap(Handle:plugin, numParams)
 public Native_UMCIsVoteInProgress(Handle:plugin, numParams)
 {
     return vote_inprogress;
+}
+
+
+//
+//"sm_umc_stopvote"
+public Native_UMCStopVote(Handle:plugin, numParams)
+{
+    if (vote_inprogress)
+    {
+        if (vote_active)
+        {
+            CancelVote();
+        }
+        else
+        {
+            vote_inprogress = false;
+        }
+        return true;
+    }
+    return false;
 }
 
 
