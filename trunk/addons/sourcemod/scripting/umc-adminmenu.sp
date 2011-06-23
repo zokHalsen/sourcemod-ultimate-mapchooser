@@ -970,6 +970,10 @@ UseVoteDefaults(client)
     SetTrieValue(trie, "fail_action",        GetConVarInt(cvar_fail_action));
     SetTrieValue(trie, "runoff_fail_action", GetConVarInt(cvar_runoff_fail_action));
     SetTrieValue(trie, "max_runoffs",        GetConVarInt(cvar_runoff));
+    
+    decl String:flags[64];
+    GetConVarString(cvar_flags, flags, sizeof(flags));
+    SetTrieString(trie, "flags", flags);
 }
 
 
@@ -1123,8 +1127,8 @@ public HandleMV_Threshold(Handle:menu, MenuAction:action, param1, param2)
         }
         case MenuAction_DisplayItem:
         {
-            decl String:info[256];
-            GetMenuItem(menu, param2, info, sizeof(info));
+            decl String:info[256], String:disp[256];
+            GetMenuItem(menu, param2, info, sizeof(info), _, disp, sizeof(disp));
         
             if (StrEqual(info, TMENU_ITEM_INFO_PREV))
             {
@@ -1153,7 +1157,7 @@ public HandleMV_Threshold(Handle:menu, MenuAction:action, param1, param2)
                     
                 return RedrawMenuItem(buffer);
             }
-            else
+            else if (strlen(disp) > 0)
             {
                 return Handle_MenuTranslation(menu, action, param1, param2);
             }

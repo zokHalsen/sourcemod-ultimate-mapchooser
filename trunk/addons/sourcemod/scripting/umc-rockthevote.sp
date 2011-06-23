@@ -70,7 +70,7 @@ new rtv_threshold;
 //Flags
 new bool:rtv_completed;    //Has an rtv been completed?
 new bool:rtv_enabled;      //Is RTV enabled right now?
-new bool:vote_completed;   //Has UMC completed an vote?
+new bool:vote_completed;   //Has UMC completed a vote?
 new bool:rtv_inprogress;   //Is the rtv vote in progress?
 
 //Sounds to be played at the start and end of votes.
@@ -551,7 +551,7 @@ AttemptRTV(client)
     decl String:flags[64];
     GetConVarString(cvar_enterflags, flags, sizeof(flags));
     
-    if (flags[0] != '\0' && !(GetUserFlagBits(client) & ReadFlagString(flags)))
+    if (!ClientHasAdminFlags(client, flags))
     {
         PrintToChat(
             client,
@@ -564,9 +564,23 @@ AttemptRTV(client)
     new clients = GetRealClientCount();
     new minPlayers = GetConVarInt(cvar_rtv_minplayers);
     
+    DEBUG_MESSAGE("Checking RTV Entry Validity")
+    
     //Print a message if...
+    //    ...an RTV has already been completed OR
+    //    ...a vote has already been completed and RTVs after votes aren't allowed.
+    if (rtv_completed || (vote_completed && GetConVarBool(cvar_rtv_postaction)))
+    {
+        DEBUG_MESSAGE("RTV Already Completed? -- %s", rtv_completed ? "true" : "false")
+        DEBUG_MESSAGE("Vote Already Completed? -- %s", vote_completed ? "true" : "false")
+        DEBUG_MESSAGE("Change Map On Post? -- %s", GetConVarBool(cvar_rtv_postaction) ? "true" : "false")
+        
+        PrintToChat(client, "\x03[UMC]\x01 %t", "No RTV Nextmap");
+        return;
+    }
+    //Otherwise, print a message if...
     //    ...the number of players on the server is less than the minimum required to RTV.
-    if (minPlayers > clients)
+    else if (clients < minPlayers)
     {
         PrintToChat(
             client,
@@ -574,14 +588,6 @@ AttemptRTV(client)
             "No RTV Player Count",
                 minPlayers - clients
         );
-        return;
-    }
-    //Otherwise, print a message if...
-    //    ...an RTV has already been completed OR
-    //    ...a vote has already been completed and RTVs after votes aren't allowed.
-    else if (rtv_completed || (vote_completed && GetConVarBool(cvar_rtv_postaction)))
-    {
-        PrintToChat(client, "\x03[UMC]\x01 %t", "No RTV Nextmap");
         return;
     }
     //Otherwise, print a message if...
@@ -605,15 +611,13 @@ AttemptRTV(client)
         //Increase the tracked size to account for the new addition.
         size++;
         
-        new rtvClient;
         //Display an RTV message to a client for...
         //    ...each client on the server.
         for (new i = 1; i <= MaxClients; i++)
         {
-            rtvClient = rtv_message[i];
             //Display initial (long) RTV message if...
             //    ...the client hasn't seen it yet.
-            if (!rtvClient)
+            if (!rtv_message[i])
             {
                 //Display message if...
                 //    ...the client can actually see it.
@@ -681,6 +685,7 @@ AttemptRTV(client)
 //Creates the RTV timer. While this timer is active, players are not able to RTV.
 MakeRTVTimer()
 {
+    DEBUG_MESSAGE("Enabling RTV; setting rtv_completed flag to false")
     //We are re-enabling RTV at this point.
     rtv_completed = false;
     
@@ -741,7 +746,7 @@ public StartRTV()
     //Clear the array of clients who have entered RTV.
     ClearArray(rtv_clients);
     
-    //rtv_enabled = false;
+    DEBUG_MESSAGE("Disabling RTV; setting rtv_completed flag to true")
     rtv_completed = true;
     
     //Change the map immediately if...
@@ -817,6 +822,7 @@ public UMC_OnVoteFailed()
 {
     if (rtv_inprogress)
     {
+        DEBUG_MESSAGE("RTV Failed. Setting completion flags to false.")
         rtv_inprogress = false;
         vote_completed = false;
         rtv_delaystart = GetConVarFloat(cvar_rtv_interval);
@@ -828,6 +834,7 @@ public UMC_OnVoteFailed()
 //Called when UMC has set a next map.
 public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[])
 {
+    DEBUG_MESSAGE("Next Map has been set by UMC. Setting vote_completion flag to true")
     vote_completed = true;
     rtv_inprogress = false;
 }
