@@ -11,7 +11,7 @@
 =Insert a Map Group into a Map Vote=
   You can add what looks like a Map Group to a vote that only contains maps. This requires the type of vote to me a *map* vote (as opposed to a *group* or *tiered* vote), and it requires the use of the *display-template* Map Group option.
 
-==How To==
+  ==How To==
   Take this UMC-Mapcycle as an example:
   {{{
 "umc_mapcycle"
@@ -48,7 +48,7 @@
 =Multi-Mod Vote=
   By using the *command* option for Map Groups, combined with Tiered/Group Votes (or *display-template* with Map votes), you can make a vote that allows players to select which Mod they would like to play next.
 
-==How To==
+  ==How To==
   First, you should place something in your server.cfg that disables all mods, that way you don't have to worry about any mods being active accidentally (and you don't need to worry about it affecting UMC; all UMC commands are performed after server.cfg is executed, so they will override whatever is in server.cfg). Next, you should add whatever commands/convars are necessary to enable a mod to it's own .cfg. Finally, you define a UMC-Mapcycle like this:
   {{{
 "umc_mapcycle"
