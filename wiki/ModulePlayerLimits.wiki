@@ -21,7 +21,7 @@
     ...
 }
 }}}
-  Where X is the number of players on the server. The group options specify the defaults for all the maps in the group, in the event that the maps do not define their own "min_players" and "max_players" options.
+  Where *X* is the number of players on the server. The group options specify the defaults for all the maps in the group, in the event that the maps do not define their own "min_players" and "max_players" options.
 
 =Example=
   {{{
