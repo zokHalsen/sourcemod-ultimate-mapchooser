@@ -6,3 +6,8 @@
 The most likely culprit is that the map you're nominating has a different group name than a group that's actually in the vote. This commonly happens when you have separate groups for voting/nominating, and it happens more often when there are separate UMC-Mapcycles for voting/nominating.
 
 To fix this, you can specify which group a nomination should belong to by using the *nominate_group* option, outlined in the documentation for the [ModuleCore Core Module]. This way you can set which group nominated maps belong to without altering the structure of your nomination groups/mapcycle.
+
+
+==Why is only one map/only nominated maps appearing in the vote?==
+
+You probably forgot to set *maps_invote* in your UMC Mapcycle definition. This option specifies how many maps from a Map Group to be included in a vote. If it is not set, it defaults to 1.
