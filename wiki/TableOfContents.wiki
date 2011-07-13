@@ -12,8 +12,9 @@
     * [ModuleRandomCycle Random Mapcycle]
     * [ModuleVoteCommand Vote Command]
     * [ModuleWeight Weight]
-    * [ModuleTimeLimits Time Limits]
     * [ModulePlayerLimits Player Limits]
+    * [ModuleTimeLimits Time Limits]
+    * [ModulePostExclude Post-Played Exclusion]
   * Extras/Addons
     * [ModuleMapCommands Map Commands]
     * [ModuleEchoNextmap Echo Nextmap]
