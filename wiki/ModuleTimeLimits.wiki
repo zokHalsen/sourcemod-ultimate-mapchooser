@@ -1,7 +1,7 @@
 #summary Documentation for the Time Limits (umc-timelimits) module.
 
 =Purpose=
-  The Time Limits module extends Ultimate Mapchooser's exclusion system to allow users to specify, in their UMC-Mapcycle definitions, a range of time when a map is available. Specifically, it defines two new group options "default_min_time" and "default_max_time", and two new map options "min_time" and "max_time".
+  The Time Limits module extends Ultimate Mapchooser's exclusion system to allow users to specify, in their UMC-Mapcycle definitions, a range of time when a map is available. Specifically, it defines two new group options *"default_min_time"* and *"default_max_time"*, and two new map options *"min_time"* and *"max_time"*.
    {{{
 "umc_mapcycle"
 {
@@ -21,7 +21,7 @@
     ...
 }
 }}}
-  Where HH is the hour (in 24-hour format) and MM is the minute. The group options specify the defaults for all the maps in the group, in the event that the maps do not define their own "min_time" and "max_time" options.
+  Where *HH* is the hour (in 24-hour format) and *MM* is the minute. The group options specify the defaults for all the maps in the group, in the event that the maps do not define their own "min_time" and "max_time" options.
 
 =Example=
   {{{
