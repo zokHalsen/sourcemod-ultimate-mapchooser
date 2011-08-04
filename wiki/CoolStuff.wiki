@@ -33,7 +33,7 @@
     "Random Choice"
     {
         "maps_invote"  "1"
-        "display-template"  "Random Map"
+        "display-template"  "Or perhaps something else..."
 
         "ctf_2fort" {}
         "ctf_well" {}
@@ -43,7 +43,7 @@
     }
 }
 }}}
-  This will create a vote with 4 choices: the first three (assuming the menu isn't scrambled) will be taken from the "Some Maps" Map Group, and the third map will be taken from the "Random Choice" Map Group. However, since the *display-template* option is set to "Random Map", then whatever map is selected from this group to be in the vote, it will appear in the vote as "Random Map".
+  This will create a vote with 4 choices: the first three (assuming the menu isn't scrambled) will be taken from the "Some Maps" Map Group, and the third map will be taken from the "Random Choice" Map Group. However, since the *display-template* option is set to "Or perhaps something else...", then whatever map is selected from this group to be in the vote, it will appear in the vote as "Or perhaps something else..."
 
 =Multi-Mod Vote=
   By using the *command* option for Map Groups, combined with Tiered/Group Votes (or *display-template* with Map votes), you can make a vote that allows players to select which Mod they would like to play next.
