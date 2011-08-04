@@ -5,7 +5,7 @@
 
   When I first wrote Ultimate Mapchooser (originally called Improved Map Randomizer) I had a very specific vision of a plugin that allowed server owners to make sure certain maps would appear in votes. One year later and the plugin has become a massive project filled with many different features, which when combined can result in endless possible settings, more than I can even imagine.
 
-  This wiki page contains some examples of things which you may not have realized you can do with UMC at first glance. They server as a testament to the flexibility and customizability of the plugin.
+  This wiki page contains some examples of things which you may not have realized you can do with UMC at first glance. They stand as a testament to the flexibility and customizability of the plugin.
 
 
 =Insert a Map Group into a Map Vote=
