@@ -7,7 +7,7 @@
 
 #pragma semicolon 1
 
-#define PL_VERSION "3.1.2"
+#define PL_VERSION "3.2.2"
 
 #define UMC_DEBUG 0
 
@@ -107,12 +107,10 @@ forward Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const St
 /**
  * Starts a UMC map vote.
  *
- * @param kv    The mapcycle to use for the vote.
+ * @param mapcycle  The mapcycle to use for the vote.
+ * @param originalMapcycle  Original mapcycle, contains all information the user has defined.
  * @param type  The type of vote.
  * @param time  How long the vote should remain acive (in seconds).
- * @param excludedMaps  adt_array of maps to be excluded from the vote.
- * @param excludedGroups    adt_array of groups corresponding to maps excluded from the vote.
- * @param numExcludedGroups Amount of groups in the excluded groups array to be excluded from the vote.
  * @param scramble  Determines if the vote menu is scrambled.
  * @param numBlockSlots Amount of slots in the vote to be blocked.
  * @param startSound    Sound to be played when the vote starts (must be precached already).
@@ -136,49 +134,46 @@ forward Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const St
  * 
  * @return True on success, false on failure.
  */
-native bool:UMC_StartVote(Handle:kv, UMC_VoteType:type, time, Handle:excludedMaps,
-    Handle:excludedGroups, numExcludedGroups, bool:scramble, numBlockSlots,
-    const String:startSound[], const String:endSound[], bool:extendOption, Float:timestep, roundstep,
-    fragstep, bool:dontChangeOption, Float:threshold, UMC_ChangeMapTime:successAction,
-    UMC_VoteFailAction:failAction, maxRunoffs, maxRunoffMaps, UMC_RunoffFailAction:runoffFailAction,
-    const String:runoffSound[], bool:nominationStrictness, bool:allowDuplicates,
-    const String:adminFlags[], bool:runExclusion=true);
+native bool:UMC_StartVote(Handle:mapcycle, Handle:originalMapcycle, UMC_VoteType:type, time, 
+    bool:scramble, numBlockSlots, const String:startSound[], const String:endSound[],
+    bool:extendOption, Float:timestep, roundstep, fragstep, bool:dontChangeOption, Float:threshold,
+    UMC_ChangeMapTime:successAction, UMC_VoteFailAction:failAction, maxRunoffs, maxRunoffMaps,
+    UMC_RunoffFailAction:runoffFailAction, const String:runoffSound[], bool:nominationStrictness,
+    bool:allowDuplicates, const String:adminFlags[], bool:runExclusion=true);
 
 
 /**
  * Fetches a random map from a given map group in a given mapcycle.
  *
- * @param kv    Mapcycle to look for a map in.
+ * @param mapcycle  The mapcycle to use for the vote.
+ * @param originalMapcycle  Original mapcycle, contains all information the user has defined.
  * @param group Group to look for a map in. If INVALID_GROUP then it will look in all groups.
  * @param buffer    Buffer to store the fetched map in.
  * @param size  Max size of the buffer.
  * @param groupBuffer   Buffer to store the group of the map in.
  * @param gBufferSize   Max size of the group buffer.
- * @param excludedMaps  adt_array of maps to be excluded from the vote.
- * @param excludedGroups adt_attay of groups corresponding to maps excluded from the vote.
- * @param numExGroups   Amount of groups in the excludedGroups adt_array to be excluded.
  * @param isNomination Whether or not this map should be treated as a nomination.
  * @param forMapChange Whether or not this map will be used this game frame for a mapchange.
  *
  * @return True on success, false on failure.
  */
-native bool:UMC_GetRandomMap(Handle:kv, const String:group[], String:buffer[], size,
-                             String:groupBuffer[], gBufferSize, Handle:excludedMaps,
-                             Handle:excludedGroups, numExGroups, bool:isNomination,
-                             bool:forMapChange);
+native bool:UMC_GetRandomMap(Handle:mapcycle, Handle:originalMapcycle, const String:group[],
+                             String:buffer[], size, String:groupBuffer[], gBufferSize,
+                             bool:isNomination, bool:forMapChange);
                              
                              
 /**
  * Sets the next map and map group for UMC.
  *
- * @param kv    Mapcycle containing the map and map group.
+ * @param mapcycle  Mapcycle containing the map and map group. Should contain all information the user has defined.
  * @param map   The name of the map
  * @param group The name of the map group containing the map.
  * @param when  When the map should be changed to the set next map.
  * 
  * @noreturn
  */
-native UMC_SetNextMap(Handle:kv, const String:map[], const String:group[], UMC_ChangeMapTime:when);
+native UMC_SetNextMap(Handle:mapcycle, const String:map[], const String:group[],
+                      UMC_ChangeMapTime:when);
 
 
 /**
@@ -195,7 +190,7 @@ native bool:UMC_IsMapNominated(const String:map[], const String:group[]);
 /**
  * Nominates a map for UMC.
  *
- * @param kv    Mapcycle containing the nomination
+ * @param mapcycle  Mapcycle containing the nomination. Should contain all information the user has defined.
  * @param map   The name of the map.
  * @param group The name of the map group containing the map.
  * @param client    The client who is nominating this map.
@@ -203,62 +198,61 @@ native bool:UMC_IsMapNominated(const String:map[], const String:group[]);
  *
  * @return True on success, false otherwise.
  */
-native bool:UMC_NominateMap(Handle:kv, const String:map[], const String:group[], client, 
+native bool:UMC_NominateMap(Handle:mapcycle, const String:map[], const String:group[], client, 
                             const String:nominationGroup[]=INVALID_HANDLE);
  
 
 /**
  * Determines if the given group is valid (has at least 1 valid map in it) for the given mapcycle.
  *
- * @param kv    Mapcycle containing the group.
+ * @param mapcycle  Mapcycle containing the group. Should contain all information the user has defined.
  * @param group The group to be checked.
  * 
  * @return True if the group is valid, false otherwise.
  */
-//native bool:UMC_IsGroupValid(Handle:kv, const String:group[]);
+native bool:UMC_IsGroupValid(Handle:mapcycle, const String:group[]);
 
 
 /**
  * Determines if the given map is valid for the given mapcycle.
  *
- * @param kv    Mapcycle containing the map.
+ * @param mapcycle  Mapcycle containing the map. Should contain all information the user has defined.
  * @param map   The name of the map.
  * @param group The name of the group containing the map.
+ * @param isNom
+ * @param forMapChange
  *
  * @return True if the map is valid, false otherwise.
  */
-native bool:UMC_IsMapValid(Handle:kv, const String:map[], const String:group[], Handle:exMaps,
-                           Handle:exGroups, bool:isNom, bool:forMapChange);
+native bool:UMC_IsMapValid(Handle:mapcycle, const String:map[], const String:group[], bool:isNom,
+                           bool:forMapChange);
 
 
 /**
  * Returns a copy of the given mapcycle with all invalid maps and groups filtered out.
  *
- * @param kv    Mapcycle to filter.
+ * @param mapcycle  Mapcycle to filter. Should contain all information the user has defined.
  * @param isNomination  Are we filtering for nomination?
  * @param forMapChange  Are we filtering for maps we will be using this frame for a map change?
  *
  * @return Handle to the new mapcycle KV.
  */
-//native Handle:UMC_FilterMapcycle(Handle:kv, bool:isNomination, bool:forMapChange);
+native Handle:UMC_FilterMapcycle(Handle:mapcycle, bool:isNomination, bool:forMapChange);
 
 
 /**
  * Returns an array consisting of all the valid maps in the given mapcycle.
  * 
- * @param kv    Mapcycle to look for maps in.
+ * @param mapcycle  Mapcycle to look for maps in.
+ * @param originalMapcycle  Original mapcycle, contains all information that the user has defined.
  * @param group Group to select maps from. If INVALID_GROUP, all groups are looked in.
- * @param excludedMaps  adt_array of maps to be excluded.
- * @param excludedGroups    adt_array of groups corresponding to the maps in excludedMaps.
- * @param numExcludedGroups Amount of groups in the excludedGroups array to be excluded.
  * @param isNom Are these maps to be considered nominations?
  * @param forMapChange  Are any of these maps going to be used to change the map this game frame?
  *
  * @return Handle to the new array containing all of the valid map tries.
  */
-native Handle:UMC_CreateValidMapArray(Handle:kv, const String:group[], Handle:excludedMaps,
-                                      Handle:excludedGroups, numExcludedGroups, bool:isNom, 
-                                      bool:forMapChange);
+native Handle:UMC_CreateValidMapArray(Handle:mapcycle, Handle:originalMapcycle,
+                                      const String:group[], bool:isNom, bool:forMapChange);
 
 
 /**
@@ -266,16 +260,14 @@ native Handle:UMC_CreateValidMapArray(Handle:kv, const String:group[], Handle:ex
  * group with 1 or more valid maps in it.
  *
  * @param kv    Mapcycle to look for maps in.
- * @param excludedMaps  adt_array of maps to be excluded
- * @param excludedGroups    adt_array of groups corresponding to the maps in excludedMaps.
- * @param numExcludedGroups Amound of groups in the excludedGroups array to be excluded.
+ * @param originalMapcycle  Original mapcycle, contains all information that the user has defined.
  * @param isNom Are the maps in these groups to be considered nominations?
  * @param forMapChange  Are any of the maps in these groups going to be used to change the map this game frame?
  *
  * @return Handle to the new array containing all of the valid map groups.
  */
-native Handle:UMC_CreateValidMapGroupArray(Handle:kv, Handle:excludedMaps, Handle:excludedGroups,
-                                           numExcludedGroups, bool:isNom, bool:forMapChange);
+native Handle:UMC_CreateValidMapGroupArray(Handle:kv, Handle:originalMapcycle, bool:isNom,
+                                           bool:forMapChange);
 
 
 /**
@@ -343,6 +335,18 @@ native bool:UMC_IsVoteInProgress();
 native bool:UMC_StopVote();
 
 
+/**
+ *
+ */
+native UMC_LockVoteSystem();
+
+
+/**
+ *
+ */
+native UMC_UnlockVoteSystem();
+
+
 //SourceMod Malarky
 public SharedPlugin:__pl_umccore =
 {
@@ -367,8 +371,10 @@ public __pl_umccore_SetNTVOptional()
     MarkNativeAsOptional("UMC_CreateValidMapArray");
     MarkNativeAsOptional("UMC_CreateValidMapGroupArray");
     MarkNativeAsOptional("UMC_IsMapValid");
-    //MarkNativeAsOptional("UMC_IsGroupValid");
-    //MarkNativeAsOptional("UMC_FilterMapcycle");
+    MarkNativeAsOptional("UMC_IsGroupValid");
+    MarkNativeAsOptional("UMC_FilterMapcycle");
     MarkNativeAsOptional("UMC_IsVoteInProgress");
     MarkNativeAsOptional("UMC_StopVote");
+    MarkNativeAsOptional("UMC_LockVoteSystem");
+    MarkNativeAsOptional("UMC_UnlockVoteSystem");
 }

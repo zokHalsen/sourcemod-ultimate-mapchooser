@@ -50,6 +50,7 @@ new Handle:cvar_enterflags           = INVALID_HANDLE;
 
 //Mapcycle KV
 new Handle:map_kv = INVALID_HANDLE;        
+new Handle:umc_mapcycle = INVALID_HANDLE;
 
 //Memory queues.
 new Handle:vote_mem_arr = INVALID_HANDLE;
@@ -262,8 +263,8 @@ public OnPluginStart()
 
     cvar_rtv_mem = CreateConVar(
         "sm_umc_rtv_mapexclude",
-        "3",
-        "Specifies how many past maps to exclude from RTVs.",
+        "4",
+        "Specifies how many past maps to exclude from RTVs. 1 = Current Map Only",
         0, true, 0.0
     );
 
@@ -322,9 +323,11 @@ public OnConfigsExecuted()
     //Set the amount of time required before players are able to RTV.
     rtv_delaystart = GetConVarFloat(cvar_rtv_delay);
     
+    new bool:reloaded = ReloadMapcycle();
+    
     //Setup RTV if...
     //    ...the RTV cvar is enabled.
-    if (ReloadMapcycle() && GetConVarBool(cvar_rtv_enable))
+    if (reloaded && GetConVarBool(cvar_rtv_enable))
     {
         rtv_enabled = true;
     
@@ -345,16 +348,19 @@ public OnConfigsExecuted()
     decl String:groupName[MAP_LENGTH];
     UMC_GetCurrentMapGroup(groupName, sizeof(groupName));
     
-    if (StrEqual(groupName, INVALID_GROUP, false))
+    if (reloaded && StrEqual(groupName, INVALID_GROUP, false))
     {
-        KvFindGroupOfMap(map_kv, mapName, groupName, sizeof(groupName));
+        KvFindGroupOfMap(umc_mapcycle, mapName, groupName, sizeof(groupName));
     }
     
     //Add the map to all the memory queues.
-    new mapmem = GetConVarInt(cvar_rtv_mem) + 1;
+    new mapmem = GetConVarInt(cvar_rtv_mem);
     new catmem = GetConVarInt(cvar_rtv_catmem);
     AddToMemoryArray(mapName, vote_mem_arr, mapmem);
     AddToMemoryArray(groupName, vote_catmem_arr, (mapmem > catmem) ? mapmem : catmem);
+    
+    if (reloaded)
+        RemovePreviousMapsFromCycle();
 }
 
 
@@ -485,16 +491,29 @@ SetupVoteSounds()
 //Reloads the mapcycle. Returns true on success, false on failure.
 bool:ReloadMapcycle()
 {
+    if (umc_mapcycle != INVALID_HANDLE)
+    {
+        CloseHandle(umc_mapcycle);
+        umc_mapcycle = INVALID_HANDLE;
+    }
     if (map_kv != INVALID_HANDLE)
     {
         CloseHandle(map_kv);
         map_kv = INVALID_HANDLE;
     }
-    map_kv = GetMapcycle();
+    umc_mapcycle = GetMapcycle();
     
-    return map_kv != INVALID_HANDLE;
+    return umc_mapcycle != INVALID_HANDLE;
 }
 
+
+//
+RemovePreviousMapsFromCycle()
+{
+    map_kv = CreateKeyValues("umc_rotation");
+    KvCopySubkeys(umc_mapcycle, map_kv);
+    FilterMapcycleFromArrays(map_kv, vote_mem_arr, vote_catmem_arr, GetConVarInt(cvar_rtv_catmem));
+}
 
 //************************************************************************************************//
 //                                          CVAR CHANGES                                          //
@@ -518,7 +537,7 @@ public Handle_RTVMemoryChange(Handle:convar, const String:oldValue[], const Stri
     //Trim the memory array for RTVs.
         //We pass 1 extra to the argument in order to account for the current map, which should 
         //always be excluded.
-    TrimArray(vote_mem_arr, StringToInt(newValue) + 1);
+    TrimArray(vote_mem_arr, StringToInt(newValue));
 }
 
 
@@ -615,13 +634,11 @@ AttemptRTV(client)
         //    ...each client on the server.
         for (new i = 1; i <= MaxClients; i++)
         {
-            //Display initial (long) RTV message if...
-            //    ...the client hasn't seen it yet.
-            if (!rtv_message[i])
+            if (IsClientInGame(i))
             {
-                //Display message if...
-                //    ...the client can actually see it.
-                if (IsClientInGame(i))
+                //Display initial (long) RTV message if...
+                //    ...the client hasn't seen it yet.
+                if (!rtv_message[i])
                 {
                     //Remember that the client has now seen this message.
                     rtv_message[i] = true;
@@ -635,17 +652,17 @@ AttemptRTV(client)
                             rtv_threshold - size
                     );
                 }
-            }
-            else //Otherwise, print the standard message.
-            {
-                PrintToChat(
-                    i,
-                    "\x03[UMC]\x01 %t (%t)",
-                    "RTV Entered",
-                        name,
-                    "More Required",
-                        rtv_threshold - size
-                );
+                else //Otherwise, print the standard message.
+                {
+                    PrintToChat(
+                        i,
+                        "\x03[UMC]\x01 %t (%t)",
+                        "RTV Entered",
+                            name,
+                        "More Required",
+                            rtv_threshold - size
+                    );
+                }
             }
         }
         
@@ -784,11 +801,9 @@ public StartRTV()
         //Start the UMC vote.
         UMC_StartVote(
             map_kv,                                                     //Mapcycle
+            umc_mapcycle,                                               //Complete Mapcycle
             UMC_VoteType:GetConVarInt(cvar_rtv_type),                   //Vote Type (map, group, tiered)
             GetConVarInt(cvar_vote_time),                               //Vote duration
-            vote_mem_arr,                                               //Map Exclude
-            vote_catmem_arr,                                            //Group Exclude
-            GetConVarInt(cvar_rtv_catmem),                              //Num GExclude
             GetConVarBool(cvar_scramble),                               //Scramble
             GetConVarInt(cvar_block_slots),                             //Slot Blocking
             vote_start_sound,                                           //Start Sound
@@ -845,5 +860,7 @@ public UMC_RequestReloadMapcycle()
 {
     if (!ReloadMapcycle())
         rtv_enabled = false;
+    else
+        RemovePreviousMapsFromCycle();
 }
 

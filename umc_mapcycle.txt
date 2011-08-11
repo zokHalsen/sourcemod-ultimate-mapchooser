@@ -6,7 +6,7 @@
 //***************************************************************************//
 // The format of this file is as specified in the following example:         //
 //                                                                           //
-// "umc_rotation"                                                            //
+// "umc_mapcycle"                                                            //
 // {                                                                         //
 //      "GROUPNAME1" //Name of the group, used by group votes.               //
 //      {                                                                    //
@@ -169,7 +169,7 @@
 //*                      ^YOU MAY DELETE THIS SECTION^                      *//
 ///////////////////////////////////////////////////////////////////////////////
 
-"umc_rotation"
+"umc_mapcycle"
 {
 
 }
