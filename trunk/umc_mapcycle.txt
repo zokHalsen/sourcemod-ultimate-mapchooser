@@ -37,7 +37,7 @@
 //            //Defined in "umc-randomcycle.smx"                             //
 //                                                                           //
 //          //Used as defaults if "min_players" or "max_players" is          //
-//          //not defined for any map in this group.                         //
+//          //not defined for a map in this group.                           //
 //          // (Default value: 0)                                            //
 //          "default_min_players"   "int >= 0"                               //
 //          // (Default value: Player limit of the server)                   //
@@ -45,13 +45,19 @@
 //            //Defined in "umc-playerlimits.smx"                            //
 //                                                                           //
 //          //Used as defaults if "min_time" or "max_time" is not defined    //
-//          //for any map in this group                                      //
+//          //for a map in this group.                                       //
 //          // (Default value: "0000")                                       //
 //          "default_min_time"  "HHMM, where HH is the hour and MM is the    //
 //                               minute"                                     //
 //          // (Default value: "2359")                                       //
 //          "default_max_time"	    "HHMM"                                   //
 //            //Defined in "umc-timelimits.smx"                              //
+//                                                                           //
+//          //Used as default if "allow_every" is not defined for a map in   //
+//          //this group.                                                    //
+//          // (Default value: 0)                                            //
+//          "default_allow_every"   "int >= 0"                               //
+//            //Defined in "umc_postexclude.smx"                             //
 //                                                                           //
 //          //The command specified here is performed at the start of all    //
 //          //maps in this group.                                            //
@@ -91,7 +97,7 @@
 //                //Defined in "umc-weight.smx"                              //
 //                                                                           //
 //              //Overrides the option of the same name in the group level.  //
-//              // (Default value: "")
+//              // (Default value: "")                                       //
 //              "next_mapgroup"     "Group Name"                             //
 //                //Defined in "umc-randcycle.smx"                           //
 //                                                                           //
@@ -103,11 +109,16 @@
 //              "max_players"   "int >= 0"                                   //
 //                //Defined in "umc-playerlimits.smx"                        //
 //                                                                           //
-//              //Defines the minimum and maximum times the plugin will pick //
+//              //Defines the minimum and maximum times that UMC will pick   //
 //              //this map to be played.                                     //
 //              "min_time"      "HHMM"                                       //
 //              "max_time"      "HHMM"                                       //
 //                //Defined in "umc-timelimits.smx"                          //
+//                                                                           //
+//              //Defines an amount of time in minutes that a map is to be   //
+//              //excluded from selection after it has been played.          //
+//              "allow_every"   "int >= 0"                                   //
+//                //Defined in "umc-postexclude.smx"                         //
 //                                                                           //
 //              //This command is performed at the start of this map. Note:  //
 //              //The command specified here is performed AFTER the one      //
