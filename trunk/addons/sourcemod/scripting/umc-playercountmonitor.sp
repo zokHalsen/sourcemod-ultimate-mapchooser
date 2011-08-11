@@ -63,7 +63,8 @@ new Handle:cvar_flags                = INVALID_HANDLE;
         ////----/CONVARS-----/////
 
 //Mapcycle KV
-new Handle:map_kv = INVALID_HANDLE;     
+new Handle:map_kv = INVALID_HANDLE;    
+new Handle:umc_mapcycle = INVALID_HANDLE;
 
 //Memory queues.
 new Handle:vote_mem_arr = INVALID_HANDLE;
@@ -215,8 +216,8 @@ public OnPluginStart()
     
     cvar_mem = CreateConVar(
         "sm_umc_playerlimit_mapexclude",
-        "3",
-        "Specifies how many past maps to exclude from Player Count Monitor votes.",
+        "4",
+        "Specifies how many past maps to exclude from Player Count Monitor votes. 1 = Current Map Only",
         0, true, 0.0
     );
     
@@ -285,19 +286,22 @@ public OnConfigsExecuted()
     GetCurrentMap(mapName, sizeof(mapName));
     UMC_GetCurrentMapGroup(groupName, sizeof(groupName));
     
-    if (StrEqual(groupName, INVALID_GROUP, false))
+    if (setup && StrEqual(groupName, INVALID_GROUP, false))
     {
-        KvFindGroupOfMap(map_kv, mapName, groupName, sizeof(groupName));
+        KvFindGroupOfMap(umc_mapcycle, mapName, groupName, sizeof(groupName));
     }
     
     //Add the map to all the memory queues.
-    new mapmem = GetConVarInt(cvar_mem) + 1;
+    new mapmem = GetConVarInt(cvar_mem);
     new catmem = GetConVarInt(cvar_catmem);
     AddToMemoryArray(mapName, vote_mem_arr, mapmem);
     AddToMemoryArray(groupName, vote_catmem_arr, (mapmem > catmem) ? mapmem : catmem);
     
     if (setup)
-        SetupMinMaxPlayers();
+    {
+        SetupMinMaxPlayers(mapName, groupName);
+        RemovePreviousMapsFromCycle();
+    }
 }
 
 
@@ -387,40 +391,35 @@ SetupVoteSounds()
 
 
 //Sets the min and max player values for the current map.
-SetupMinMaxPlayers()
+SetupMinMaxPlayers(const String:map[], const String:group[])
 {
     //Set defaults in the event we error out.
     map_min_players = 0;
     map_max_players = MaxClients;
         
-    //Fetch current map
-    decl String:map[MAP_LENGTH], String:group[MAP_LENGTH];
-    GetCurrentMap(map, sizeof(map));
-    UMC_GetCurrentMapGroup(group, sizeof(group));
-    
-    KvRewind(map_kv); //rewind the mapcycle handle
+    KvRewind(umc_mapcycle); //rewind the mapcycle handle
     new dmin, dmax; //variables to store default values for the category.
     
     //Set appropriate min and max player variables if...
     //    ...we can reach the current category in the mapcycle OR
     //    ...we can jump to the map somewhere in the mapcycle
-    if (!StrEqual(group, INVALID_GROUP) && KvJumpToKey(map_kv, group))
+    if (!StrEqual(group, INVALID_GROUP) && KvJumpToKey(umc_mapcycle, group))
     {
         //Store defaults for the category
-        dmin = KvGetNum(map_kv, PLAYERLIMIT_KEY_GROUP_MIN, 0);
-        dmax = KvGetNum(map_kv, PLAYERLIMIT_KEY_GROUP_MAX, MaxClients);
+        dmin = KvGetNum(umc_mapcycle, PLAYERLIMIT_KEY_GROUP_MIN, 0);
+        dmax = KvGetNum(umc_mapcycle, PLAYERLIMIT_KEY_GROUP_MAX, MaxClients);
         
         //Set the map's min and max player variables if...
         //    ...we can reach the current map in the mapcycle.
-        if (KvJumpToKey(map_kv, map))
+        if (KvJumpToKey(umc_mapcycle, map))
         {
             //Set variables for min and max players, using the category defaults if they are not
             //available.
-            map_min_players = KvGetNum(map_kv, PLAYERLIMIT_KEY_MAP_MIN, dmin);
-            map_max_players = KvGetNum(map_kv, PLAYERLIMIT_KEY_MAP_MAX, dmax);
+            map_min_players = KvGetNum(umc_mapcycle, PLAYERLIMIT_KEY_MAP_MIN, dmin);
+            map_max_players = KvGetNum(umc_mapcycle, PLAYERLIMIT_KEY_MAP_MAX, dmax);
             
             //Return to the root.
-            KvRewind(map_kv);
+            KvRewind(umc_mapcycle);
             
             //Log Info
             LogMessage("Min Players: %i, Max Players: %i", map_min_players, map_max_players);
@@ -429,7 +428,7 @@ SetupMinMaxPlayers()
             MakePlayerLimitCheckTimer();
             return;
         }
-        KvGoBack(map_kv);
+        KvGoBack(umc_mapcycle);
     }
     
     //Error, was not able to find the appropriate data.
@@ -443,14 +442,28 @@ SetupMinMaxPlayers()
 //Reloads the mapcycle. Returns true on success, false on failure.
 bool:ReloadMapcycle()
 {
+    if (umc_mapcycle != INVALID_HANDLE)
+    {
+        CloseHandle(umc_mapcycle);
+        umc_mapcycle = INVALID_HANDLE;
+    }
     if (map_kv != INVALID_HANDLE)
     {
         CloseHandle(map_kv);
         map_kv = INVALID_HANDLE;
     }
-    map_kv = GetMapcycle();
+    umc_mapcycle = GetMapcycle();
     
-    return map_kv != INVALID_HANDLE;
+    return umc_mapcycle != INVALID_HANDLE;
+}
+
+
+//
+RemovePreviousMapsFromCycle()
+{
+    map_kv = CreateKeyValues("umc_rotation");
+    KvCopySubkeys(umc_mapcycle, map_kv);
+    FilterMapcycleFromArrays(map_kv, vote_mem_arr, vote_catmem_arr, GetConVarInt(cvar_catmem));
 }
 
 
@@ -512,7 +525,7 @@ public RunPlayerLimitCheck()
     {
         LogMessage("Number of clients above player threshold. %i clients, %i max.",
             clientCount, map_max_players);
-        PrintToChatAll("\x03[UMC]\x01 %t", "Too Many players", map_max_players);
+        PrintToChatAll("\x03[UMC]\x01 %t", "Too Many Players", map_max_players);
         ChangeToValidMap(cvar_invalid_max);
     }
     //Otherwise, change the map if...
@@ -538,7 +551,7 @@ ChangeToValidMap(Handle:cvar)
 
     switch (PlayerLimit_Action:GetConVarInt(cvar))
     {
-        case PLAction_Nothing: //Pick a map and change to it.
+        case PLAction_Now: //Pick a map and change to it.
         {
             //Log message
             LogMessage("Changing to a map that can support %i players.",
@@ -546,8 +559,8 @@ ChangeToValidMap(Handle:cvar)
             
             //Get the picked map.
             decl String:map[MAP_LENGTH], String:group[MAP_LENGTH];
-            if (UMC_GetRandomMap(map_kv, INVALID_GROUP, map, sizeof(map), group, sizeof(group),
-                             vote_mem_arr, vote_catmem_arr, GetConVarInt(cvar_catmem), false, true))
+            if (UMC_GetRandomMap(map_kv, umc_mapcycle, INVALID_GROUP, map, sizeof(map), group,
+                                 sizeof(group), false, true))
             {
                 UMC_SetNextMap(map_kv, map, group,
                                UMC_ChangeMapTime:GetConVarInt(cvar_invalid_post));
@@ -555,20 +568,18 @@ ChangeToValidMap(Handle:cvar)
         }
         case PLAction_YesNo: //Pick a map and run yes/no vote.
         {
-            LogMessage("Picking a map that can support %i players.",
-                GetRealClientCount());
+            LogMessage("Picking a map that can support %i players.", GetRealClientCount());
             
             //Get the picked map.
             decl String:map[MAP_LENGTH];
-            if (UMC_GetRandomMap(map_kv, INVALID_GROUP, map, sizeof(map), vote_group,
-                                 sizeof(vote_group), vote_mem_arr, vote_catmem_arr,
-                                 GetConVarInt(cvar_catmem), false, true))
+            if (UMC_GetRandomMap(map_kv, umc_mapcycle, INVALID_GROUP, map, sizeof(map), vote_group,
+                                 sizeof(vote_group), false, true))
             {
                 LogMessage("Perfoming YES/NO vote to change the map to '%s'", map);
             
                 //Run the yes/no vote if...
                 //    ...there isn't already a vote in progress.
-                if (!IsVoteInProgress())
+                if (!IsVoteInProgress() && !UMC_IsVoteInProgress())
                 {
                     //Initialize the menu.
                     new Handle:menu = CreateMenu(Handle_YesNoVoteMenu, 
@@ -619,11 +630,9 @@ ChangeToValidMap(Handle:cvar)
                 //Start the UMC vote.
                 UMC_StartVote(
                     map_kv,                                                     //Mapcycle
+                    umc_mapcycle,                                               //Complete mapcycle
                     UMC_VoteType:GetConVarInt(cvar_vote_type),                  //Vote Type (map, group, tiered)
                     GetConVarInt(cvar_vote_time),                               //Vote duration
-                    vote_mem_arr,                                               //Map Exclude
-                    vote_catmem_arr,                                            //Group Exclude
-                    GetConVarInt(cvar_catmem),                                  //Num GExclude
                     GetConVarBool(cvar_scramble),                               //Scramble
                     GetConVarInt(cvar_block_slots),                             //Slot Blocking
                     vote_start_sound,                                           //Start Sound
@@ -755,5 +764,7 @@ public UMC_RequestReloadMapcycle()
 {
     if (!ReloadMapcycle())
         validity_enabled = false;
+    else
+        RemovePreviousMapsFromCycle();
 }
 

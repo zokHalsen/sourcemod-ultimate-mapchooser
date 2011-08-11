@@ -46,10 +46,16 @@ public Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const Str
                                         bool:isNomination, bool:forMapChange)
 {
     if (isNomination && GetConVarBool(cvar_nom_ignore))
+    {
+        DEBUG_MESSAGE("Skipping nominated map %s due to cvar.", map)
         return Plugin_Continue;
+    }
         
     if (!forMapChange && GetConVarBool(cvar_display_ignore))
+    {
+        DEBUG_MESSAGE("Skipping displayed map %s due to cvar.", map)
         return Plugin_Continue;
+    }
     
     new defaultMin, defaultMax;
     new min, max;
@@ -69,9 +75,14 @@ public Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const Str
         KvGoBack(kv);
     }
     
+    DEBUG_MESSAGE("Map %s Player Limits -- Min: %i, Max: %i, Current: %i", map, min, max, GetRealClientCount())
+    
     if (IsPlayerCountBetween(min, max))
+    {
+        DEBUG_MESSAGE("Not excluded.")
         return Plugin_Continue;
-        
-    DEBUG_MESSAGE("Map %s is excluded due to Player Limits. Min: %i, Max: %i, Current: %i", map, min, max, GetRealClientCount())
+    }
+    
+    DEBUG_MESSAGE("Excluded")
     return Plugin_Stop;
 }

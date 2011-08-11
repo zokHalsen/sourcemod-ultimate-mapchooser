@@ -46,6 +46,7 @@ new Handle:cvar_flags                = INVALID_HANDLE;
 
 //Mapcycle KV
 new Handle:map_kv = INVALID_HANDLE;
+new Handle:umc_mapcycle = INVALID_HANDLE;
 
 //Memory queues. Used to store the previously played maps.
 new Handle:vote_mem_arr    = INVALID_HANDLE;
@@ -209,8 +210,8 @@ public OnPluginStart()
 
     cvar_vote_mem = CreateConVar(
         "sm_umc_vc_mapexclude",
-        "3",
-        "Specifies how many past maps to exclude from votes.",
+        "4",
+        "Specifies how many past maps to exclude from votes. 1 = Current Map Only",
         0, true, 0.0
     );
 
@@ -264,16 +265,19 @@ public OnConfigsExecuted()
     decl String:groupName[MAP_LENGTH];
     UMC_GetCurrentMapGroup(groupName, sizeof(groupName));
     
-    if (StrEqual(groupName, INVALID_GROUP, false))
+    if (can_vote && StrEqual(groupName, INVALID_GROUP, false))
     {
-        KvFindGroupOfMap(map_kv, mapName, groupName, sizeof(groupName));
+        KvFindGroupOfMap(umc_mapcycle, mapName, groupName, sizeof(groupName));
     }
     
     //Add the map to all the memory queues.
-    new mapmem = GetConVarInt(cvar_vote_mem) + 1;
+    new mapmem = GetConVarInt(cvar_vote_mem);
     new catmem = GetConVarInt(cvar_vote_catmem);
     AddToMemoryArray(mapName, vote_mem_arr, mapmem);
     AddToMemoryArray(groupName, vote_catmem_arr, (mapmem > catmem) ? mapmem : catmem);
+    
+    if (can_vote)
+        RemovePreviousMapsFromCycle();
 }
 
 
@@ -307,14 +311,28 @@ Handle:GetMapcycle()
 //Reloads the mapcycle. Returns true on success, false on failure.
 bool:ReloadMapcycle()
 {
+    if (umc_mapcycle != INVALID_HANDLE)
+    {
+        CloseHandle(umc_mapcycle);
+        umc_mapcycle = INVALID_HANDLE;
+    }
     if (map_kv != INVALID_HANDLE)
     {
         CloseHandle(map_kv);
         map_kv = INVALID_HANDLE;
     }
-    map_kv = GetMapcycle();
+    umc_mapcycle = GetMapcycle();
     
-    return map_kv != INVALID_HANDLE;
+    return umc_mapcycle != INVALID_HANDLE;
+}
+
+
+//
+RemovePreviousMapsFromCycle()
+{
+    map_kv = CreateKeyValues("umc_rotation");
+    KvCopySubkeys(umc_mapcycle, map_kv);
+    FilterMapcycleFromArrays(map_kv, vote_mem_arr, vote_catmem_arr, GetConVarInt(cvar_vote_catmem));
 }
 
 
@@ -368,11 +386,9 @@ public Action:Command_Vote(client, args)
     //Start the UMC vote.
     new bool:result = UMC_StartVote(
         map_kv,                                                     //Mapcycle
+        umc_mapcycle,                                               //Complete Mapcycle
         UMC_VoteType:GetConVarInt(cvar_vote_type),                  //Vote Type (map, group, tiered)
         GetConVarInt(cvar_vote_time),                               //Vote duration
-        vote_mem_arr,                                               //Map Exclude
-        vote_catmem_arr,                                            //Group Exclude
-        GetConVarInt(cvar_vote_catmem),                             //Num GExclude
         GetConVarBool(cvar_scramble),                               //Scramble
         GetConVarInt(cvar_block_slots),                             //Slot Blocking
         vote_start_sound,                                           //Start Sound
@@ -411,6 +427,8 @@ public Action:Command_Vote(client, args)
 public UMC_RequestReloadMapcycle()
 {
     can_vote = ReloadMapcycle();
+    if (can_vote)
+        RemovePreviousMapsFromCycle();
 }
 
 

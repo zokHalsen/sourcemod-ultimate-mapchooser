@@ -578,7 +578,7 @@ stock IsEntLimitReached(warn=20, critical=16, client=0, const String:message[]="
         if (count <= critical)
         {
             PrintToServer("Warning: Entity limit is nearly reached! Please switch or reload the map!");
-            LogError("VOTEWARNINGS: Entity limit is nearly reached: %d/%d (%d):%s", 
+            LogError("Entity limit is nearly reached: %d/%d (%d):%s", 
                 count, max, remaining, message);
     
             if (client > 0)
@@ -590,7 +590,7 @@ stock IsEntLimitReached(warn=20, critical=16, client=0, const String:message[]="
         else
         {
             PrintToServer("Caution: Entity count is getting high!");
-            LogMessage("VOTEWARNINGS: Entity count is getting high: %d/%d (%d):%s",
+            LogMessage("Entity count is getting high: %d/%d (%d):%s",
                 count, max, remaining, message);
     
             if (client > 0)
@@ -1048,3 +1048,163 @@ stock bool:ClientHasAdminFlags(client, const String:flagString[])
 }
 
 
+//Filters a mapcycle with all invalid entries filtered out.
+stock FilterMapcycleFromArrays(Handle:kv, Handle:exMaps, Handle:exGroups, numExGroups,
+                               bool:deleteEmpty=false)
+{
+    new size = GetArraySize(exGroups);
+    new len = size < numExGroups ? size : numExGroups;
+    decl String:group[MAP_LENGTH];
+    for (new i = 0; i < len; i++)
+    {
+        GetArrayString(exGroups, i, group, sizeof(group));
+        if (!deleteEmpty)
+        {
+            KvJumpToKey(kv, group);
+            KvDeleteAllSubKeys(kv);
+            KvGoBack(kv);
+        }
+        else
+        {
+            KvDeleteSubKey(kv, group);
+        }
+    }
+    
+    if (!KvGotoFirstSubKey(kv))
+        return;
+    
+    for ( ; ; )
+    {
+        FilterMapGroupFromArrays(kv, exMaps, exGroups);
+        
+        //Delete the group if there are no valid maps in it.
+        if (deleteEmpty) 
+        {
+            if (!KvGotoFirstSubKey(kv))
+            {
+                DEBUG_MESSAGE("Removing empty group \"%s\".", group)
+                if (KvDeleteThis(kv) == -1)
+                {
+                    DEBUG_MESSAGE("Mapcycle filtering completed.")
+                    return;
+                }
+                else
+                    continue;
+            }
+            
+            KvGoBack(kv);
+        }
+        if (!KvGotoNextKey(kv))
+            break;
+    }
+    
+    KvGoBack(kv);
+    
+    DEBUG_MESSAGE("Mapcycle filtering completed.")
+}
+
+
+//Filters the kv at the level of the map group.
+stock FilterMapGroupFromArrays(Handle:kv, Handle:exMaps, Handle:exGroups)
+{
+    decl String:group[MAP_LENGTH];
+    KvGetSectionName(kv, group, sizeof(group));
+    
+    if (!KvGotoFirstSubKey(kv))
+        return;
+    
+    DEBUG_MESSAGE("Starting filtering of map group \"%s\".", group)
+    
+    decl String:mapName[MAP_LENGTH];
+    for ( ; ; )
+    {
+        KvGetSectionName(kv, mapName, sizeof(mapName));
+        if (IsMapInArrays(mapName, group, exMaps, exGroups))
+        {
+            DEBUG_MESSAGE("Removing invalid map \"%s\" from group \"%s\".", mapName, group)
+            if (KvDeleteThis(kv) == -1)
+            {
+                DEBUG_MESSAGE("Map Group filtering completed for group \"%s\".", group)
+                return;
+            }
+        }
+        else
+        {
+            if (!KvGotoNextKey(kv))
+                break;
+        }
+    }
+    
+    KvGoBack(kv);
+    
+    DEBUG_MESSAGE("Map Group filtering completed for group \"%s\".", group)
+}
+
+
+//
+stock bool:IsMapInArrays(const String:map[], const String:group[], Handle:exMaps, Handle:exGroups)
+{
+    DEBUG_MESSAGE("Starting exclusion traversal...")
+    new index = -1;
+    new bool:isExcluded = false;
+    decl String:exGroup[MAP_LENGTH];
+    if (exMaps != INVALID_HANDLE && exGroups != INVALID_HANDLE)
+    {
+        new gSize = GetArraySize(exGroups);
+        do
+        {
+            index = FindStringInArrayEx(exMaps, map, index+1);
+            
+            if (index >= 0 && index < gSize)
+            {
+                DEBUG_MESSAGE("Map found at %i", index)
+                GetArrayString(exGroups, index, exGroup, sizeof(exGroup));
+                isExcluded = StrEqual(exGroup, group, false);
+                DEBUG_MESSAGE("Map Excluded? %i (%s | %s)", _:isExcluded, exGroup, group)
+            }
+        }
+        while (!isExcluded && index != -1);
+    }
+    
+    return isExcluded;
+}
+
+
+//
+stock bool:GroupExcludedPreviouslyPlayed(const String:group[], Handle:exGroups, numExGroups)
+{
+    if (numExGroups <= 0) return false;
+    
+    new i = FindStringInArray(exGroups, group);
+    return i != -1 && i < numExGroups;
+}
+
+
+//
+stock bool:MapExcludedPreviouslyPlayed(const String:map[], const String:group[], Handle:exMaps,
+                                       Handle:exGroups, numExGroups)
+{
+    return GroupExcludedPreviouslyPlayed(group, exGroups, numExGroups) ||
+        IsMapInArrays(map, group, exMaps, exGroups);
+}
+
+
+//
+stock bool:KvDeleteSubKey(Handle:kv, const String:name[])
+{
+    return KvJumpToKey(kv, name) && (KvDeleteThis(kv) == -1 || KvGoBack(kv));
+}
+
+
+//
+stock KvDeleteAllSubKeys(Handle:kv)
+{
+    if (!KvGotoFirstSubKey(kv))
+        return;
+        
+    for ( ; ; )
+    {
+        if (KvDeleteThis(kv) == -1)
+            return;
+    }
+}

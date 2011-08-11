@@ -28,7 +28,8 @@ new Handle:cvar_randnext_catmem = INVALID_HANDLE;
         ////----/CONVARS-----/////
 
 //Mapcycle KV
-new Handle:map_kv = INVALID_HANDLE;        
+new Handle:map_kv = INVALID_HANDLE;   
+new Handle:umc_mapcycle = INVALID_HANDLE;
 
 //Memory queues
 new Handle:randnext_mem_arr = INVALID_HANDLE;
@@ -68,8 +69,8 @@ public OnPluginStart()
     
     cvar_randnext_mem = CreateConVar(
         "sm_umc_randcycle_mapexclude",
-        "3",
-        "Specifies how many past maps to exclude when picking a random map.",
+        "4",
+        "Specifies how many past maps to exclude when picking a random map. 1 = Current Map Only",
         0, true, 0.0
     );
     
@@ -134,18 +135,21 @@ public OnConfigsExecuted()
     decl String:groupName[MAP_LENGTH];
     UMC_GetCurrentMapGroup(groupName, sizeof(groupName));
     
-    if (StrEqual(groupName, INVALID_GROUP, false))
+    if (setting_map && StrEqual(groupName, INVALID_GROUP, false))
     {
-        KvFindGroupOfMap(map_kv, mapName, groupName, sizeof(groupName));
+        KvFindGroupOfMap(umc_mapcycle, mapName, groupName, sizeof(groupName));
     }
     
     SetupNextRandGroup(mapName, groupName);
     
     //Add the map to all the memory queues.
-    new mapmem = GetConVarInt(cvar_randnext_mem) + 1;
+    new mapmem = GetConVarInt(cvar_randnext_mem);
     new catmem = GetConVarInt(cvar_randnext_catmem);
     AddToMemoryArray(mapName, randnext_mem_arr, mapmem);
     AddToMemoryArray(groupName, randnext_catmem_arr, (mapmem > catmem) ? mapmem : catmem);
+    
+    if (setting_map)
+        RemovePreviousMapsFromCycle();
 }
 
 
@@ -238,14 +242,29 @@ Handle:GetMapcycle()
 //Reloads the mapcycle. Returns true on success, false on failure.
 bool:ReloadMapcycle()
 {
+    if (umc_mapcycle != INVALID_HANDLE)
+    {
+        CloseHandle(umc_mapcycle);
+        umc_mapcycle = INVALID_HANDLE;
+    }
     if (map_kv != INVALID_HANDLE)
     {
         CloseHandle(map_kv);
         map_kv = INVALID_HANDLE;
     }
-    map_kv = GetMapcycle();
+    umc_mapcycle = GetMapcycle();
     
-    return map_kv != INVALID_HANDLE;
+    return umc_mapcycle != INVALID_HANDLE;
+}
+
+
+//
+RemovePreviousMapsFromCycle()
+{
+    map_kv = CreateKeyValues("umc_rotation");
+    KvCopySubkeys(umc_mapcycle, map_kv);
+    FilterMapcycleFromArrays(map_kv, randnext_mem_arr, randnext_catmem_arr,
+                             GetConVarInt(cvar_randnext_catmem));
 }
 
 
@@ -260,7 +279,7 @@ public Handle_RandNextMemoryChange(Handle:convar, const String:oldValue[], const
     //Trim the memory array for random selection of the next map.
         //We pass 1 extra to the argument in order to account for the current map, which should 
         //always be excluded.
-    TrimArray(randnext_mem_arr, StringToInt(newValue) + 1);
+    TrimArray(randnext_mem_arr, StringToInt(newValue));
 }
 
 
@@ -289,9 +308,8 @@ DoRandomNextMap()
 {    
     LogMessage("Attempting to set the next map to a random selection.");
     decl String:nextMap[MAP_LENGTH], String:nextGroup[MAP_LENGTH];
-    if (UMC_GetRandomMap(map_kv, next_rand_cat, nextMap, sizeof(nextMap), nextGroup,
-                         sizeof(nextGroup), randnext_mem_arr, randnext_catmem_arr, 
-                         GetConVarInt(cvar_randnext_catmem), false, true))
+    if (UMC_GetRandomMap(map_kv, umc_mapcycle, next_rand_cat, nextMap, sizeof(nextMap), nextGroup,
+                         sizeof(nextGroup), false, true))
     {
         DEBUG_MESSAGE("Random map: %s %s", nextMap, nextGroup)
         UMC_SetNextMap(map_kv, nextMap, nextGroup, ChangeMapTime_MapEnd);
@@ -317,6 +335,9 @@ public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[])
 //Called when UMC requests that the mapcycle should be reloaded.
 public UMC_RequestReloadMapcycle()
 {
-    setting_map = ReloadMapcycle() && setting_map;
+    new bool:reloaded = ReloadMapcycle();
+    if (reloaded)
+        RemovePreviousMapsFromCycle();
+    setting_map = reloaded && setting_map;
 }
 

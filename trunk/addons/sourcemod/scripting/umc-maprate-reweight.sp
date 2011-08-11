@@ -94,7 +94,7 @@ public Action:Command_TestReweight(client, args)
         ReplyToCommand(
             client,
             "\x03[UMC]\x01 Map %s will be reweighted by a factor of %f",
-            map, FetchMapWeight(map);
+            map, FetchMapWeight(map)
         );
     }
     return Plugin_Handled;
