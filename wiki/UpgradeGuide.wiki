@@ -26,4 +26,4 @@
     # Disable any plugins (called modules) you will not be using.
     # For all modules you keep enabled, configure them using the corresponding _.cfg_ files located in _cfg/sourcemod_.
     # Restart your server.
-    # Party on dudes.
+    # Party on, dudes.
