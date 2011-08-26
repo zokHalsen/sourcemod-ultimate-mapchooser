@@ -55,7 +55,7 @@
 {
     "Zombie Fortress"
     {
-        "command"  "sm_exec zombie-fortress.cfg"
+        "command"  "exec zombie-fortress.cfg"
         
         "zf_dustbowl" {}
         //...other ZF maps
@@ -63,7 +63,7 @@
 
     "VS Saxton Hale!"
     {
-        "command"  "sm_exec vs-saxton-hale.cfg"
+        "command"  "exec vs-saxton-hale.cfg"
 
         "vsh_Hakurei_Shrine" {}
         //...other VSH maps
