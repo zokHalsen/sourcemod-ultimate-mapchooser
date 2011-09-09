@@ -1,7 +1,7 @@
 #summary Documentation for the Map Rate Map-Reweighting (umc-maprate-reweight) module.
 
 = Purpose =
-  The Map Rate Map-Reweighting module will take the average rating of a map from the [http://forums.alliedmods.net/showthread.php?t=69593 Map Rate] SourceMod plugin and use that value to modify the weights of maps in Ultimate Mapchooser. This module requires the Map Rate plugin to be present in order to work.
+  The Map Rate Map-Reweighting module will take the average rating of a map from the [http://forums.alliedmods.net/showthread.php?t=164455 Map Rate] SourceMod plugin and use that value to modify the weights of maps in Ultimate Mapchooser. This module requires the Map Rate plugin to be present in order to work.
 
   This module will modify the calculated weight of a map by multiplying it's weight value by the calculated average rating from Map Rate. Therefore, maps can be made up to five times more likely to be randomly selected by Ultimate Mapchooser.
 
