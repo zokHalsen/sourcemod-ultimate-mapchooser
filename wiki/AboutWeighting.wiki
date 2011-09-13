@@ -4,7 +4,7 @@
 
   The Weighting system is used when picking maps/groups randomly, in order to specify the "likelihood" of a map/group being picked.
 
-= When Is It Used =
+= When Is It Used? =
 
   The Weighting system is used in various places:  when a vote menu is being populated with maps, maps are chosen from the group at random. How likely a map is going to be picked for inclusion in a vote is determined by its calculated _weight_. This value is calculated via the Weighting system.
 
