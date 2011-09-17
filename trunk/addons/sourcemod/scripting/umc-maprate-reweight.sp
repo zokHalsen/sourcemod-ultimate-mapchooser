@@ -105,8 +105,13 @@ public Action:Command_TestReweight(client, args)
 public OnConfigsExecuted()
 {
     new Handle:cvarTable = FindConVar("maprate_table");
-    new Handle:cvarDbConfig = FindConVar("maprate_db_config");
+    if (cvarTable == INVALID_HANDLE)
+        cvarTable = FindConVar("sm_maprate_table");
     
+    new Handle:cvarDbConfig = FindConVar("maprate_db_config");
+    if (cvarDbConfig == INVALID_HANDLE)
+        cvarDbConfig = FindConVar("sm_maprate_db_config");
+        
     if (cvarTable != INVALID_HANDLE && cvarDbConfig != INVALID_HANDLE)
     {
         GetConVarString(cvarTable, table_name, sizeof(table_name));
@@ -121,7 +126,7 @@ public OnConfigsExecuted()
     {
         LogError("Plugin \"Map Rate\" is not loaded, cannot determine which SQL table to look for ratings in.");
         SetFailState("Plugin \"Map Rate\" is not loaded.");
-    }    
+    }
 }
 
 

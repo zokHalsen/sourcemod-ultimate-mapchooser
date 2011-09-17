@@ -788,7 +788,7 @@ DisplayGroupSelectMenu(client)
     new Handle:voteArray;
     GetTrieValue(menu_tries[client], "maps", voteArray);
     if (GetArraySize(voteArray) > 1)
-        InsertMenuItem(menu, 0, VOTE_POP_STOP_INFO, "Stop Adding Maps");
+        InsertMenuItem(menu, 0, VOTE_POP_STOP_INFO, "Stop Adding Maps"); //TODO: Make Translation
     
     DisplayMenu(menu, client, 0);
 }

@@ -94,6 +94,7 @@ public OnPluginStart()
     //Hook end of game.
     HookEventEx("dod_game_over",      Event_GameEnd); //DoD
     HookEventEx("teamplay_game_over", Event_GameEnd); //TF2
+    HookEventEx("tf_game_over",       Event_GameEnd); //TF2 (mp_winlimit)
     HookEventEx("game_newmap",        Event_GameEnd); //Insurgency
     
     //Hook intermission
@@ -326,7 +327,7 @@ DoRandomNextMap()
 //************************************************************************************************//
 
 //Called when UMC has set a next map.
-public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[])
+public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], const String:display[])
 {
     setting_map = false;
 }

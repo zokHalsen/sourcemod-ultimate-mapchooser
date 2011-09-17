@@ -18,13 +18,21 @@ public Plugin:myinfo =
 }
 
 //Cvars
-new Handle:cvar_center = INVALID_HANDLE;
-new Handle:cvar_hint   = INVALID_HANDLE;
+new Handle:cvar_center  = INVALID_HANDLE;
+new Handle:cvar_hint    = INVALID_HANDLE;
+new Handle:cvar_display = INVALID_HANDLE;
 
 
 //Called when the plugin loads.
 public OnPluginStart()
 {
+    cvar_display = CreateConVar(
+        "sm_umc_echonextmap_display",
+        "0",
+        "If enabled, the displayed map name will be the real name of the map, not the name taken from the map's \"display\" setting.",
+        0, true, 0.0, true, 1.0
+    );
+
     cvar_center = CreateConVar(
         "sm_umc_echonextmap_center",
         "1",
@@ -48,18 +56,26 @@ public OnPluginStart()
 
 
 //Called when UMC has set the next map.
-public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[])
+public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], const String:display[])
 {
+    new bool:disp = GetConVarBool(cvar_display);
+
     if (GetConVarBool(cvar_center))
     {
         decl String:msg[256];
-        Format(msg, sizeof(msg), "[UMC] %t", "Next Map", map);
+        if (disp && strlen(display) > 0)
+            Format(msg, sizeof(msg), "[UMC] %t", "Next Map", display);
+        else
+            Format(msg, sizeof(msg), "[UMC] %t", "Next Map", map);
         DisplayServerMessage(msg, "C");
         //PrintCenterTextAll("[UMC] %t", "Next Map", map);
     }
     if (GetConVarBool(cvar_hint))
     {
-        PrintHintTextToAll("[UMC] %t", "Next Map", map);
+        if (disp && strlen(display) > 0)
+            PrintHintTextToAll("[UMC] %t", "Next Map", display);
+        else
+            PrintHintTextToAll("[UMC] %t", "Next Map", map);
     }
 }
 

@@ -340,7 +340,7 @@ public OnPluginStart()
         HookEventEx("game_round_end",         Event_RoundEnd); //Hidden: Source, Neotokyo
         HookEventEx("teamplay_win_panel",     Event_RoundEndTF2); //TF2
         HookEventEx("arena_win_panel",        Event_RoundEndTF2); //TF2
-        HookEventEx("teamplay_restart_round", Event_TFRestartRound); //TF2
+        HookEventEx("teamplay_restart_round", Event_TFRestartRound); //TF2	
     }
     
     //Hook score.
@@ -599,7 +599,6 @@ public Event_TFRestartRound(Handle:evnt, const String:name[], bool:dontBroadcast
     if (cvar_maxrounds != INVALID_HANDLE)
     {
         //Update our vote warnings.
-        //UpdateVoteWarnings(.round=warnings_round_enabled, .frag=warnings_frag_enabled);
         Call_StartForward(round_update_forward);
         Call_PushCell(GetConVarInt(cvar_maxrounds) - GetConVarInt(cvar_start_rounds));
         Call_Finish();
@@ -1247,7 +1246,7 @@ public UMC_OnMapExtended()
 
 
 //Called when UMC has set a next map.
-public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[])
+public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], const String:display[])
 {
     DestroyTimers();
     vote_enabled = false;

@@ -319,8 +319,13 @@ bool:DisplayNominationMenu(client)
     //    ...the menu was built successfully.
     if (menu != INVALID_HANDLE)
     {
-        //LogMessage("DEBUG: displaying menu.");
+#if UMC_DEBUG
+        new bool:result = DisplayMenu(menu, client, 0);
+        DEBUG_MESSAGE("Displaying nomination menu to client. (%i)", result);
+        return result;
+#else
         return DisplayMenu(menu, client, 0);
+#endif
     }
     return false;
 }
@@ -619,7 +624,7 @@ public UMC_RequestReloadMapcycle()
 
 
 //Called when UMC has set a next map.
-public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[])
+public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], const String:display[])
 {
     vote_completed = true;
 }

@@ -666,13 +666,7 @@ stock SetupMapChange(UMC_ChangeMapTime:action, const String:map[], const String:
             //Limit the remaining rounds to 1.
             SetConVarInt(cvarMaxRounds, 1);
             
-            //Get the next map.
-            decl String:nmap[MAP_LENGTH];
-            GetNextMap(nmap, sizeof(nmap));
-            
-            //Set the map to be the next map played.
-            if (!StrEqual(map, nmap))
-                SetTheNextMap(map);
+            SetTheNextMap(map);
             
             //Print a message.
             PrintToChatAll("\x03[UMC]\x01 %t", "Map Change at Round End");
