@@ -750,7 +750,7 @@ public Handle_YesNoMapVote(Handle:menu, num_votes, num_clients, const client_inf
 //************************************************************************************************//
 
 //Called when UMC has set a next map.
-public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[])
+public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], const String:display[])
 {
     //TODO: Eventually handle what to do with Player Limits when a nextmap has already been set.
     

@@ -516,7 +516,7 @@ DisplayVoteWarning(Handle:warning, param=0)
 //                                   UMC END OF MAP VOTE EVENTS                                   //
 //************************************************************************************************//
 
-public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[])
+public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], const String:display[])
 {
     //Stop displaying any warnings.
     DisplayServerMessage("", "");

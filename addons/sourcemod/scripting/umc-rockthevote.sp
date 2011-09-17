@@ -847,7 +847,7 @@ public UMC_OnVoteFailed()
 
 
 //Called when UMC has set a next map.
-public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[])
+public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], const String:display[])
 {
     DEBUG_MESSAGE("Next Map has been set by UMC. Setting vote_completion flag to true")
     vote_completed = true;

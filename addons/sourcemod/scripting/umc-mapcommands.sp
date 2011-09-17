@@ -42,7 +42,7 @@ public OnConfigsExecuted()
 
 
 //Called when UMC has set the next map.
-public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[])
+public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], const String:display[])
 {
     if (kv == INVALID_HANDLE)
         return;

@@ -37,7 +37,12 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
-3.2.2 (8/10/11)
+3.2.3 (9/17/11)
+Updated Map Rate Map-Reweighting module to conform with the new Map Rate RELOADED cvars.
+Fixed issue in TF2 where maps ending due to the mp_winlimit cvar would not trigger Random Mapcycle map selection.
+Fixed issue with Tiered Votes where "Extend" and "Don't Change" options were not properly handled.
+
+3.2.2 (8/11/11)
 Added new Post-Played Exclusion module, giving the ability to specify a period of time after a map is played that it should be excluded. (Thanks Sazpaimon!)
 Fixed bug which caused runoff votes to fail immediately when maximum amount of runoffs is set to 0 (infinite).
 Fixed issue with invalid translation phrase in the ADMINMENU module.
@@ -393,10 +398,15 @@ Initial Release
 */
 
 //TODO / IDEAS:
+//    ***Need to find a cleaner/clearer way to handle case where nominations are only used in certain modules.
+//        -Solution 1: new "display-group" option that mimicks the "display" option for maps (but this is for groups).
+//        -Solution 2: implement mapcycle-level options (to complement group and map options).
 //  Take nominations into account when selecting a random map.
 //  Add cvar to control where nominations are placed in the vote (on top vs. scrambled)
 //  Possible Bug: map change (sm_map or changelevel) after a vote completes can set the wrong 
 //                current_cat. I'm not exactly sure how to fix this.
+//                PERHAPS: store the next map, whent he map changes compare the current map to the one we have
+//                         stored. If they are different, set the current_cat to INVALID_GROUP.
 //  New mapexclude_strict cvar that doesn't take map group into account when excluding previously played maps.
 //  In situations where we're filtering a list of map tries (map/group tries) for a specific
 //      group, it may be easier to store it instead as a trie of groups, where each group points
@@ -705,7 +715,7 @@ public OnPluginStart()
     extend_forward = CreateGlobalForward("UMC_OnMapExtended", ET_Ignore);
     
     nextmap_forward = CreateGlobalForward(
-        "UMC_OnNextmapSet", ET_Ignore, Param_Cell, Param_String, Param_String
+        "UMC_OnNextmapSet", ET_Ignore, Param_Cell, Param_String, Param_String, Param_String
     );
     
     failure_forward = CreateGlobalForward("UMC_OnVoteFailed", ET_Ignore);
@@ -1232,7 +1242,7 @@ public Native_UMCSetNextMap(Handle:plugin, numParams)
     decl String:reason[PLATFORM_MAX_PATH];
     GetPluginFilename(plugin, reason, sizeof(reason));
     
-    DoMapChange(when, kv, map, group, reason);
+    DoMapChange(when, kv, map, group, reason, map);
 }
 
 
@@ -1343,8 +1353,7 @@ public Action:Command_SetNextmap(client, args)
         when = UMC_ChangeMapTime:StringToInt(whenArg);
     }
     
-    //SetNextMap(map);
-    DoMapChange(when, INVALID_HANDLE, map, INVALID_GROUP, "sm_setnextmap");
+    DoMapChange(when, INVALID_HANDLE, map, INVALID_GROUP, "sm_setnextmap", map);
     
     //TODO: Make this a translation
     ShowActivity(client, "Changed nextmap to \"%s\".", map);
@@ -3059,7 +3068,7 @@ public Handle_MapVoteWinner(const String:info[], const String:disp[], Float:perc
         GetTrieValue(mapData, "mapcycle", mapcycle);
         
         //Set it.
-        DoMapChange(change_map_when, mapcycle, map, group, stored_reason);
+        DoMapChange(change_map_when, mapcycle, map, group, stored_reason, disp);
         
         LogMessage("MAPVOTE: Players voted for map '%s' from group '%s'", map, group);
     }
@@ -3217,14 +3226,14 @@ public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:perce
                 
                 GetTrieString(trie, "nom_group", nomGroup, sizeof(nomGroup));
                 
-                DoMapChange(change_map_when, nomKV, map, nomGroup, stored_reason);
+                DoMapChange(change_map_when, nomKV, map, nomGroup, stored_reason, map);
             }
             else //Otherwise, we select a map randomly from the category.
             {
                 DEBUG_MESSAGE("Couldn't select a random nomination [you shouldn't ever see this...]")
             
                 GetRandomMap(kv, map, sizeof(map));
-                DoMapChange(change_map_when, stored_mapcycle, map, cat, stored_reason);
+                DoMapChange(change_map_when, stored_mapcycle, map, cat, stored_reason, map);
             }
             
             //Close the handles for the storage arrays.
@@ -3237,7 +3246,7 @@ public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:perce
         {
             DEBUG_MESSAGE("No nominations, selecting a random map from the winning group")
             GetRandomMap(kv, map, sizeof(map)); //, stored_exmaps, stored_exgroups);
-            DoMapChange(change_map_when, stored_mapcycle, map, cat, stored_reason);
+            DoMapChange(change_map_when, stored_mapcycle, map, cat, stored_reason, map);
             DEBUG_MESSAGE("Map selected was %s", map)
         }
         
@@ -3298,6 +3307,7 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
         );
         LogMessage("MAPVOTE: Players voted to extend the map.");
         DeleteVoteParams();
+        ExtendMap();
     }
     else if (StrEqual(cat, DONT_CHANGE_OPTION))
     {
@@ -3312,6 +3322,7 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
         
         LogMessage("MAPVOTE: Players voted to stay on the map (Don't Change).");
         DeleteVoteParams();
+        VoteFailed();
     }
     else //Otherwise, we set up the second stage of the tiered vote
     {
@@ -3507,7 +3518,7 @@ VoteFailed()
 
 //Sets the next map and when to change to it.
 DoMapChange(UMC_ChangeMapTime:when, Handle:kv, const String:map[], const String:group[],
-            const String:reason[])
+            const String:reason[], const String:display[]="")
 {
     vote_inprogress = false;
     
@@ -3518,6 +3529,7 @@ DoMapChange(UMC_ChangeMapTime:when, Handle:kv, const String:map[], const String:
     {
         DEBUG_MESSAGE("Setting RoundEnd Flags (no mp_maxrounds cvar)")
         change_map_round = true;
+        SetTheNextMap(map);
     }
     else
         SetupMapChange(when, map, reason);
@@ -3534,6 +3546,7 @@ DoMapChange(UMC_ChangeMapTime:when, Handle:kv, const String:map[], const String:
     Call_PushCell(new_kv);
     Call_PushString(map);
     Call_PushString(group);
+    Call_PushString(display);
     Call_Finish();
 }
 

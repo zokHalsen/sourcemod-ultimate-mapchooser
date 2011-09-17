@@ -7,7 +7,7 @@
 
 #pragma semicolon 1
 
-#define PL_VERSION "3.2.2"
+#define PL_VERSION "3.2.3"
 
 #define UMC_DEBUG 0
 
@@ -53,7 +53,6 @@ enum UMC_RunoffFailAction
  * @noreturn
  */
 forward OnNominationRemoved(const String:map[], client);
- 
 
 
 /**
@@ -140,8 +139,8 @@ native bool:UMC_StartVote(Handle:mapcycle, Handle:originalMapcycle, UMC_VoteType
     UMC_ChangeMapTime:successAction, UMC_VoteFailAction:failAction, maxRunoffs, maxRunoffMaps,
     UMC_RunoffFailAction:runoffFailAction, const String:runoffSound[], bool:nominationStrictness,
     bool:allowDuplicates, const String:adminFlags[], bool:runExclusion=true);
-
-
+    
+    
 /**
  * Fetches a random map from a given map group in a given mapcycle.
  *
@@ -290,13 +289,14 @@ forward UMC_OnVoteFailed(); //UMC_FailReason:reason);
 /**
  * Called immediately after UMC has set a next map.
  *
- * @param map   The name of the winning map.
- * @param group The group fo the winning map.
  * @param kv    The mapcycle used for the vote.
+ * @param map   The name of the winning map.
+ * @param group The group of the winning map.
+ * @param display	The "display name" of the winning map.
  * 
  * @noreturn
  */
-forward UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[]);
+forward UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], const String:display[]);
 
 
 /**
@@ -336,15 +336,31 @@ native bool:UMC_StopVote();
 
 
 /**
+ * Adds a new vote option to the current vote menu at the given position.
+ * 
+ * @param winningAction Callback function for when this is the winning option of a UMC vote.
+ * @param position  Position in the menu where this item should be placed.
+ * @param info  Unique identifier string for this menu option.
+ * @param display   String to be displayed in the vote.
  *
- */
-native UMC_LockVoteSystem();
+native UMC_AddMenuOption(UMC_VoteOptionHandler:winningAction, position, const String:info[],
+                         const String:display[]);
 
 
-/**
+**
+ * 
  *
- */
-native UMC_UnlockVoteSystem();
+functag public UMC_VoteOptionHandler(Handle:menu, Handle:percentage, Handle:totalVotes);
+
+
+**
+ * Called when UMC is about to start a vote. Allows plugins to manipulate a UMC vote before it
+ * takes place.
+ * 
+ * @param voteMenu  Handle to the menu which is to be used in the upcoming UMC vote.
+ *
+forward UMC_OnVoteMenuCreated(Handle:voteMenu);
+*/
 
 
 //SourceMod Malarky
@@ -375,6 +391,5 @@ public __pl_umccore_SetNTVOptional()
     MarkNativeAsOptional("UMC_FilterMapcycle");
     MarkNativeAsOptional("UMC_IsVoteInProgress");
     MarkNativeAsOptional("UMC_StopVote");
-    MarkNativeAsOptional("UMC_LockVoteSystem");
-    MarkNativeAsOptional("UMC_UnlockVoteSystem");
+    //MarkNativeAsOptional("UMC_AddMenuOption");
 }
