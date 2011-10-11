@@ -11,3 +11,8 @@ To fix this, you can specify which group a nomination should belong to by using 
 ==Why is only one map/only nominated maps appearing in the vote?==
 
 You probably forgot to set *maps_invote* in your UMC Mapcycle definition. This option specifies how many maps from a Map Group to be included in a vote. If it is not set, it defaults to 1.
+
+
+==How do you use Ultimate Mapchooser in conjunction with GunGame?==
+
+There are several versions of GunGame around. The one recommended for use with UMC is the SourceMod variant, which you can download [http://forums.alliedmods.net/showthread.php?t=93977 here]. To use UMC with SM GunGame, first make sure the [ModuleVoteCommand Vote Command module] is enabled and configured. Then, add the *sm_umc_mapvote* command (with appropriate arguments for how you want the vote to run) to the _gungame.mapvote.cfg_ GunGame configuration file, located in the _cfg/gungame_ directory.
