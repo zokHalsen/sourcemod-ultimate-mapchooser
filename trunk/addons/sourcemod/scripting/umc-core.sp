@@ -12,12 +12,11 @@
 #include <sourcemod>
 #include <sdktools_sound>
 
-//#undef REQUIRE_PLUGIN
+#undef REQUIRE_PLUGIN
 
 //Auto update
-//#include <autoupdate.inc>
-//#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser"
-//#define UPDATE_XML "/plugins.xml"
+#include <updater>
+#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-core.txt"
 
 //Some definitions
 #define DONT_CHANGE_OPTION "?DontChange?"
@@ -37,6 +36,11 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
+3.2.4 (10/12/11)
+Added new feature to the End of Map Vote module that delays a vote for a certain amount of time after it is triggered due to a round ending.
+-New cvar "roundend_delaystart" to control this feature.
+Fixed bug in Player Count Monitoring where an incorrect translation phrase was breaking Yes/No votes.
+
 3.2.3 (9/17/11)
 Updated Map Rate Map-Reweighting module to conform with the new Map Rate RELOADED cvars.
 Fixed issue in TF2 where maps ending due to the mp_winlimit cvar would not trigger Random Mapcycle map selection.
@@ -554,6 +558,7 @@ RunTests()
 }
 #endif
 
+
 //************************************************************************************************//
 //                                        SOURCEMOD EVENTS                                        //
 //************************************************************************************************//
@@ -719,11 +724,30 @@ public OnPluginStart()
     );
     
     failure_forward = CreateGlobalForward("UMC_OnVoteFailed", ET_Ignore);
-
-    #if RUNTESTS
+    
+#if AUTOUPDATE_ENABLE
+    if (LibraryExists("updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+#endif
+    
+#if RUNTESTS
     RunTests();
-    #endif
+#endif
 }
+
+
+#if AUTOUPDATE_ENABLE
+//Called when a new API library is loaded. Used to register UMC auto-updating.
+public OnLibraryAdded(const String:name[])
+{
+    if (StrEqual(name, "updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+}
+#endif
 
 
 //************************************************************************************************//
@@ -870,7 +894,7 @@ public Native_UMCCreateMapArray(Handle:plugin, numParams)
     
     CloseHandle(kv);
     
-    return _:result;
+    return _:CloseAndClone(result, plugin);
 }
 
 
@@ -954,7 +978,7 @@ public Native_UMCCreateGroupArray(Handle:plugin, numParams)
     
     CloseHandle(kv);
     
-    return _:result;
+    return _:CloseAndClone(result, plugin);
 }
 
 

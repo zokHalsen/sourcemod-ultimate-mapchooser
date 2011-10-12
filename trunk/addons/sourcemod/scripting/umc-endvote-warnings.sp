@@ -11,6 +11,12 @@
 #include <umc-core>
 #include <umc_utils>
 
+#undef REQUIRE_PLUGIN
+
+//Auto update
+#include <updater>
+#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-endvote-warnings.txt"
+
 public Plugin:myinfo =
 {
     name = "[UMC] End of Map Vote Warnings",
@@ -84,7 +90,26 @@ public OnPluginStart()
     win_array   = CreateArray();
     
     LoadTranslations("ultimate-mapchooser.phrases");
+
+#if AUTOUPDATE_ENABLE
+    if (LibraryExists("updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+#endif
 }
+
+
+#if AUTOUPDATE_ENABLE
+//Called when a new API library is loaded. Used to register UMC auto-updating.
+public OnLibraryAdded(const String:name[])
+{
+    if (StrEqual(name, "updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+}
+#endif
 
 
 public OnConfigsExecuted()

@@ -12,6 +12,10 @@
 #undef REQUIRE_PLUGIN
 #include <mapchooser>
 
+//Auto update
+#include <updater>
+#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-endvote.txt"
+
 //Plugin Information
 public Plugin:myinfo =
 {
@@ -50,6 +54,7 @@ new Handle:cvar_vote_endsound        = INVALID_HANDLE;
 new Handle:cvar_vote_catmem          = INVALID_HANDLE;
 new Handle:cvar_vote_roundend        = INVALID_HANDLE;
 new Handle:cvar_flags                = INVALID_HANDLE;
+new Handle:cvar_delay                = INVALID_HANDLE;
         ////----/CONVARS-----/////
 
 //Mapcycle KV
@@ -136,6 +141,13 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 //Called when the plugin is finished loading.
 public OnPluginStart()
 {
+    cvar_delay = CreateConVar(
+        "sm_umc_endvote_roundend_delaystart",
+        "0",
+        "Delays the vote by the number of seconds specified for votes that are triggered by mp_maxrounds or mp_winlimit.",
+        0, true, 0.0
+    );
+    
     cvar_flags = CreateConVar(
         "sm_umc_endvote_adminflags",
         "",
@@ -385,7 +397,26 @@ public OnPluginStart()
     frag_tick_forward = CreateGlobalForward(
         "UMC_EndVote_OnFragTimerTicked", ET_Ignore, Param_Cell, Param_Cell
     );
+
+#if AUTOUPDATE_ENABLE
+    if (LibraryExists("updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+#endif
 }
+
+
+#if AUTOUPDATE_ENABLE
+//Called when a new API library is loaded. Used to register UMC auto-updating.
+public OnLibraryAdded(const String:name[])
+{
+    if (StrEqual(name, "updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+}
+#endif
 
 
 //Called when all plugins for sourcemod have been loaded.
@@ -531,7 +562,7 @@ public Event_RoundEnd(Handle:evnt, const String:name[], bool:dontBroadcast)
     if (vote_roundend)
     {
         vote_roundend = false;
-        StartMapVote();
+        StartMapVoteRoundEnd();
     }
     
     new winner = GetEventInt(evnt, "winner");
@@ -561,7 +592,7 @@ public Event_RoundEndTF2(Handle:evnt, const String:name[], bool:dontBroadcast)
     if (vote_roundend)
     {
         vote_roundend = false;
-        StartMapVote();
+        StartMapVoteRoundEnd();
     }
 
     new bluescore = GetEventInt(evnt, "blue_score");
@@ -962,7 +993,7 @@ CheckWinLimit(winner_score, winning_team)
             {
                 LogMessage("Win limit triggered end of map vote.");
                 DestroyTimers();
-                StartMapVote();
+                StartMapVoteRoundEnd();
             }
             
             //Call the forward
@@ -987,7 +1018,7 @@ CheckMaxRounds(round_count)
             {
                 LogMessage("Round limit triggered end of map vote.");
                 DestroyTimers();
-                StartMapVote();
+                StartMapVoteRoundEnd();
             }
             
             Call_StartForward(round_tick_forward);
@@ -1173,12 +1204,31 @@ SetupMapVote()
 }
 
 
+//Starts a map vote due to the round ending.
+StartMapVoteRoundEnd()
+{
+    new Float:delay = GetConVarFloat(cvar_delay);
+    if (delay == 0.0)
+        StartMapVote();
+    else
+        CreateTimer(delay, Handle_VoteDelayTimer);
+}
+
+
+//
+public Action:Handle_VoteDelayTimer(Handle:timer)
+{
+    StartMapVote();
+    return Plugin_Stop;
+}
+
+
 //Initiates the map vote.
 public StartMapVote()
 {
     if (!vote_enabled)
     {
-        LogMessage("Cancelling map vote.");
+        //LogMessage("Cancelling map vote.");
         return;
     }
 

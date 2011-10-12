@@ -7,6 +7,12 @@
 #include <sourcemod>
 #include <umc-core>
 
+#undef REQUIRE_PLUGIN
+
+//Auto update
+#include <updater>
+#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-weight.txt"
+
 public Plugin:myinfo =
 {
     name = "[UMC] Map Weight",
@@ -18,6 +24,28 @@ public Plugin:myinfo =
 
 #define WEIGHT_KEY_MAP   "weight"
 #define WEIGHT_KEY_GROUP "group_weight"
+
+
+#if AUTOUPDATE_ENABLE
+//
+public OnPluginStart()
+{
+    if (LibraryExists("updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+}
+
+
+//Called when a new API library is loaded. Used to register UMC auto-updating.
+public OnLibraryAdded(const String:name[])
+{
+    if (StrEqual(name, "updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+}
+#endif
 
 
 //Excludes maps with a set weight of 0

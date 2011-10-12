@@ -19,7 +19,7 @@
 
     "Group Vote Menu Title"
     {
-		"es"	"Vote para el próxima categoria de mapas!" 
+		"es"	"Vote por la próxima categoria de mapas!" 
     }
 
     "Extend Map"
@@ -71,7 +71,7 @@
 
     "End of Map Vote Group Won"
     {
-		"es"	"El próximo mapa será '{1},' escojido de la categoria '{2}.'
+		"es"	"El próximo mapa será '{1},' escojido de la categoria '{2}.'"
     }
 
     "Runoff Msg"
@@ -86,7 +86,7 @@
 
     "Player Disconnect RTV"
     {
-		"es"	"Mecer El Voto a sido iniciado gracias al jugador desconectado."
+		"es"	"Mecer el Voto a sido iniciado gracias al jugador desconectado."
     }
 
     "Not Enough Players"
@@ -96,7 +96,7 @@
 
     "Too Many Players"
     {
-		"es"	"Demasiados jugadores en el servidor para jugar el mapa actual. ({1} jugadores maximo)"
+		"es"	"Hay demasiados jugadores en el servidor para jugar el mapa actual. ({1} jugadores maximo)"
     }
 
     "No RTV Player Count"
@@ -121,7 +121,7 @@
 
     "RTV Entered"
     {
-		"es"	"{1} desea Mecer El Voto."
+		"es"	"{1} desea Mecer el Voto."
     }
 
     "RTV Info Msg"
@@ -204,5 +204,14 @@
     "Selective Runoff"
     {
         "es"	"Presentando el menú del voto a los jugadores que no votaron o cuyos votos fueron eliminados."
+    }
+	"No RTV Admin"
+    {
+        "es"    "No tienes los privilegios requeridos para Mecer el Voto."
+    }
+    
+    "No Nominate Admin"
+    {
+        "es"    "No tienes los privilegios requeridos para nominar un mapa."
     }
 }
