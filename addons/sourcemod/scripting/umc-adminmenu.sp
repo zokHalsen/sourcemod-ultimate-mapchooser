@@ -10,6 +10,12 @@
 #include <adminmenu>
 #include <regex>
 
+#undef REQUIRE_PLUGIN
+
+//Auto update
+#include <updater>
+#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-adminmenu.txt"
+
 #define AMMENU_ITEM_INDEX_AUTO 0
 #define AMMENU_ITEM_INDEX_MANUAL 1
 #define AMMENU_ITEM_INFO_AUTO "auto"
@@ -327,7 +333,26 @@ public OnPluginStart()
     //Load the translations file
     LoadTranslations("ultimate-mapchooser.phrases");
     LoadTranslations("ultimate-mapchooser-adminmenu.phrases");
+    
+#if AUTOUPDATE_ENABLE
+    if (LibraryExists("updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+#endif
 }
+
+
+#if AUTOUPDATE_ENABLE
+//Called when a new API library is loaded. Used to register UMC auto-updating.
+public OnLibraryAdded(const String:name[])
+{
+    if (StrEqual(name, "updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+}
+#endif
 
 
 //************************************************************************************************//

@@ -7,6 +7,12 @@
 #include <sourcemod>
 #include <umc-core>
 
+#undef REQUIRE_PLUGIN
+
+//Auto update
+#include <updater>
+#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-mapcommands.txt"
+
 public Plugin:myinfo =
 {
     name = "[UMC] Map Commands",
@@ -21,6 +27,29 @@ public Plugin:myinfo =
 
 /* Globals */
 new String:group_command[256], String:map_command[256];
+
+
+#if AUTOUPDATE_ENABLE
+//
+public OnPluginStart()
+{
+    if (LibraryExists("updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+}
+
+
+//Called when a new API library is loaded. Used to register UMC auto-updating.
+public OnLibraryAdded(const String:name[])
+{
+    if (StrEqual(name, "updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+}
+#endif
+
 
 //Execute commands after all configs have been executed.
 public OnConfigsExecuted()

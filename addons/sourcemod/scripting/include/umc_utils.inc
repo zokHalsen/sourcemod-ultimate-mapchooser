@@ -319,8 +319,7 @@ stock DisplayServerMessage(const String:msg[], const String:type[])
         CloseHandle(hKv);
     }
     
-    // Remove colors from advertisement, because
-    // C,H,M methods do not support colors.
+    // Remove colors, because C,H,M methods do not support colors.
     
     //Remove a color from the message string for...
     //    ...each color in the Say color array.
@@ -1201,4 +1200,13 @@ stock KvDeleteAllSubKeys(Handle:kv)
         if (KvDeleteThis(kv) == -1)
             return;
     }
+}
+
+
+//
+stock Handle:CloseAndClone(Handle:hndl, Handle:newOwner)
+{
+    new Handle:result = CloneHandle(hndl, newOwner);
+    CloseHandle(hndl);
+    return result;
 }

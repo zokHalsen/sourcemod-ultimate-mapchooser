@@ -7,9 +7,11 @@
 
 #pragma semicolon 1
 
-#define PL_VERSION "3.2.3"
+#define PL_VERSION "3.2.4"
 
 #define UMC_DEBUG 0
+
+#define AUTOUPDATE_ENABLE 1
 
 #define INVALID_GROUP ""
 #define MAP_LENGTH 64

@@ -8,6 +8,12 @@
 #include <umc-core>
 #include <umc_utils>
 
+#undef REQUIRE_PLUGIN
+
+//Auto update
+#include <updater>
+#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-timelimits.txt"
+
 public Plugin:myinfo =
 {
     name = "[UMC] Time Limits",
@@ -45,7 +51,27 @@ public OnPluginStart()
     );
     
     AutoExecConfig(true, "umc-timelimits");
+
+#if AUTOUPDATE_ENABLE
+    if (LibraryExists("updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+#endif
 }
+
+
+#if AUTOUPDATE_ENABLE
+//Called when a new API library is loaded. Used to register UMC auto-updating.
+public OnLibraryAdded(const String:name[])
+{
+    if (StrEqual(name, "updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+}
+#endif
+
 
 //Called when UMC wants to know if this map is excluded
 public Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const String:group[],

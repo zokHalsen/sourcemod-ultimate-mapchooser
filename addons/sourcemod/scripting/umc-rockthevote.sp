@@ -8,6 +8,12 @@
 #include <umc-core>
 #include <umc_utils>
 
+#undef REQUIRE_PLUGIN
+
+//Auto update
+#include <updater>
+#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-rockthevote.txt"
+
 //Plugin Information
 public Plugin:myinfo =
 {
@@ -302,7 +308,26 @@ public OnPluginStart()
     
     //Load the translations file
     LoadTranslations("ultimate-mapchooser.phrases");
+
+#if AUTOUPDATE_ENABLE
+    if (LibraryExists("updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+#endif
 }
+
+
+#if AUTOUPDATE_ENABLE
+//Called when a new API library is loaded. Used to register UMC auto-updating.
+public OnLibraryAdded(const String:name[])
+{
+    if (StrEqual(name, "updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+}
+#endif
 
 
 //************************************************************************************************//
@@ -709,7 +734,7 @@ MakeRTVTimer()
     if (rtv_delaystart > 0)
     {
         //Log a message
-        LogMessage("RTV: RTV will be made available in %.f seconds.", rtv_delaystart);
+        LogMessage("RTV will be made available in %.f seconds.", rtv_delaystart);
         
         //Create timer that lasts every second.
         CreateTimer(
@@ -722,7 +747,7 @@ MakeRTVTimer()
     else
     {
         //rtv_enabled = true;
-        LogMessage("RTV: RTV is now available.");
+        LogMessage("RTV is now available.");
     }
 }
 
@@ -739,7 +764,7 @@ public Action:Handle_RTVTimer(Handle:timer)
     
     //rtv_enabled = true;
     
-    LogMessage("RTV: RTV is now available.");
+    LogMessage("RTV is now available.");
     
     //Stop the timer.
     return Plugin_Stop;
@@ -758,7 +783,7 @@ UpdateRTVThreshold(count)
 //Starts an RTV.
 public StartRTV()
 {
-    LogMessage("RTV: Starting RTV.");
+    LogMessage("Starting RTV.");
     
     //Clear the array of clients who have entered RTV.
     ClearArray(rtv_clients);
@@ -775,7 +800,7 @@ public StartRTV()
         decl String:temp[MAP_LENGTH];
         GetNextMap(temp, sizeof(temp));
         
-        LogMessage("RTV: End of map vote has already been completed, changing map.");
+        LogMessage("End of map vote has already been completed, changing map.");
         
         //Change to it.
         ForceChangeInFive(temp, "RTV");
@@ -788,7 +813,7 @@ public StartRTV()
         //    ...there is a vote already in progress.
         if (IsVoteInProgress()) 
         {
-            LogMessage("RTV: There is a vote already in progress, cannot start a new vote.");
+            LogMessage("There is a vote already in progress, cannot start a new vote.");
             MakeRetryVoteTimer(StartRTV);
             return;
         }

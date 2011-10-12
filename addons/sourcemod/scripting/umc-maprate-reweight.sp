@@ -7,6 +7,12 @@
 #include <sourcemod>
 #include <umc-core>
 
+#undef REQUIRE_PLUGIN
+
+//Auto update
+#include <updater>
+#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-maprate-reweight.txt"
+
 //Welcome to UMC Map Rate Reweight by Steell!
 /**
  * This plugin is meant to serve as a functional and useful example of Ultimate Mapchooser's
@@ -76,7 +82,26 @@ public OnPluginStart()
     );
     
     map_ratings = CreateTrie();
+
+#if AUTOUPDATE_ENABLE
+    if (LibraryExists("updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+#endif
 }
+
+
+#if AUTOUPDATE_ENABLE
+//Called when a new API library is loaded. Used to register UMC auto-updating.
+public OnLibraryAdded(const String:name[])
+{
+    if (StrEqual(name, "updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+}
+#endif
 
 
 //sm_umc_maprate_testreweight <map>

@@ -12,6 +12,10 @@
 #undef REQUIRE_PLUGIN
 #include <umc-playerlimits>
 
+//Auto update
+#include <updater>
+#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-playercountmonitor.txt"
+
 #define NO_OPTION "?no?"
 
 enum PlayerLimit_Action
@@ -264,7 +268,26 @@ public OnPluginStart()
     
     //Load the translations file
     LoadTranslations("ultimate-mapchooser.phrases");
+
+#if AUTOUPDATE_ENABLE
+    if (LibraryExists("updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+#endif
 }
+
+
+#if AUTOUPDATE_ENABLE
+//Called when a new API library is loaded. Used to register UMC auto-updating.
+public OnLibraryAdded(const String:name[])
+{
+    if (StrEqual(name, "updater"))
+    {
+        Updater_AddPlugin(UPDATE_URL);
+    }
+}
+#endif
 
 
 //************************************************************************************************//
@@ -733,7 +756,7 @@ public Handle_YesNoMapVote(Handle:menu, num_votes, num_clients, const client_inf
         PrintToChatAll(
             "\x03[UMC]\x01 %t %t (%t)",
             "End of Map Vote Over",
-            "RTV Map Won",
+            "End of Map Vote Map Won",
                 map,
             "Vote Win Percentage",
                 float(item_info[0][VOTEINFO_ITEM_VOTES]) / float(num_votes) * 100,
