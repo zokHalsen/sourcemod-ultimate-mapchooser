@@ -564,7 +564,7 @@ public UMCMenu_MapVote(Handle:topmenu, TopMenuAction:action, TopMenuObject:objec
 {
     if (action == TopMenuAction_DisplayOption)
     {
-        if (UMC_IsVoteInProgress())
+        if (UMC_IsVoteInProgress("core")) //TODO FIXME
             Format(buffer, maxlength, "%T", "AM Stop Vote", client);
         else
             Format(buffer, maxlength, "%T", "AM Start Vote", client);
@@ -615,9 +615,9 @@ public UMCMenu_MapVote(Handle:topmenu, TopMenuAction:action, TopMenuObject:objec
             bool UsingDefaults(client)
         */
         
-        if (UMC_IsVoteInProgress())
+        if (UMC_IsVoteInProgress("core")) //TODO FIXME
         {
-            UMC_StopVote();
+            UMC_StopVote("core"); //TODO FIXME
             RedisplayAdminMenu(topmenu, client);
         }
         else
@@ -1865,6 +1865,7 @@ DoMapVote(client)
     DEBUG_MESSAGE("Calling native")
     
     UMC_StartVote(
+        "core",
         mapcycle, umc_mapcycle, type, GetConVarInt(cvar_vote_time), scramble,
         GetConVarInt(cvar_block_slots), vote_start_sound, vote_end_sound, extend,
         GetConVarFloat(cvar_extend_time), GetConVarInt(cvar_extend_rounds),

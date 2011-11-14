@@ -14,7 +14,7 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-endvote.txt"
+#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-endvote.txt"
 
 //Plugin Information
 public Plugin:myinfo =
@@ -419,35 +419,6 @@ public OnLibraryAdded(const String:name[])
 #endif
 
 
-//Called when all plugins for sourcemod have been loaded.
-/*public OnAllPluginsLoaded()
-{ 
-    //Setup autoupdating if...
-    //  ...the auto update plugin is loaded.
-    if (LibraryExists("pluginautoupdate"))
-    {
-        AutoUpdate_AddPlugin(UPDATE_URL, UPDATE_XML, PL_VERSION);
-        LogMessage("SETUP: Auto-updating has been successfully setup.");
-    }
-}*/
-
-
-//Called when the plugin is about to be deactived. Used to reset all modified cvars (limit cvars).
-/*public OnPluginEnd()
-{
-    //Reset all modified cvars to original values.
-    RestoreCvars();
-    
-    //Remove auto updating if...
-    //  ...the auto update plugin is loaded.
-    if (LibraryExists("pluginautoupdate"))
-    {
-        AutoUpdate_RemovePlugin();
-        LogMessage("CLEANUP: Auto-updating has been successfully disabled.");
-    }
-}*/
-
-
 //************************************************************************************************//
 //                                           GAME EVENTS                                          //
 //************************************************************************************************//
@@ -740,6 +711,7 @@ MakeVoteTimer()
         new winScore;
         new winTeam = GetWinningTeam(winScore);
         start = GetConVarInt(cvar_winlimit) - GetConVarInt(cvar_start_rounds) - winScore;
+        DEBUG_MESSAGE("Cvar (mp_winlimit): %i, Cvar (startrounds): %i, WinnerScore: %i", GetConVarInt(cvar_winlimit), GetConVarInt(cvar_start_rounds), winScore)
         if (start > 0)
             LogMessage("End of map vote will appear after %i more wins.", start);
         
@@ -1139,7 +1111,7 @@ bool:SetTimerTriggerTime()
     
     //Update Vote Warnings if vote warnings are enabled.
     Call_StartForward(time_update_forward);
-    Call_PushCell(triggertime);
+    Call_PushCell(RoundToFloor(triggertime));
     Call_Finish();
     
     return result;
@@ -1253,6 +1225,7 @@ public StartMapVote()
     
     //Start the UMC vote.
     UMC_StartVote(
+        "core",
         map_kv,                                                     //Mapcycle
         umc_mapcycle,                                               //Full mapcycle
         UMC_VoteType:GetConVarInt(cvar_vote_type),                  //Vote Type (map, group, tiered)

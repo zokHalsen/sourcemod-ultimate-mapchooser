@@ -14,7 +14,7 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-playercountmonitor.txt"
+#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-playercountmonitor.txt"
 
 #define NO_OPTION "?no?"
 
@@ -602,7 +602,7 @@ ChangeToValidMap(Handle:cvar)
             
                 //Run the yes/no vote if...
                 //    ...there isn't already a vote in progress.
-                if (!IsVoteInProgress() && !UMC_IsVoteInProgress())
+                if (!IsVoteInProgress() && !UMC_IsVoteInProgress("core"))
                 {
                     //Initialize the menu.
                     new Handle:menu = CreateMenu(Handle_YesNoVoteMenu, 
@@ -652,6 +652,7 @@ ChangeToValidMap(Handle:cvar)
             
                 //Start the UMC vote.
                 UMC_StartVote(
+                    "core",
                     map_kv,                                                     //Mapcycle
                     umc_mapcycle,                                               //Complete mapcycle
                     UMC_VoteType:GetConVarInt(cvar_vote_type),                  //Vote Type (map, group, tiered)

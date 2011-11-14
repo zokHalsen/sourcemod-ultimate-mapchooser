@@ -1,5 +1,4 @@
 //Header file for Ultimate Mapchooser v3.0 by Steell.
-
 #if defined _umc_core_included
     #endinput
 #endif
@@ -18,6 +17,9 @@
 
 #define MAP_TRIE_MAP_KEY   "map"
 #define MAP_TRIE_GROUP_KEY "group"
+
+#define DONT_CHANGE_OPTION "?DontChange?"
+#define EXTEND_MAP_OPTION "?Extend?"
 
 enum UMC_VoteType
 {
@@ -43,6 +45,14 @@ enum UMC_RunoffFailAction
 {
     RunoffFailAction_Nothing = 0,
     RunoffFailAction_Accept
+}
+
+enum UMC_VoteResponse
+{
+    VoteResponse_Success = 0,
+    VoteResponse_Runoff,
+    VoteResponse_Tiered,
+    VoteResponse_Fail
 }
 
 
@@ -108,6 +118,7 @@ forward Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const St
 /**
  * Starts a UMC map vote.
  *
+ * @param id
  * @param mapcycle  The mapcycle to use for the vote.
  * @param originalMapcycle  Original mapcycle, contains all information the user has defined.
  * @param type  The type of vote.
@@ -135,12 +146,13 @@ forward Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const St
  * 
  * @return True on success, false on failure.
  */
-native bool:UMC_StartVote(Handle:mapcycle, Handle:originalMapcycle, UMC_VoteType:type, time, 
-    bool:scramble, numBlockSlots, const String:startSound[], const String:endSound[],
-    bool:extendOption, Float:timestep, roundstep, fragstep, bool:dontChangeOption, Float:threshold,
-    UMC_ChangeMapTime:successAction, UMC_VoteFailAction:failAction, maxRunoffs, maxRunoffMaps,
-    UMC_RunoffFailAction:runoffFailAction, const String:runoffSound[], bool:nominationStrictness,
-    bool:allowDuplicates, const String:adminFlags[], bool:runExclusion=true);
+native bool:UMC_StartVote(const String:id[], Handle:mapcycle, Handle:originalMapcycle,
+    UMC_VoteType:type, time, bool:scramble, numBlockSlots, const String:startSound[],
+    const String:endSound[], bool:extendOption, Float:timestep, roundstep, fragstep,
+    bool:dontChangeOption, Float:threshold, UMC_ChangeMapTime:successAction,
+    UMC_VoteFailAction:failAction, maxRunoffs, maxRunoffMaps, UMC_RunoffFailAction:runoffFailAction,
+    const String:runoffSound[], bool:nominationStrictness, bool:allowDuplicates,
+    const String:adminFlags[], bool:runExclusion=true);
     
     
 /**
@@ -298,7 +310,8 @@ forward UMC_OnVoteFailed(); //UMC_FailReason:reason);
  * 
  * @noreturn
  */
-forward UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], const String:display[]);
+forward UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[],
+                         const String:display[]);
 
 
 /**
@@ -324,17 +337,88 @@ native UMC_GetCurrentMapGroup(String:buffer[], size);
 /**
  * Determines if UMC currently has a vote in progress.
  *
+ * @param id
+ *
  * @return True if vote is in progress, false otherwise.
  */
-native bool:UMC_IsVoteInProgress();
+native bool:UMC_IsVoteInProgress(const String:id[]);
 
 
 /**
  * Stops a UMC vote that is currently in progress.
  *
+ * @param id
+ *
  * @return True on success, false otherwise.
  */
-native bool:UMC_StopVote();
+native bool:UMC_StopVote(const String:id[]);
+
+
+/**
+ * Callback for when a vote is to be started by UMC. Note that all Handles will be freed after the
+ * call is complete, so if you want to store them, make sure to clone them first with CloneHandle.
+ *
+ * @param duration
+ * @param vote_items
+ * @param clients
+ * @param extend
+ * @param dontChange
+ * @param startSound
+ *
+ * @return Plugin_Continue on success, Plugin_Stop to prevent the vote.
+ */
+functag UMC_VoteHandler Action:public(duration, Handle:vote_items, Handle:clients,
+                                      const String:startSound[]);
+
+/**
+ *
+ */
+functag UMC_VoteCancelledHandler public();
+
+
+/**
+ * Registers a new VoteManager for UMC votes.
+ *
+ * @param id    Unique string identifier for this VoteManager.
+ * @param callback  Function to be called when a vote is ready to be started.
+ *
+ * @noreturn
+ */
+native UMC_RegisterVoteManager(const String:id[], UMC_VoteHandler:mapCallback,
+                               UMC_VoteHandler:groupCallback,
+                               UMC_VoteCancelledHandler:cancelCallback);
+
+
+/**
+ *
+ */
+functag UMC_VoteResponseHandler public(UMC_VoteResponse:response, const String:param[]);
+
+
+/**
+ * Notifies UMC that the current vote has completed.
+ *
+ * @param ...
+ * 
+ * @noreturn
+ */
+native UMC_VoteManagerVoteCompleted(const String:id[], Handle:voteOptions,
+                                    UMC_VoteResponseHandler:callback);
+
+
+/**
+ * Notifies UMC that the current vote has been cancelled by the vote Handler. This will cause the
+ * UMC_VoteCancelledHandler provided to UMC_RegisterVoteManager to be called as well.
+ *
+ * @param id
+ */
+native UMC_VoteManagerVoteCancelled(const String:id[]);
+                                    
+
+/**
+ *
+ */
+native UMC_UnregisterVoteManager(const String:id[]);
 
 
 /**
@@ -394,4 +478,8 @@ public __pl_umccore_SetNTVOptional()
     MarkNativeAsOptional("UMC_IsVoteInProgress");
     MarkNativeAsOptional("UMC_StopVote");
     //MarkNativeAsOptional("UMC_AddMenuOption");
+    MarkNativeAsOptional("UMC_UnregisterVoteManager");
+    MarkNativeAsOptional("UMC_VoteManagerVoteCancelled");
+    MarkNativeAsOptional("UMC_VoteManagerVoteCompleted");
+    MarkNativeAsOptional("UMC_RegisterVoteManager");
 }

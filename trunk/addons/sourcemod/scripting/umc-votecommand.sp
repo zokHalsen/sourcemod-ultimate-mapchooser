@@ -12,7 +12,7 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-votecommand.txt"
+#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-votecommand.txt"
 
 //Plugin Information
 public Plugin:myinfo =
@@ -410,6 +410,7 @@ public Action:Command_Vote(client, args)
 
     //Start the UMC vote.
     new bool:result = UMC_StartVote(
+        "core",
         map_kv,                                                     //Mapcycle
         umc_mapcycle,                                               //Complete Mapcycle
         UMC_VoteType:GetConVarInt(cvar_vote_type),                  //Vote Type (map, group, tiered)
