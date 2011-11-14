@@ -12,7 +12,7 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-nominate.txt"
+#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-nominate.txt"
 
 #define NOMINATE_ADMINFLAG_KEY "nominate_flags"
 
@@ -346,7 +346,7 @@ bool:DisplayNominationMenu(client)
     {
 #if UMC_DEBUG
         new bool:result = DisplayMenu(menu, client, 0);
-        DEBUG_MESSAGE("Displaying nomination menu to client. (%i)", result);
+        DEBUG_MESSAGE("Displaying nomination menu to client. (%i)", result)
         return result;
 #else
         return DisplayMenu(menu, client, 0);

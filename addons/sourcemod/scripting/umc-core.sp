@@ -16,11 +16,9 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-core.txt"
+#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-core.txt"
 
 //Some definitions
-#define DONT_CHANGE_OPTION "?DontChange?"
-#define EXTEND_MAP_OPTION "?Extend?"
 #define NOTHING_OPTION "?nothing?"
 #define WEIGHT_KEY "##calculated-weight##"
 
@@ -36,7 +34,14 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
+3.3 (10//11)
+Added new Extend Command cvar, used to specify a command to be executed when a map is extended.
+-New cvar "extend_command" in ultimate-mapchooser.cfg to control this feature.
+Fixed issue with Random Mapcycle module which caused "next_mapgroup" option to be ignored.
+Fixed rare memory leaks.
+
 3.2.4 (10/12/11)
+Added Auto Updating support.
 Added new feature to the End of Map Vote module that delays a vote for a certain amount of time after it is triggered due to a round ending.
 -New cvar "roundend_delaystart" to control this feature.
 Fixed bug in Player Count Monitoring where an incorrect translation phrase was breaking Yes/No votes.
@@ -402,9 +407,15 @@ Initial Release
 */
 
 //TODO / IDEAS:
-//    ***Need to find a cleaner/clearer way to handle case where nominations are only used in certain modules.
-//        -Solution 1: new "display-group" option that mimicks the "display" option for maps (but this is for groups).
-//        -Solution 2: implement mapcycle-level options (to complement group and map options).
+//    New "next_map" map command, works with "next_mapgroup".
+//        -If next_map is set but next_mapgroup isn't, the current group is assumed.
+//        -If next_map is not set but next_mapgroup is, then a map is selected at random from the group.
+//        -If neither are set, a random map from a random group is selected.
+//
+//  Need to find a cleaner/clearer way to handle case where nominations are only used in certain modules.
+//      -Solution 1: new "display-group" option that mimicks the "display" option for maps (but this is for groups).
+//      -Solution 2: implement mapcycle-level options (to complement group and map options).
+//
 //  Take nominations into account when selecting a random map.
 //  Add cvar to control where nominations are placed in the vote (on top vs. scrambled)
 //  Possible Bug: map change (sm_map or changelevel) after a vote completes can set the wrong 
@@ -415,7 +426,6 @@ Initial Release
 //  In situations where we're filtering a list of map tries (map/group tries) for a specific
 //      group, it may be easier to store it instead as a trie of groups, where each group points
 //      to a list of maps.
-//  New module to specify a time amount (in minutes) after it's been played that a map is excluded.
 
 //BUGS:
 
@@ -429,15 +439,17 @@ new Handle:cvar_runoff_selective   = INVALID_HANDLE;
 new Handle:cvar_vote_tieramount    = INVALID_HANDLE;
 new Handle:cvar_vote_tierdisplay   = INVALID_HANDLE;
 new Handle:cvar_logging            = INVALID_HANDLE;
-new Handle:cvar_runoff_slots       = INVALID_HANDLE;
 new Handle:cvar_extend_display     = INVALID_HANDLE;
 new Handle:cvar_dontchange_display = INVALID_HANDLE;
 new Handle:cvar_valvemenu          = INVALID_HANDLE;
 new Handle:cvar_version            = INVALID_HANDLE;
 new Handle:cvar_count_sound        = INVALID_HANDLE;
+new Handle:cvar_extend_command     = INVALID_HANDLE;
+new Handle:cvar_default_vm         = INVALID_HANDLE;
+new Handle:cvar_block_slots        = INVALID_HANDLE;
 
 //Stores the number of runoffs available.
-new remaining_runoffs;
+//new remaining_runoffs;
 
 //Stores the current category.
 new String:current_cat[MAP_LENGTH];
@@ -446,28 +458,28 @@ new String:current_cat[MAP_LENGTH];
 new String:next_cat[MAP_LENGTH];
 
 //Stores the maps and map groups in a vote.
-new Handle:map_vote = INVALID_HANDLE;
+//new Handle:map_vote = INVALID_HANDLE;
 
 //Array of nomination tries.
 new Handle:nominations_arr = INVALID_HANDLE;
 
 //Variable to store the delay between stages of a tiered vote.
-new tiered_delay;
+//new tiered_delay;
 
 //Variable to store the delay before a runoff vote starts.
-new runoff_delay;
+//new runoff_delay;
 
 //Variable to hold the array of clients the runoff will be displayed to.
-new Handle:runoff_clients = INVALID_HANDLE;
+//new Handle:runoff_clients = INVALID_HANDLE;
 
-//Variable to hold the built runoff menu until after the runoff timer has finished.
-new Handle:runoff_menu = INVALID_HANDLE;
+//
+//new Handle:runoff_options = INVALID_HANDLE;
 
 //Forward for when a nomination is removed.
 new Handle:nomination_reset_forward = INVALID_HANDLE;
 
 //Stores when the map should be changed at the end of an end-of-map vote.
-new UMC_ChangeMapTime:change_map_when;
+//new UMC_ChangeMapTime:change_map_when;
 
 //Stores the winning map from a native-induced vote.
 //new String:normal_winning_map[MAP_LENGTH];
@@ -475,7 +487,7 @@ new UMC_ChangeMapTime:change_map_when;
 //
 new String:countdown_sound[PLATFORM_MAX_PATH];
 
-/* VOTE PARAMETERS */
+/* VOTE PARAMETERS 
 new String:stored_start_sound[PLATFORM_MAX_PATH], String:stored_end_sound[PLATFORM_MAX_PATH],
     String:stored_runoff_sound[PLATFORM_MAX_PATH];
 new Handle:stored_kv = INVALID_HANDLE;
@@ -495,12 +507,7 @@ new stored_votetime;
 new String:stored_reason[PLATFORM_MAX_PATH];
 new String:stored_adminflags[64];
 new bool:stored_exclude;
-
-/* Storage */
-//Array to store results of a vote.
-new Handle:vote_storage = INVALID_HANDLE;
-new total_votes = 0;
-new prev_vote_count = 0;
+new UMC_VoteType:stored_type;*/
 
 /* Reweight System */
 new Handle:reweight_forward = INVALID_HANDLE;
@@ -524,11 +531,16 @@ new Handle:nextmap_forward = INVALID_HANDLE;
 /* Failure System */
 new Handle:failure_forward = INVALID_HANDLE;
 
+/* Vote Management System */
+new Handle:vote_managers = INVALID_HANDLE;
+
 //Flags
 //new bool:vote_completed;   //Has a vote been completed?
 new bool:change_map_round; //Change map when the round ends?
-new bool:vote_inprogress;  //Is there a vote in progress? (Includes delays between tiered + runoff)
-new bool:vote_active;      //Is there an active vote menu?
+//new bool:vote_active;      //Is there an active vote menu?
+
+new votes_inprogress; //Amount of votes in progress? (Includes delays between tiered + runoff)
+
 
 #if RUNTESTS
 RunTests()
@@ -580,6 +592,10 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
     CreateNative("UMC_IsMapValid", Native_UMCIsMapValid);
     CreateNative("UMC_IsVoteInProgress", Native_UMCIsVoteInProgress);
     CreateNative("UMC_StopVote", Native_UMCStopVote);
+    CreateNative("UMC_RegisterVoteManager", Native_UMCRegVoteManager);
+    CreateNative("UMC_UnregisterVoteManager", Native_UMCUnregVoteManager);
+    CreateNative("UMC_VoteManagerVoteCompleted", Native_UMCVoteManagerComplete);
+    CreateNative("UMC_VoteManagerVoteCancelled", Native_UMCVoteManagerCancel);
     
     return APLRes_Success;
 }
@@ -588,6 +604,25 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 //Called when the plugin is finished loading.
 public OnPluginStart()
 {
+    cvar_block_slots = CreateConVar(
+        "sm_umc_votemanager_core_blockslots",
+        "0",
+        "Specifies how many slots in a vote are disabled to prevent accidental voting.",
+        0, true, 0.0, true, 5.0
+    );
+
+    cvar_default_vm = CreateConVar(
+        "sm_umc_votemanager_default",
+        "core",
+        "Specifies the default UMC Vote Manager to be used for voting. The default value of \"core\" means that Sourcemod's built-in voting will be used."
+    );
+
+    cvar_extend_command = CreateConVar(
+        "sm_umc_extend_command",
+        "",
+        "Specifies a server command to be executed when the map is extended by UMC."
+    );
+
     cvar_count_sound = CreateConVar(
         "sm_umc_countdown_sound",
         "",
@@ -595,7 +630,7 @@ public OnPluginStart()
     );
     
     cvar_valvemenu = CreateConVar(
-        "sm_umc_menu_esc",
+        "sm_umc_votemanager_core_menu_esc",
         "0",
         "If enabled, votes will use Valve-Stlye menus (players will be required to press ESC in order to vote). NOTE: this may not work in TF2!",
         0, true, 0.0, true, 1.0
@@ -612,13 +647,6 @@ public OnPluginStart()
         "sm_umc_dontchange_display",
         "0",
         "Determines where in votes the \"Don't Change\" option will be displayed.\n 0 - Bottom,\n 1 - Top",
-        0, true, 0.0, true, 1.0
-    );
-
-    cvar_runoff_slots = CreateConVar(
-        "sm_umc_runoff_blockslots",
-        "1",
-        "Determines whether slots in runoff votes should be blocked. This value is ignored if the original vote didn't have blocked slots.",
         0, true, 0.0, true, 1.0
     );
     
@@ -673,10 +701,10 @@ public OnPluginStart()
     );
     
     //Admin command to stop votes in progress.
-    RegAdminCmd(
+    /*RegAdminCmd(
         "sm_umc_stopvote", Command_StopVote, ADMFLAG_CHANGEMAP,
         "Stops a UMC vote that's in progress."
-    );
+    );*/
     
     //Hook round end events
     HookEvent("round_end",            Event_RoundEnd); //Generic
@@ -685,8 +713,7 @@ public OnPluginStart()
     HookEventEx("arena_win_panel",    Event_RoundEnd); //TF2
     
     //Initialize our vote arrays
-    map_vote        = CreateArray();
-    vote_storage    = CreateArray();
+    //map_vote        = CreateArray();
     nominations_arr = CreateArray();
     
     //Make listeners for player chat. Needed to recognize chat commands ("rtv", etc.)
@@ -724,6 +751,10 @@ public OnPluginStart()
     );
     
     failure_forward = CreateGlobalForward("UMC_OnVoteFailed", ET_Ignore);
+    
+    vote_managers = CreateTrie();
+    
+    UMC_RegisterVoteManager("core", VM_MapVote, VM_GroupVote, VM_CancelVote);
     
 #if AUTOUPDATE_ENABLE
     if (LibraryExists("updater"))
@@ -787,10 +818,9 @@ public OnConfigsExecuted()
     
     change_map_round = false;
     
-    vote_inprogress = false;
-    vote_active = false; //Assuming the case where this is still active was caught by VoteComplete()
-    
-    change_map_round = false;
+    //TODO: Turn off all votes?
+    //vote_inprogress = false;
+    //vote_active = false; //Assuming the case where this is still active was caught by VoteComplete()
     
     GetConVarString(cvar_count_sound, countdown_sound, sizeof(countdown_sound));
     CacheSound(countdown_sound);
@@ -852,6 +882,7 @@ public Event_RoundEnd(Handle:evnt, const String:name[], bool:dontBroadcast)
 {
     if (change_map_round)
     {
+        change_map_round = false;
         decl String:map[MAP_LENGTH];
         GetNextMap(map, sizeof(map));    
         ForceChangeInFive(map, "CORE");
@@ -870,6 +901,127 @@ public OnMapEnd()
 //************************************************************************************************//
 //                                             NATIVES                                            //
 //************************************************************************************************//
+
+//
+public Native_UMCVoteManagerCancel(Handle:plugin, numParams)
+{
+    new len;
+    GetNativeStringLength(1, len);
+    new String:id[len+1];
+    if (len > 0)
+        GetNativeString(1, id, len+1);
+        
+    new Handle:voteManager;
+    if (!GetTrieValue(vote_managers, id, voteManager))
+    {
+        ThrowNativeError(SP_ERROR_PARAM, "A Vote Manager with the ID \"%s\" does not exist!", id);
+    }
+    
+    VoteCancelled(voteManager);
+}
+
+//
+public Native_UMCRegVoteManager(Handle:plugin, numParams)
+{
+    new Handle:voteManager;
+    
+    new len;
+    GetNativeStringLength(1, len);
+    new String:id[len+1];
+    if (len > 0)
+        GetNativeString(1, id, len+1);
+        
+    if (GetTrieValue(vote_managers, id, voteManager))
+    {
+        UMC_UnregisterVoteManager(id);
+    }
+    
+    voteManager = CreateTrie();
+    
+    SetTrieValue(vote_managers, id, voteManager);
+    
+    SetTrieValue(voteManager, "plugin", plugin);
+    SetTrieValue(voteManager, "map", GetNativeCell(2));
+    SetTrieValue(voteManager, "group", GetNativeCell(3));
+    SetTrieValue(voteManager, "cancel", GetNativeCell(4));
+    SetTrieValue(voteManager, "vote_storage", CreateArray());
+    SetTrieValue(voteManager, "in_progress", false);
+    SetTrieValue(voteManager, "active", false);
+    SetTrieValue(voteManager, "total_votes", 0);
+    SetTrieValue(voteManager, "prev_vote_count", 0);
+    SetTrieValue(voteManager, "map_vote", CreateArray());
+}
+
+
+//
+public Native_UMCUnregVoteManager(Handle:plugin, numParams)
+{
+    new len;
+    GetNativeStringLength(1, len);
+    new String:id[len+1];
+    if (len > 0)
+        GetNativeString(1, id, len+1);
+    
+    new Handle:vM;
+    
+    if (!GetTrieValue(vote_managers, id, vM))
+    {
+        ThrowNativeError(SP_ERROR_PARAM, "A Vote Manager with the ID \"%s\" does not exist!", id);
+    }
+    
+    if (UMC_IsVoteInProgress(id))
+    {
+        UMC_StopVote(id);
+    }
+    
+    new Handle:hndl;
+    GetTrieValue(vM, "vote_storage", hndl);
+    CloseHandle(hndl);
+    GetTrieValue(vM, "map_vote", hndl);
+    CloseHandle(hndl);
+    
+    CloseHandle(vM);
+    
+    RemoveFromTrie(vote_managers, id);
+    
+    if (StrEqual(id, "core", false))
+    {
+        UMC_RegisterVoteManager("core", VM_MapVote, VM_GroupVote, VM_CancelVote);
+    }
+}
+
+
+//
+public Native_UMCVoteManagerComplete(Handle:plugin, numParams)
+{
+    new len;
+    GetNativeStringLength(1, len);
+    new String:id[len+1];
+    if (len > 0)
+        GetNativeString(1, id, len+1);
+    
+    new Handle:voteOptions = Handle:GetNativeCell(2);
+    
+    new Handle:vM;
+    GetTrieValue(vote_managers, id, vM);
+    
+    new Handle:response = ProcessVoteResults(vM, voteOptions);
+    
+    new UMC_VoteResponseHandler:handler = UMC_VoteResponseHandler:GetNativeCell(3);
+    
+    new UMC_VoteResponse:result;
+    new String:param[MAP_LENGTH];
+    GetTrieValue(response, "response", result);
+    GetTrieString(response, "param", param, sizeof(param));
+    
+    Call_StartFunction(plugin, handler);
+    Call_PushCell(result);
+    Call_PushString(param);
+    Call_Finish();
+    
+    CloseHandle(response);
+}
+
 
 //native Handle:UMC_CreateValidMapArray(Handle:kv, const String:group[], bool:isNom, 
 //                                      bool:forMapChange);
@@ -893,6 +1045,12 @@ public Native_UMCCreateMapArray(Handle:plugin, numParams)
     new Handle:result = CreateMapArray(kv, mapcycle, group, isNom, forMapChange);
     
     CloseHandle(kv);
+    
+    if (result == INVALID_HANDLE)
+    {
+        ThrowNativeError(SP_ERROR_PARAM,
+            "Could not generate valid map array from provided mapcycle.");
+    }
     
     return _:CloseAndClone(result, plugin);
 }
@@ -1080,120 +1238,168 @@ public Native_UMCAddWeightModifier(Handle:plugin, numParams)
 //native bool:UMC_StartVote( ...20+ params... );
 public Native_UMCStartVote(Handle:plugin, numParams)
 {
+    //Retrieve the many, many parameters.
+    new len;
+    GetNativeStringLength(1, len);
+    new String:voteManagerID[len+1];
+    if (len > 0)
+        GetNativeString(1, voteManagerID, len+1);
+        
+    if (strlen(voteManagerID) == 0)
+        GetConVarString(cvar_default_vm, voteManagerID, len+1);
+        
+    new Handle:voteManager = INVALID_HANDLE;
+    if (!GetTrieValue(vote_managers, voteManagerID, voteManager))
+    {
+        if (StrEqual(voteManagerID, "core"))
+        {
+            LogError("FATAL: Could not find core vote manager. Aborting vote.");
+            return _:false;
+        }
+        LogError("Could not find a vote manager matching ID \"%s\". Using \"core\" instead.");
+        if (!GetTrieValue(vote_managers, "core", voteManager))
+        {
+            LogError("FATAL: Could not find core vote manager. Aborting vote.");
+            return _:false;
+        }
+        strcopy(voteManagerID, len+1, "core");
+    }
+    
+    new bool:vote_inprogress;
+    GetTrieValue(voteManager, "in_progress", vote_inprogress);
+    
     if (vote_inprogress)
         return _:false;
     
     //Get the name of the calling plugin.
+    decl String:stored_reason[PLATFORM_MAX_PATH];
     GetPluginFilename(plugin, stored_reason, sizeof(stored_reason));
+    SetTrieString(voteManager, "stored_reason", stored_reason);
     
-    vote_inprogress = true;
     //vote_completed = false;
-
-    //Retrieve the many, many parameters.
-    new Handle:kv = Handle:GetNativeCell(1);
-    new Handle:mapcycle = Handle:GetNativeCell(2);
-    new UMC_VoteType:type = UMC_VoteType:GetNativeCell(3);
-    new time = GetNativeCell(4);
-    new bool:scramble = bool:GetNativeCell(5);
-    new numBlockSlots = GetNativeCell(6);
     
-    new len;
-    GetNativeStringLength(7, len);
+    new Handle:kv = Handle:GetNativeCell(2);
+    new Handle:mapcycle = Handle:GetNativeCell(3);
+    new UMC_VoteType:type = UMC_VoteType:GetNativeCell(4);
+    new time = GetNativeCell(5);
+    new bool:scramble = bool:GetNativeCell(6);
+    new numBlockSlots = GetNativeCell(7);
+    
+    
+    GetNativeStringLength(8, len);
     new String:startSound[len+1];
     if (len > 0)
-        GetNativeString(7, startSound, len+1);
-    GetNativeStringLength(8, len);
+        GetNativeString(8, startSound, len+1);
+    GetNativeStringLength(9, len);
     new String:endSound[len+1];
     if (len > 0)
-        GetNativeString(8, endSound, len+1);
+        GetNativeString(9, endSound, len+1);
     
-    new bool:extend = bool:GetNativeCell(9);
-    new Float:timestep = Float:GetNativeCell(10);
-    new roundstep = GetNativeCell(11);
-    new fragstep = GetNativeCell(12);
-    new bool:dontChange = bool:GetNativeCell(13);
-    new Float:threshold = Float:GetNativeCell(14);
-    new UMC_ChangeMapTime:successAction = UMC_ChangeMapTime:GetNativeCell(15);
-    new UMC_VoteFailAction:failAction = UMC_VoteFailAction:GetNativeCell(16);
-    new maxRunoffs = GetNativeCell(17);
-    new maxRunoffMaps = GetNativeCell(18);
-    new UMC_RunoffFailAction:runoffFailAction = UMC_RunoffFailAction:GetNativeCell(19);
+    new bool:extend = bool:GetNativeCell(10);
+    new Float:timestep = Float:GetNativeCell(11);
+    new roundstep = GetNativeCell(12);
+    new fragstep = GetNativeCell(13);
+    new bool:dontChange = bool:GetNativeCell(14);
+    new Float:threshold = Float:GetNativeCell(15);
+    new UMC_ChangeMapTime:successAction = UMC_ChangeMapTime:GetNativeCell(16);
+    new UMC_VoteFailAction:failAction = UMC_VoteFailAction:GetNativeCell(17);
+    new maxRunoffs = GetNativeCell(18);
+    new maxRunoffMaps = GetNativeCell(19);
+    new UMC_RunoffFailAction:runoffFailAction = UMC_RunoffFailAction:GetNativeCell(20);
     
-    GetNativeStringLength(20, len);
+    GetNativeStringLength(21, len);
     new String:runoffSound[len+1];
     if (len > 0)
-        GetNativeString(20, runoffSound, len+1);
+        GetNativeString(21, runoffSound, len+1);
     
-    new bool:nominationStrictness = bool:GetNativeCell(21);
-    new bool:allowDuplicates = bool:GetNativeCell(22);
+    new bool:nominationStrictness = bool:GetNativeCell(22);
+    new bool:allowDuplicates = bool:GetNativeCell(23);
     
-    GetNativeStringLength(23, len);
+    GetNativeStringLength(24, len);
     new String:adminFlags[len+1];
     if (len > 0)
-        GetNativeString(23, adminFlags, len+1);
+        GetNativeString(24, adminFlags, len+1);
         
-    new bool:runExclusionCheck = (numParams >= 24) ? (bool:GetNativeCell(24)) : true;
+    new bool:runExclusionCheck = (numParams >= 25) ? (bool:GetNativeCell(25)) : true;
     
     //OK now that that's done, let's save 'em.
-    stored_scramble = scramble;
-    stored_blockslots = numBlockSlots;
-    stored_ignoredupes = allowDuplicates;
-    stored_strictnoms = nominationStrictness;
+    SetTrieValue(voteManager, "stored_type", type);
+    SetTrieValue(voteManager, "stored_scramble", scramble);
+    SetTrieValue(voteManager, "stored_blockslots", numBlockSlots);
+    SetTrieValue(voteManager, "stored_ignoredupes", allowDuplicates);
+    SetTrieValue(voteManager, "stored_strictnoms", nominationStrictness);
 
     if (failAction == VoteFailAction_Nothing)
     {
-        stored_fail_action = RunoffFailAction_Nothing;
-        remaining_runoffs = 0;
+        SetTrieValue(voteManager, "stored_fail_action", RunoffFailAction_Nothing);
+        SetTrieValue(voteManager, "remaining_runoffs", 0);
     }
     else if (failAction == VoteFailAction_Runoff)
     {    
-        stored_fail_action = runoffFailAction;   
-        remaining_runoffs = (maxRunoffs == 0) ? -1 : maxRunoffs;
+        SetTrieValue(voteManager, "stored_fail_action", runoffFailAction);
+        SetTrieValue(voteManager, "remaining_runoffs", (maxRunoffs == 0) ? -1 : maxRunoffs);
     }
     
-    extend_timestep = timestep;
-    extend_roundstep = roundstep;
-    extend_fragstep = fragstep;
-    stored_threshold = threshold;
-    stored_runoffmaps_max = maxRunoffMaps;
-    stored_votetime = time;
+    SetTrieValue(voteManager, "extend_timestep", timestep);
+    SetTrieValue(voteManager, "extend_roundstep", roundstep);
+    SetTrieValue(voteManager, "extend_fragstep", fragstep);
+    SetTrieValue(voteManager, "stored_threshold", threshold);
+    SetTrieValue(voteManager, "stored_runoffmaps_max", maxRunoffMaps);
+    SetTrieValue(voteManager, "stored_votetime", time);
     
-    change_map_when = successAction;
+    SetTrieValue(voteManager, "change_map_when", successAction);
     
-    stored_kv = CreateKeyValues("umc_rotation");
+    new Handle:stored_kv = CreateKeyValues("umc_rotation");
     KvCopySubkeys(kv, stored_kv);
+    SetTrieValue(voteManager, "stored_kv", stored_kv);
     
-    stored_mapcycle = CreateKeyValues("umc_rotation");
+    new Handle:stored_mapcycle = CreateKeyValues("umc_rotation");
     KvCopySubkeys(mapcycle, stored_mapcycle);
+    SetTrieValue(voteManager, "stored_mapcycle", stored_mapcycle);
     
-    strcopy(stored_start_sound, sizeof(stored_start_sound), startSound);
-    strcopy(stored_end_sound, sizeof(stored_end_sound), endSound);
-    strcopy(stored_runoff_sound, sizeof(stored_runoff_sound), runoffSound);
+    SetTrieString(voteManager, "stored_start_sound", startSound);
+    SetTrieString(voteManager, "stored_end_sound", endSound);
+    SetTrieString(voteManager, "stored_runoff_sound", (strlen(runoffSound) > 0) ? runoffSound : startSound);
     
-    strcopy(stored_adminflags, sizeof(stored_adminflags), adminFlags);
+    SetTrieString(voteManager, "stored_adminflags", adminFlags);
     
-    stored_exclude = runExclusionCheck;
+    SetTrieValue(voteManager, "stored_exclude", runExclusionCheck);
     
     //Make the vote menu.
-    new Handle:menu = BuildVoteMenu(kv, mapcycle, type, scramble, numBlockSlots, extend, dontChange,
-                                    allowDuplicates, nominationStrictness, runExclusionCheck);
+    new Handle:options = BuildVoteItems(voteManager, kv, mapcycle, type, scramble, allowDuplicates,
+                                       nominationStrictness, runExclusionCheck, extend, dontChange);
     
     //Run the vote if...
     //    ...the menu was created successfully.
-    if (menu != INVALID_HANDLE)
+    if (options != INVALID_HANDLE)
     {
         //Play the vote start sound if...
         //  ...the filename is defined.
-        if (strlen(startSound) > 0)
-            EmitSoundToAll(startSound);
+        //if (strlen(startSound) > 0)
+        //    EmitSoundToAll(startSound);
         
-        vote_active = true;
+        new Handle:clients = GetClientsWithFlags(adminFlags);
         
-        return _:VoteMenuToAllWithFlags(menu, time, adminFlags);
+        //return _:VoteMenuToAllWithFlags(menu, time, adminFlags);
+        new bool:vote_active = PerformVote(voteManager, type, options, time, clients, startSound);
+        if (vote_active)
+        {
+            votes_inprogress++;
+        }
+        else
+        {
+            DeleteVoteParams(voteManager);
+            ClearVoteArrays(voteManager);
+            //VoteFailed(voteManager);
+        }
+        
+        FreeOptions(options);
+        CloseHandle(clients);
+        return _:vote_active;
     }
     else
     {
-        DeleteVoteParams();
+        DeleteVoteParams(voteManager);
         return _:false;
     }
 }
@@ -1213,6 +1419,8 @@ public Native_UMCGetRandomMap(Handle:plugin, numParams)
     new String:group[len+1];
     if (len > 0)
         GetNativeString(3, group, len+1);
+        
+    DEBUG_MESSAGE("Looking for random map in group \"%s\".", group)
     
     new bool:isNom = bool:GetNativeCell(8);
     new bool:forMapChange = bool:GetNativeCell(9);
@@ -1273,7 +1481,29 @@ public Native_UMCSetNextMap(Handle:plugin, numParams)
 //
 public Native_UMCIsVoteInProgress(Handle:plugin, numParams)
 {
-    return vote_inprogress;
+    if (numParams > 0)
+    {
+        //Retrieve the many, many parameters.
+        new len;
+        GetNativeStringLength(1, len);
+        new String:voteManagerID[len+1];
+        if (len > 0)
+            GetNativeString(1, voteManagerID, len+1);
+            
+        if (strlen(voteManagerID) > 0)
+        {
+            new bool:inProgress;
+            new Handle:vM;
+            if (!GetTrieValue(vote_managers, voteManagerID, vM))
+            {
+                ThrowNativeError(SP_ERROR_PARAM,
+                    "A Vote Manager with the ID \"%s\" does not exist!", voteManagerID);
+            }
+            GetTrieValue(vM, "in_progress", inProgress);
+            return inProgress;
+        }
+    }
+    return votes_inprogress > 0;
 }
 
 
@@ -1281,19 +1511,7 @@ public Native_UMCIsVoteInProgress(Handle:plugin, numParams)
 //"sm_umc_stopvote"
 public Native_UMCStopVote(Handle:plugin, numParams)
 {
-    if (vote_inprogress)
-    {
-        if (vote_active)
-        {
-            CancelVote();
-        }
-        else
-        {
-            vote_inprogress = false;
-        }
-        return true;
-    }
-    return false;
+    Native_UMCVoteManagerCancel(plugin, numParams);
 }
 
 
@@ -1377,6 +1595,7 @@ public Action:Command_SetNextmap(client, args)
         when = UMC_ChangeMapTime:StringToInt(whenArg);
     }
     
+    //DisableVoteInProgress(id);
     DoMapChange(when, INVALID_HANDLE, map, INVALID_GROUP, "sm_setnextmap", map);
     
     //TODO: Make this a translation
@@ -1404,8 +1623,10 @@ public Action:Command_Reload(client, args)
 
 
 //"sm_umc_stopvote"
+/*
 public Action:Command_StopVote(client, args)
 {
+    //TODO: UPDATE FOR NEW VM SYSTEM
     if (vote_inprogress)
     {
         if (vote_active)
@@ -1421,15 +1642,344 @@ public Action:Command_StopVote(client, args)
     }
     return Plugin_Handled;
 }
+*/
+
+//************************************************************************************************//
+//                                        CORE VOTE MANAGER                                       //
+//************************************************************************************************//
+
+//
+public Action:VM_MapVote(duration, Handle:vote_items, Handle:clients, const String:startSound[])
+{
+    decl clientArr[MAXPLAYERS+1];
+    new count = 0;
+    new size = GetArraySize(clients);
+    for (new i = 0; i < size; i++)
+    {
+        clientArr[count++] = GetArrayCell(clients, i);
+    }
+    
+    new Handle:menu = BuildVoteMenu(vote_items, "Map Vote Menu Title", Handle_MapVoteResults);
+    
+    if (VoteMenu(menu, clientArr, count, duration))
+    {
+        if (strlen(startSound) > 0)
+            EmitSoundToAll(startSound);
+        
+        return Plugin_Continue;
+    }
+    
+    //ClearVoteArrays();
+    return Plugin_Stop;
+}
+
+
+//
+public Action:VM_GroupVote(duration, Handle:vote_items, Handle:clients, const String:startSound[])
+{
+    decl clientArr[MAXPLAYERS+1];
+    new count = 0;
+    new size = GetArraySize(clients);
+    for (new i = 0; i < size; i++)
+    {
+        clientArr[count++] = GetArrayCell(clients, i);
+    }
+    
+    new Handle:menu = BuildVoteMenu(vote_items, "Group Vote Menu Title", Handle_MapVoteResults);
+    
+    if (menu != INVALID_HANDLE && VoteMenu(menu, clientArr, count, duration))
+    {
+        if (strlen(startSound) > 0)
+            EmitSoundToAll(startSound);
+        
+        return Plugin_Continue;
+    }
+    
+    //ClearVoteArrays();
+    return Plugin_Stop;
+}
+
+
+//
+Handle:BuildVoteMenu(Handle:vote_items, const String:title[], VoteHandler:callback)/* , bool:extend, bool:dontChange) */
+{
+    //Begin creating menu
+    new Handle:menu = (GetConVarBool(cvar_valvemenu))
+        ? CreateMenuEx(GetMenuStyleHandle(MenuStyle_Valve), Handle_VoteMenu,
+                       MenuAction_DisplayItem|MenuAction_Display)
+        : CreateMenu(Handle_VoteMenu, MenuAction_DisplayItem|MenuAction_Display);
+        
+    SetVoteResultCallback(menu, callback); //Set callback
+    SetMenuExitButton(menu, false); //Don't want an exit button.
+        
+    //Set the title
+    SetMenuTitle(menu, title);
+    
+    //Keep track of slots taken up in the vote.
+    new blockSlots = GetConVarInt(cvar_block_slots);
+    new voteSlots = blockSlots;
+    
+    DEBUG_MESSAGE("Setup slot blocking.")
+    //Add blocked slots if...
+    //    ...the cvar for blocked slots is enabled.
+    AddSlotBlockingToMenu(menu, blockSlots);
+    
+    new size = GetArraySize(vote_items);
+    new Handle:voteItem;
+    decl String:info[MAP_LENGTH], String:display[MAP_LENGTH];
+    for (new i = 0; i < size; i++)
+    {
+        voteItem = GetArrayCell(vote_items, i);
+        GetTrieString(voteItem, "info", info, sizeof(info));
+        GetTrieString(voteItem, "display", display, sizeof(display));
+        
+        AddMenuItem(menu, info, display);
+    }
+    
+    voteSlots += size;
+    
+    new voteCounter = size;
+    
+    /* if (extend)
+    {
+        if (GetConVarBool(cvar_dontchange_display))
+            InsertMenuItem(menu, blockSlots, DONT_CHANGE_OPTION, "Don't Change");
+        else
+            AddMenuItem(menu, DONT_CHANGE_OPTION, "Don't Change");
+        voteCounter++;
+        voteSlots++;
+    }
+    
+    if (dontChange)
+    {
+        if (GetConVarBool(cvar_dontchange_display))
+            InsertMenuItem(menu, blockSlots, DONT_CHANGE_OPTION, "Don't Change");
+        else
+            AddMenuItem(menu, DONT_CHANGE_OPTION, "Don't Change");
+        voteCounter++;
+        voteSlots++;
+    } */
+    
+    //Throw an error and return nothing if...
+    //    ...the number of items in the vote is less than 2 (hence no point in voting).
+    if (voteCounter <= 1)
+    {
+        DEBUG_MESSAGE("Not enough items in the vote. Aborting.")
+        LogError("VOTING: Not enough maps to run a map vote. %i maps available.", voteCounter);
+        CloseHandle(menu);
+        return INVALID_HANDLE;
+    }
+    else //Otherwise, finish making the menu.
+    {
+        DEBUG_MESSAGE("Setting proper pagination.")
+        SetCorrectMenuPagination(menu, voteSlots);
+        DEBUG_MESSAGE("Vote menu built successfully.")
+        return menu; //Return the finished menu.
+    }
+}
+
+
+//
+public VM_CancelVote()
+{
+    CancelVote();
+}
+
+
+//Adds slot blocking to a menu
+AddSlotBlockingToMenu(Handle:menu, blockSlots)
+{
+    //Add blocked slots if...
+    //    ...the cvar for blocked slots is enabled.
+    if (blockSlots > 3)
+        AddMenuItem(menu, NOTHING_OPTION, "", ITEMDRAW_SPACER);
+    if (blockSlots > 0)
+        AddMenuItem(menu, NOTHING_OPTION, "Slot Block Message 1", ITEMDRAW_DISABLED);
+    if (blockSlots > 1)
+        AddMenuItem(menu, NOTHING_OPTION, "Slot Block Message 2", ITEMDRAW_DISABLED);
+    if (blockSlots > 2)
+        AddMenuItem(menu, NOTHING_OPTION, "", ITEMDRAW_SPACER);
+    if (blockSlots > 4)
+        AddMenuItem(menu, NOTHING_OPTION, "", ITEMDRAW_SPACER);
+}
+
+
+//Called when a vote has finished.
+public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
+{
+    switch(action)
+    {
+        case MenuAction_End:
+        {
+            DEBUG_MESSAGE("MenuAction_End")
+            CloseHandle(menu);
+        }
+        case MenuAction_VoteCancel:
+        {
+            DEBUG_MESSAGE("Vote Cancelled")
+            UMC_VoteManagerVoteCancelled("core");
+        }
+        case MenuAction_Display:
+        {
+            //LogMessage("DEBUG: Display");
+            new Handle:panel = Handle:param2;
+            
+            decl String:phrase[255];
+            GetMenuTitle(menu, phrase, sizeof(phrase));
+            
+            decl String:buffer[255];
+            Format(buffer, sizeof(buffer), "%T", phrase, param1);
+            
+            SetPanelTitle(panel, buffer);
+        }
+        case MenuAction_DisplayItem:
+        {
+            //LogMessage("DEBUG: DisplayItem");
+            decl String:map[MAP_LENGTH], String:display[MAP_LENGTH];
+            GetMenuItem(menu, param2, map, sizeof(map), _, display, sizeof(display));
+            
+            if (StrEqual(map, EXTEND_MAP_OPTION) || StrEqual(map, DONT_CHANGE_OPTION) ||
+                (StrEqual(map, NOTHING_OPTION) && strlen(display) > 0))
+            {
+                decl String:buffer[255];
+                Format(buffer, sizeof(buffer), "%T", display, param1);
+                
+                return RedrawMenuItem(buffer);
+            }
+        }
+    }
+    return 0;
+}
+
+
+//Handles the results of a vote.
+public Handle_MapVoteResults(Handle:menu, num_votes, num_clients, const client_info[][2], num_items,
+                             const item_info[][2])
+{
+    new Handle:results = ConvertVoteResults(menu, num_clients, client_info, num_items, item_info);
+                                            
+    UMC_VoteManagerVoteCompleted("core", results, Handle_Response);
+    
+    //Free Memory
+    new size = GetArraySize(results);
+    new Handle:item;
+    new Handle:clients;
+    for (new i = 0; i < size; i++)
+    {
+        item = GetArrayCell(results, i);
+        GetTrieValue(item, "clients", clients);
+        CloseHandle(clients);
+        CloseHandle(item);
+    }
+    CloseHandle(results);
+}
+
+
+//
+public Handle_Response(UMC_VoteResponse:response, const String:param[])
+{
+    //Do Nothing
+}
+
+
+//Converts results of a vote to the format required for UMC to process votes.
+Handle:ConvertVoteResults(Handle:menu, num_clients, const client_info[][2], num_items,
+                          const item_info[][2])
+{
+    new Handle:result = CreateArray();
+    new itemIndex;
+    new Handle:voteItem, Handle:voteClientArray;
+    decl String:info[MAP_LENGTH], String:disp[MAP_LENGTH];
+    for (new i = 0; i < num_items; i++)
+    {
+        itemIndex = item_info[i][VOTEINFO_ITEM_INDEX];
+        GetMenuItem(menu, itemIndex, info, sizeof(info), _, disp, sizeof(disp));
+        
+        voteItem = CreateTrie();
+        voteClientArray = CreateArray();
+        
+        SetTrieString(voteItem, "info", info);
+        SetTrieString(voteItem, "display", disp);
+        SetTrieValue(voteItem, "clients", voteClientArray);
+        
+        PushArrayCell(result, voteItem);
+        
+        for (new j = 0; j < num_clients; j++)
+        {
+            if (client_info[j][VOTEINFO_CLIENT_ITEM] == itemIndex)
+                PushArrayCell(voteClientArray, client_info[j][VOTEINFO_CLIENT_INDEX]);
+        }
+    }
+    return result;
+}
 
 
 //************************************************************************************************//
 //                                        VOTING UTILITIES                                        //
 //************************************************************************************************//
 
+//
+DisableVoteInProgress(Handle:vM)
+{
+    SetTrieValue(vM, "in_progress", false);
+}
+
+
+//
+FreeOptions(Handle:options)
+{
+    new size = GetArraySize(options);
+    new Handle:item;
+    for (new i = 0; i < size; i++)
+    {
+        item = GetArrayCell(options, i);
+        CloseHandle(item);
+    }
+    CloseHandle(options);
+}
+
+
+//
+bool:PerformVote(Handle:voteManager, UMC_VoteType:type, Handle:options, time, Handle:clients,
+                 const String:startSound[])
+{
+    new Handle:plugin = INVALID_HANDLE;
+    GetTrieValue(voteManager, "plugin", plugin);
+    
+    new VoteHandler:handler;
+    switch (type)
+    {
+        case VoteType_Map:
+            GetTrieValue(voteManager, "map", handler);
+        case VoteType_Group:
+            GetTrieValue(voteManager, "group", handler);
+        case VoteType_Tier:
+            GetTrieValue(voteManager, "group", handler);
+    }
+    
+    new Action:result;
+    Call_StartFunction(plugin, handler);
+    Call_PushCell(time);
+    Call_PushCell(options);
+    Call_PushCell(clients);
+    Call_PushString(startSound);
+    Call_Finish(result);
+    
+    new bool:started = result == Plugin_Continue;
+    
+    if (started)
+    {
+        SetTrieValue(voteManager, "in_progress", true);
+        SetTrieValue(voteManager, "active", true);
+    }
+    
+    return started;
+}
+
+
 //Build and returns a new vote menu.
-Handle:BuildVoteMenu(Handle:kv, Handle:mapcycle, UMC_VoteType:type, bool:scramble, numBlockSlots,
-                     bool:extend, bool:dontChange, bool:allowDupes, bool:strictNoms, bool:exclude)
+Handle:BuildVoteItems(Handle:vM, Handle:kv, Handle:mapcycle, UMC_VoteType:type, bool:scramble,
+                      bool:allowDupes, bool:strictNoms, bool:exclude, bool:extend, bool:dontChange)
 {
     new Handle:result = INVALID_HANDLE;
 
@@ -1437,19 +1987,16 @@ Handle:BuildVoteMenu(Handle:kv, Handle:mapcycle, UMC_VoteType:type, bool:scrambl
     {
         case (VoteType_Map):
         {
-            result = BuildMapVoteMenu(kv, mapcycle, Handle_MapVoteResults, scramble, extend,
-                                      dontChange, numBlockSlots, allowDupes, strictNoms,
-                                      .exclude=exclude);
+            result = BuildMapVoteItems(vM, kv, mapcycle, scramble, extend, dontChange, allowDupes,
+                                       strictNoms, .exclude=exclude);
         }
         case (VoteType_Group):
         {
-            result = BuildCatVoteMenu(kv, mapcycle, Handle_CatVoteResults, scramble, extend,
-                                      dontChange, numBlockSlots, strictNoms, .exclude=exclude);
+            result = BuildCatVoteItems(vM, kv, mapcycle, scramble, strictNoms, exclude);
         }
         case (VoteType_Tier):
         {
-            result = BuildCatVoteMenu(kv, mapcycle, Handle_TierVoteResults, scramble, extend,
-                                      dontChange, numBlockSlots, strictNoms, .exclude=exclude);
+            result = BuildCatVoteItems(vM, kv, mapcycle, scramble, strictNoms, exclude);
         }
     }
     
@@ -1463,9 +2010,9 @@ Handle:BuildVoteMenu(Handle:kv, Handle:mapcycle, UMC_VoteType:type, bool:scrambl
 //                are listed in the cycle.
 //    extend:     whether an extend option should be added to the vote.
 //    dontChange: whether a "Don't Change" option should be added to the vote.
-Handle:BuildMapVoteMenu(Handle:okv, Handle:mapcycle, VoteHandler:callback, bool:scramble,
-                        bool:extend, bool:dontChange, blockSlots=0, bool:ignoreDupes=false,
-                        bool:strictNoms=false, bool:ignoreInvoteSetting=false, bool:exclude=true)
+Handle:BuildMapVoteItems(Handle:voteManager, Handle:okv, Handle:mapcycle, bool:scramble,
+                         bool:extend, bool:dontChange, bool:ignoreDupes=false,
+                         bool:strictNoms=false, bool:ignoreInvoteSetting=false, bool:exclude=true)
 {
     DEBUG_MESSAGE("MAPVOTE - Building map vote menu.")
     //Throw an error and return nothing if...
@@ -1501,7 +2048,7 @@ Handle:BuildMapVoteMenu(Handle:okv, Handle:mapcycle, VoteHandler:callback, bool:
     }
     
     DEBUG_MESSAGE("Preparing vote data storage.")
-    ClearVoteArrays();
+    ClearVoteArrays(voteManager);
 
     DEBUG_MESSAGE("Getting options from cvars.")
     //Determine how we're logging
@@ -1523,6 +2070,9 @@ Handle:BuildMapVoteMenu(Handle:okv, Handle:mapcycle, VoteHandler:callback, bool:
     new Handle:trie        = INVALID_HANDLE; //a nomination
     new Handle:nameArr     = INVALID_HANDLE; //adt_array of map names from nominations
     new Handle:weightArr   = INVALID_HANDLE; //adt_array of map weights from nominations.
+    
+    new Handle:map_vote;
+    GetTrieValue(voteManager, "map_vote", map_vote);
     
     new Handle:map_vote_display = CreateArray(ByteCountToCells(MAP_LENGTH));
     
@@ -1643,8 +2193,7 @@ Handle:BuildMapVoteMenu(Handle:okv, Handle:mapcycle, VoteHandler:callback, bool:
                     //Add map to list of possible maps to be added to vote from the nominations 
                     //if...
                     //    ...the map is valid (correct number of players, correct time)
-                    if (!ignoreDupes 
-                        && FindStringInVoteArray(mapName, MAP_TRIE_MAP_KEY, map_vote) != -1)
+                    if (!ignoreDupes && FindStringInVoteArray(mapName, MAP_TRIE_MAP_KEY, map_vote) != -1)
                     {
                         DEBUG_MESSAGE("Skipping repeated nomination.")
                         if (verboseLogs)
@@ -1991,88 +2540,50 @@ Handle:BuildMapVoteMenu(Handle:okv, Handle:mapcycle, VoteHandler:callback, bool:
     }
     while (KvGotoNextKey(kv)); //Do this for each category.
     
-    DEBUG_MESSAGE("Vote now populated with maps.")
-    
     //We no longer need the copy of the mapcycle
     CloseHandle(kv);
     
-    DEBUG_MESSAGE("Initializing vote menu.")
+    new Handle:infoArr = BuildNumArray(voteCounter);
     
-    //Begin creating menu
-    new Handle:menu = (GetConVarBool(cvar_valvemenu))
-        ? CreateMenuEx(GetMenuStyleHandle(MenuStyle_Valve), Handle_VoteMenu,
-                       MenuAction_DisplayItem|MenuAction_Display)
-        : CreateMenu(Handle_VoteMenu, MenuAction_DisplayItem|MenuAction_Display);
-        
-    SetVoteResultCallback(menu, callback); //Set callback
-    SetMenuExitButton(menu, false); //Don't want an exit button.
-        
-    //Set the title
-    SetMenuTitle(menu, "Map Vote Menu Title");
+    new Handle:result = CreateArray();
+    new Handle:voteItem = INVALID_HANDLE;
+    decl String:buffer[MAP_LENGTH];
+    for (new i = 0; i < voteCounter; i++)
+    {
+        voteItem = CreateTrie();
+        GetArrayString(infoArr, i, buffer, sizeof(buffer));
+        SetTrieString(voteItem, "info", buffer);
+        GetArrayString(map_vote_display, i, buffer, sizeof(buffer));
+        SetTrieString(voteItem, "display", buffer);
+        PushArrayCell(result, voteItem);
+    }
     
-    //Keep track of slots taken up in the vote.
-    new voteSlots = blockSlots;
-    
-    DEBUG_MESSAGE("Setup slot blocking.")
-    //Add blocked slots if...
-    //    ...the cvar for blocked slots is enabled.
-    AddSlotBlockingToMenu(menu, blockSlots);
-    
-    new Handle:infoArr = BuildNumArray(voteCounter);    
-    
-    DEBUG_MESSAGE("Adding maps to the menu.")
-    //Add the array of maps to the menu.
-    AddArrayToMenu(menu, infoArr, map_vote_display);
     CloseHandle(map_vote_display);
     CloseHandle(infoArr);
     
-    //Update how many slots have been taken up in the vote.
-    voteSlots += voteCounter;
-    
-    if (verboseLogs && scramble)
-        LogMessage("VOTE MENU: (Verbose) Scrambling menu.");
-    
-    DEBUG_MESSAGE("Add extend or don't change options.")
-    //Add an extend item if...
-    //    ...the extend flag is true.
     if (extend)
     {
+        voteItem = CreateTrie();
+        SetTrieString(voteItem, "info", EXTEND_MAP_OPTION);
+        SetTrieString(voteItem, "display", "Extend Map");
         if (GetConVarBool(cvar_extend_display))
-            InsertMenuItem(menu, blockSlots, EXTEND_MAP_OPTION, "Extend Map");
+            InsertArrayCell(result, 0, voteItem);
         else
-            AddMenuItem(menu, EXTEND_MAP_OPTION, "Extend Map");
-        voteCounter++;
-        voteSlots++;
+            PushArrayCell(result, voteItem);
     }
-    //Add a don't change item if...
-    //    ...the don't change flag is true.
+    
     if (dontChange)
     {
+        voteItem = CreateTrie();
+        SetTrieString(voteItem, "info", DONT_CHANGE_OPTION);
+        SetTrieString(voteItem, "display", "Don't Change");
         if (GetConVarBool(cvar_dontchange_display))
-            InsertMenuItem(menu, blockSlots, DONT_CHANGE_OPTION, "Don't Change");
+            InsertArrayCell(result, 0, voteItem);
         else
-            AddMenuItem(menu, DONT_CHANGE_OPTION, "Don't Change");
-        voteCounter++;
-        voteSlots++;
+            PushArrayCell(result, voteItem);
     }
-    DEBUG_MESSAGE("Making sure there are enough items in the vote.")
-    //Throw an error and return nothing if...
-    //    ...the number of items in the vote is less than 2 (hence no point in voting).
-    if (voteCounter <= 1)
-    {
-        DEBUG_MESSAGE("Not enough items in the vote. Aborting.")
-        LogError("VOTING: Not enough maps to run a map vote. %i maps available.", voteCounter);
-        CloseHandle(menu);
-        ClearVoteArrays();
-        return INVALID_HANDLE;
-    }
-    else //Otherwise, finish making the menu.
-    {
-        DEBUG_MESSAGE("Setting proper pagination.")
-        SetCorrectMenuPagination(menu, voteSlots);
-        DEBUG_MESSAGE("Vote menu built successfully.")
-        return menu; //Return the finished menu (finally).
-    }
+    
+    return result;
 }
 
 
@@ -2082,9 +2593,8 @@ Handle:BuildMapVoteMenu(Handle:okv, Handle:mapcycle, VoteHandler:callback, bool:
 //                are listed in the cycle.
 //    extend:     whether an extend option should be added to the vote.
 //    dontChange: whether a "Don't Change" option should be added to the vote.
-Handle:BuildCatVoteMenu(Handle:okv, Handle:mapcycle, VoteHandler:callback, bool:scramble,
-                        bool:extend, bool:dontChange, blockSlots=0, bool:strictNoms=false,
-                        bool:exclude=true)
+Handle:BuildCatVoteItems(Handle:vM, Handle:okv, Handle:mapcycle, bool:scramble,
+                         bool:strictNoms=false, bool:exclude=true)
 {
     //Throw an error and return nothing if...
     //    ...the mapcycle is invalid.
@@ -2108,7 +2618,7 @@ Handle:BuildCatVoteMenu(Handle:okv, Handle:mapcycle, VoteHandler:callback, bool:
         return INVALID_HANDLE;
     }
     
-    ClearVoteArrays();
+    ClearVoteArrays(vM);
     
     new bool:verboseLogs = GetConVarBool(cvar_logging);
     
@@ -2222,86 +2732,84 @@ Handle:BuildCatVoteMenu(Handle:okv, Handle:mapcycle, VoteHandler:callback, bool:
     //No longer need the copied mapcycle
     CloseHandle(kv);
     
-    //Begin creating menu
-    new Handle:menu = (GetConVarBool(cvar_valvemenu))
-        ? CreateMenuEx(GetMenuStyleHandle(MenuStyle_Valve), Handle_VoteMenu,
-                       MenuAction_DisplayItem|MenuAction_Display)
-        : CreateMenu(Handle_VoteMenu, MenuAction_DisplayItem|MenuAction_Display);
+    new Handle:result = CreateArray();
+    new Handle:voteItem = INVALID_HANDLE;
+    decl String:buffer[MAP_LENGTH];
+    for (new i = 0; i < voteCounter; i++)
+    {
+        voteItem = CreateTrie();
+        GetArrayString(catArray, i, buffer, sizeof(buffer));
+        SetTrieString(voteItem, "info", buffer);
+        SetTrieString(voteItem, "display", buffer);
+        PushArrayCell(result, voteItem);
+    }
     
-    SetVoteResultCallback(menu, callback);    //Set callback
-    SetMenuExitButton(menu, false); //Disable exit button
-    
-    //Set the title
-    SetMenuTitle(menu, "Group Vote Menu Title");
-    
-    //Keep track of slots taken up in the vote.
-    new voteSlots = blockSlots;
-
-    //Add slot blocking
-    AddSlotBlockingToMenu(menu, blockSlots);
-    
-    //Add array of votes to the menu.
-    AddArrayToMenu(menu, catArray);
-    voteSlots += GetArraySize(catArray);
-
-    //We no longer need the vote array, so we close the handle.
     CloseHandle(catArray);
-
-    //Add an extend item if...
-    //    ...the extend flag is true.
-    if (extend)
-    {
-        if (GetConVarBool(cvar_extend_display))
-            InsertMenuItem(menu, blockSlots, EXTEND_MAP_OPTION, "Extend Map");
-        else
-            AddMenuItem(menu, EXTEND_MAP_OPTION, "Extend Map");
-        voteCounter++;
-        voteSlots++;
-    }
-    //Add a don't change item if...
-    //    ...the don't change flag is true.
-    if (dontChange)
-    {
-        if (GetConVarBool(cvar_dontchange_display))
-            InsertMenuItem(menu, blockSlots, DONT_CHANGE_OPTION, "Don't Change");
-        else
-            AddMenuItem(menu, DONT_CHANGE_OPTION, "Don't Change");
-        voteCounter++;
-        voteSlots++;
-    }
-    //Throw an error and return nothing if...
-    //    ...the number of items in the vote is less than 2 (hence no point in voting).
-    if (voteCounter <= 1)
-    {
-        LogError("VOTING: Not enough map groups to run a group vote. %i groups available.",
-            voteCounter);
-        CloseHandle(menu);
-        ClearVoteArrays();
-        return INVALID_HANDLE;
-    }
-    else //Otherwise, finish making the menu.
-    {
-        SetCorrectMenuPagination(menu, voteSlots);
-        return menu; //Return our finished menu!
-    }
-}
-
-
-//Adds slot blocking to a menu
-AddSlotBlockingToMenu(Handle:menu, blockSlots)
-{
-    //Add blocked slots if...
-    //    ...the cvar for blocked slots is enabled.
-    if (blockSlots > 3)
-        AddMenuItem(menu, NOTHING_OPTION, "", ITEMDRAW_SPACER);
-    if (blockSlots > 0)
-        AddMenuItem(menu, NOTHING_OPTION, "Slot Block Message 1", ITEMDRAW_DISABLED);
-    if (blockSlots > 1)
-        AddMenuItem(menu, NOTHING_OPTION, "Slot Block Message 2", ITEMDRAW_DISABLED);
-    if (blockSlots > 2)
-        AddMenuItem(menu, NOTHING_OPTION, "", ITEMDRAW_SPACER);
-    if (blockSlots > 4)
-        AddMenuItem(menu, NOTHING_OPTION, "", ITEMDRAW_SPACER);
+    
+    return result;
+    
+    // Begin creating menu
+//     new Handle:menu = (GetConVarBool(cvar_valvemenu))
+//         ? CreateMenuEx(GetMenuStyleHandle(MenuStyle_Valve), Handle_VoteMenu,
+//                        MenuAction_DisplayItem|MenuAction_Display)
+//         : CreateMenu(Handle_VoteMenu, MenuAction_DisplayItem|MenuAction_Display);
+//     
+//     SetVoteResultCallback(menu, callback);    //Set callback
+//     SetMenuExitButton(menu, false); //Disable exit button
+//     
+//     //Set the title
+//     SetMenuTitle(menu, "Group Vote Menu Title");
+//     
+//     //Keep track of slots taken up in the vote.
+//     new voteSlots = blockSlots;
+// 
+//     //Add slot blocking
+//     AddSlotBlockingToMenu(menu, blockSlots);
+//     
+//     //Add array of votes to the menu.
+//     AddArrayToMenu(menu, catArray);
+//     voteSlots += GetArraySize(catArray);
+// 
+//     //We no longer need the vote array, so we close the handle.
+//     CloseHandle(catArray);
+// 
+//     //Add an extend item if...
+//     //    ...the extend flag is true.
+//     if (extend)
+//     {
+//         if (GetConVarBool(cvar_extend_display))
+//             InsertMenuItem(menu, blockSlots, EXTEND_MAP_OPTION, "Extend Map");
+//         else
+//             AddMenuItem(menu, EXTEND_MAP_OPTION, "Extend Map");
+//         voteCounter++;
+//         voteSlots++;
+//     }
+//     //Add a don't change item if...
+//     //    ...the don't change flag is true.
+//     if (dontChange)
+//     {
+//         if (GetConVarBool(cvar_dontchange_display))
+//             InsertMenuItem(menu, blockSlots, DONT_CHANGE_OPTION, "Don't Change");
+//         else
+//             AddMenuItem(menu, DONT_CHANGE_OPTION, "Don't Change");
+//         voteCounter++;
+//         voteSlots++;
+//     }
+//     //Throw an error and return nothing if...
+//     //    ...the number of items in the vote is less than 2 (hence no point in voting).
+//     if (voteCounter <= 1)
+//     {
+//         LogError("VOTING: Not enough map groups to run a group vote. %i groups available.",
+//             voteCounter);
+//         CloseHandle(menu);
+//         ClearVoteArrays();
+//         return INVALID_HANDLE;
+//     }
+//     else //Otherwise, finish making the menu.
+//     {
+//         SetCorrectMenuPagination(menu, voteSlots);
+//         return menu; //Return our finished menu!
+//     }
 }
 
 
@@ -2394,81 +2902,46 @@ FindStringInVoteArray(const String:target[], const String:val[], Handle:arr)
 }
 
 
-//Called when a vote has finished.
-public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
+//Catches the case where a vote occurred but nobody voted.
+VoteCancelled(Handle:vM)
 {
-    //DEBUG_MESSAGE("Vote Handler Called")
-    //Cleanup the memory taken by the vote if...
-    //    ...the vote is actually over.
-    switch(action)
+    new Handle:plugin, UMC_VoteCancelledHandler:handler;
+    new bool:vote_inprogress, bool:vote_active;
+    GetTrieValue(vM, "in_progress", vote_inprogress);
+    GetTrieValue(vM, "active", vote_active);
+    if (vote_inprogress)
     {
-        case MenuAction_End:
-        {
-            DEBUG_MESSAGE("MenuAction_End")
-            CloseHandle(menu);
-        }
-        case MenuAction_VoteCancel:
-        {
-            DEBUG_MESSAGE("Vote Cancelled")
-            VoteCancelled();
-        }
-        case MenuAction_Display:
-        {
-            //LogMessage("DEBUG: Display");
-            new Handle:panel = Handle:param2;
-            
-            decl String:phrase[255];
-            GetMenuTitle(menu, phrase, sizeof(phrase));
-            
-            decl String:buffer[255];
-            Format(buffer, sizeof(buffer), "%T", phrase, param1);
-            
-            SetPanelTitle(panel, buffer);
-        }
-        case MenuAction_DisplayItem:
-        {
-            //LogMessage("DEBUG: DisplayItem");
-            decl String:map[MAP_LENGTH], String:display[MAP_LENGTH];
-            GetMenuItem(menu, param2, map, sizeof(map), _, display, sizeof(display));
-            
-            if (StrEqual(map, EXTEND_MAP_OPTION) || StrEqual(map, DONT_CHANGE_OPTION) ||
-                (StrEqual(map, NOTHING_OPTION) && strlen(display) > 0))
-            {
-                decl String:buffer[255];
-                Format(buffer, sizeof(buffer), "%T", display, param1);
-                
-                return RedrawMenuItem(buffer);
-            }
-        }
-    }
-    return 0;
-}
-
-
-//Called right after the vote menu is destroyed.
-VoteCancelled()
-{
-    //Catches the case where a vote occurred but nobody voted.
-    if (vote_active)
-    {
-        LogMessage("Map vote ended with no votes.");
-    
-        //Reset flags
-        vote_active = false;
+        GetTrieValue(vM, "cancel", handler);
+        GetTrieValue(vM, "plugin", plugin);
         
-        //Cleanup the vote
-        EmptyStorage();
-        DeleteVoteParams();
-        ClearVoteArrays();
+        Call_StartFunction(plugin, handler);
+        Call_Finish();
         
-        VoteFailed();
+        if (vote_active)
+        {
+            LogMessage("Map vote ended with no votes.");
+        
+            //Reset flags
+            SetTrieValue(vM, "active", false);
+            //vote_active = false;
+            
+            //Cleanup the vote
+            EmptyStorage(vM);
+            DeleteVoteParams(vM);
+            ClearVoteArrays(vM);
+            
+            VoteFailed(vM);
+        }
     }
 }
 
 
 //Utility function to clear all the voting storage arrays.
-ClearVoteArrays()
+ClearVoteArrays(Handle:voteManager)
 {
+    new Handle:map_vote;
+    GetTrieValue(voteManager, "map_vote", map_vote);
+    
     new size = GetArraySize(map_vote);
     new Handle:mapTrie;
     new Handle:kv;
@@ -2484,8 +2957,11 @@ ClearVoteArrays()
 
 
 //Get the winner from a vote.
-any:GetWinner()
+any:GetWinner(Handle:vM)
 {
+    new Handle:vote_storage;
+    GetTrieValue(vM, "vote_storage", vote_storage);
+    
     new counter = 1;
     new Handle:voteItem = GetArrayCell(vote_storage, 0);
     new Handle:voteClients = INVALID_HANDLE;
@@ -2543,22 +3019,30 @@ DisplayTierMessage(timeleft)
 
 
 //Empties the vote storage
-EmptyStorage()
+EmptyStorage(Handle:vM)
 {
+    new Handle:vote_storage;
+    GetTrieValue(vM, "vote_storage", vote_storage);
+    
     new size = GetArraySize(vote_storage);
     for (new i = 0; i < size; i++)
-        RemoveFromStorage(0);
-    total_votes = 0;
+        RemoveFromStorage(vM, 0);
+    
+    SetTrieValue(vM, "total_votes", 0);
 }
 
 
 //Removes a vote item from the storage
-RemoveFromStorage(index)
+RemoveFromStorage(Handle:vM, index)
 {
+    new Handle:vote_storage, total_votes;
+    GetTrieValue(vM, "vote_storage", vote_storage);
+    GetTrieValue(vM, "total_votes", total_votes);
+    
     new Handle:stored = GetArrayCell(vote_storage, index);
     new Handle:clients = INVALID_HANDLE;
     GetTrieValue(stored, "clients", clients);
-    total_votes -= GetArraySize(clients);
+    SetTrieValue(vM, "total_votes", total_votes - GetArraySize(clients));
     CloseHandle(clients);
     CloseHandle(stored);
     RemoveFromArray(vote_storage, index);
@@ -2566,19 +3050,22 @@ RemoveFromStorage(index)
 
 
 //Gets the winning info for the vote
-GetVoteWinner(String:info[], maxinfo, &Float:percentage, String:disp[]="", maxdisp=0)
+GetVoteWinner(Handle:vM, String:info[], maxinfo, &Float:percentage, String:disp[]="", maxdisp=0)
 {
-    new Handle:winner = GetWinner();
+    new total_votes;
+    GetTrieValue(vM, "total_votes", total_votes);
+
+    new Handle:winner = GetWinner(vM);
     new Handle:clients = INVALID_HANDLE;
     GetTrieString(winner, "info", info, maxinfo);
-    GetTrieString(winner, "disp", disp, maxdisp);
+    GetTrieString(winner, "display", disp, maxdisp);
     GetTrieValue(winner, "clients", clients);
     percentage = float(GetArraySize(clients)) / total_votes * 100;
 }
 
 
 //Finds the index of the given vote item in the storage array. Returns -1 on failure.
-FindVoteInStorage(const String:info[])
+FindVoteInStorage(Handle:vote_storage, const String:info[])
 {
     new arraySize = GetArraySize(vote_storage);
     new Handle:vote = INVALID_HANDLE;
@@ -2611,75 +3098,96 @@ public CompareStoredVoteItems(index1, index2, Handle:array, Handle:hndl)
 
 
 //Adds vote results to the vote storage
-AddToStorage(Handle:menu, num_votes, num_items, const item_info[][2], num_clients,
-             const client_info[][2])
+AddToStorage(Handle:vM, Handle:vote_results)
 {
-    prev_vote_count = GetArraySize(vote_storage);
+    new Handle:vote_storage;
+    GetTrieValue(vM, "vote_storage", vote_storage);
     
-    new String:infoBuffer[255], String:dispBuffer[255];
+    new num_items = GetArraySize(vote_results);
+    
+    new total_votes;
+    GetTrieValue(vM, "total_votes", total_votes);
+    
     new storageIndex;
+    
+    new num_votes = 0;
+    
     new Handle:voteItem = INVALID_HANDLE;
     new Handle:voteClientArray = INVALID_HANDLE;
-    new itemIndex;
+    decl String:infoBuffer[255], String:dispBuffer[255];
     for (new i = 0; i < num_items; i++)
     {
-        itemIndex = item_info[i][VOTEINFO_ITEM_INDEX];
-        GetMenuItem(menu, itemIndex, infoBuffer, sizeof(infoBuffer), _, 
-                    dispBuffer, sizeof(dispBuffer));
-        storageIndex = FindVoteInStorage(infoBuffer);
+        voteItem = GetArrayCell(vote_results, i);
+        GetTrieString(voteItem, "info", infoBuffer, sizeof(infoBuffer));
+        storageIndex = FindVoteInStorage(vote_storage, infoBuffer);
+        GetTrieValue(voteItem, "clients", voteClientArray);
+        num_votes += GetArraySize(voteClientArray);
         if (storageIndex == -1)
         {
-            voteItem = CreateTrie();
-            voteClientArray = CreateArray();
-            SetTrieString(voteItem, "info", infoBuffer);
-            SetTrieString(voteItem, "disp", dispBuffer);
-            SetTrieValue(voteItem, "clients", voteClientArray);
-            PushArrayCell(vote_storage, voteItem);
+            new Handle:newItem = CreateTrie();
+            SetTrieString(newItem, "info", infoBuffer);
+            GetTrieString(voteItem, "display", dispBuffer, sizeof(dispBuffer));
+            SetTrieString(newItem, "display", dispBuffer);
+            SetTrieValue(newItem, "clients", CloneArray(voteClientArray));
+            PushArrayCell(vote_storage, newItem);
         }
         else
         {
-            voteItem = GetArrayCell(vote_storage, storageIndex);
-            GetTrieValue(voteItem, "clients", voteClientArray);
-        }
-        
-        for (new j = 0; j < num_clients; j++)
-        {
-            if (client_info[j][VOTEINFO_CLIENT_ITEM] == itemIndex)
-                PushArrayCell(voteClientArray, client_info[j][VOTEINFO_CLIENT_INDEX]);
+            new Handle:storageClientArray;
+            GetTrieValue(GetArrayCell(vote_storage, storageIndex), "client", storageClientArray);
+            ArrayAppend(storageClientArray, voteClientArray);
         }
     }
     SortADTArrayCustom(vote_storage, CompareStoredVoteItems);
-    total_votes += num_votes;
+    SetTrieValue(vM, "total_votes", total_votes + num_votes);
+    
+    SetTrieValue(vM, "prev_vote_count", num_votes);
+    
+    DEBUG_MESSAGE("Storage size: %i", GetArraySize(vote_storage))
 }
 
 
 //Handles the results of a vote
-ProcessVoteResults(Handle:menu, num_votes, num_clients, const client_info[][2], num_items,
-                   const item_info[][2], VoteHandler:runoff_callback, Function:winner_callback)
+Handle:ProcessVoteResults(Handle:vM, Handle:vote_results)
 {
+    new Handle:result = CreateTrie();
+
     DEBUG_MESSAGE("Processing vote results")
     
+    SetTrieValue(vM, "active", false);
+    
     //Vote is no longer running.
-    vote_active = false;
+    //vote_active = false;
+    
+    new remaining_runoffs, prev_vote_count;
+    GetTrieValue(vM, "remaining_runoffs", remaining_runoffs);
+    GetTrieValue(vM, "prev_vote_count", prev_vote_count);
 
     //Adds these results to the storage.
-    AddToStorage(menu, num_votes, num_items, item_info, num_clients, client_info);
+    AddToStorage(vM, vote_results);
     
     //Perform a runoff vote if it is necessary.
-    if (NeedRunoff())
+    if (NeedRunoff(vM))
     {
         //If we can't runoff anymore
         if (remaining_runoffs == 0 || prev_vote_count == 2)
         {
             DEBUG_MESSAGE("Can't runoff, performing failure action.")
+            
+            //Retrieve
+            new UMC_RunoffFailAction:stored_fail_action;
+            GetTrieValue(vM, "stored_fail_action", stored_fail_action);
+            
             if (stored_fail_action == RunoffFailAction_Accept)
             {
-                ProcessVoteWinner(winner_callback);
+                ProcessVoteWinner(vM, result);
             }
             else if (stored_fail_action == RunoffFailAction_Nothing)
             {
+                new total_votes;
+                GetTrieValue(vM, "total_votes", total_votes);
                 new Float:percentage;
-                GetVoteWinner("", 0, percentage, "", 0);
+                GetVoteWinner(vM, "", 0, percentage);
                 PrintToChatAll(
                     "\x03[UMC]\x01 %t (%t)",
                     "Vote Failed",
@@ -2688,45 +3196,66 @@ ProcessVoteResults(Handle:menu, num_votes, num_clients, const client_info[][2], 
                         total_votes
                 );
                 LogMessage("MAPVOTE: Vote failed, winning map did not reach threshold.");
-                VoteFailed();                
-                DeleteVoteParams();
-                ClearVoteArrays();
+                VoteFailed(vM);                
+                DeleteVoteParams(vM);
+                ClearVoteArrays(vM);
+                SetTrieValue(result, "response", VoteResponse_Fail);
             }
-            EmptyStorage();
+            EmptyStorage(vM);
         }
         else
         {
-            DoRunoffVote(menu, runoff_callback);
+            DoRunoffVote(vM, result);
         }
     }
     else //Otherwise set the results.
     {
-        ProcessVoteWinner(winner_callback);
-        EmptyStorage();
+        ProcessVoteWinner(vM, result);
+        EmptyStorage(vM);
     }
+    return result;
 }
 
 
 //Processes the winner from the vote.
-ProcessVoteWinner(Function:callback)
+ProcessVoteWinner(Handle:vM, Handle:response)
 {
     //Detemine winner information.
     decl String:winner[255], String:disp[255];
     new Float:percentage;
-    GetVoteWinner(winner, sizeof(winner), percentage, disp, sizeof(disp));
+    GetVoteWinner(vM, winner, sizeof(winner), percentage, disp, sizeof(disp));
     
-    //Call the appropriate VoteWinnerHandler
-    Call_StartFunction(INVALID_HANDLE, callback);
-    Call_PushString(winner);
-    Call_PushString(disp);
-    Call_PushFloat(percentage);
-    Call_Finish();
+    new UMC_VoteType:stored_type;
+    GetTrieValue(vM, "stored_type", stored_type);
+    
+    SetTrieValue(response, "response", VoteResponse_Success);
+    SetTrieString(response, "param", disp);
+    
+    switch (stored_type)
+    {
+        case VoteType_Map:
+            Handle_MapVoteWinner(vM, winner, disp, percentage);
+        case VoteType_Group:
+            Handle_CatVoteWinner(vM, winner, disp, percentage);
+        case VoteType_Tier:
+        {
+            SetTrieValue(response, "response", VoteResponse_Tiered);
+            Handle_TierVoteWinner(vM, winner, disp, percentage);
+        }
+    }
 }
 
 
 //Determines if a runoff vote is needed.
-bool:NeedRunoff()
+bool:NeedRunoff(Handle:vM)
 {
+    //Retrive
+    new stored_threshold, total_votes;
+    new Handle:vote_storage;
+    GetTrieValue(vM, "stored_threshold", stored_threshold);
+    GetTrieValue(vM, "total_votes", total_votes);
+    GetTrieValue(vM, "vote_storage", vote_storage);
+
     DEBUG_MESSAGE("Determining if the vote meets the defined threshold of %f", stored_threshold)
     
     //Get the winning vote item.
@@ -2741,63 +3270,72 @@ bool:NeedRunoff()
 
 
 //Sets up a runoff vote.
-DoRunoffVote(Handle:menu, VoteHandler:callback)
+DoRunoffVote(Handle:vM, Handle:response)
 {   
     DEBUG_MESSAGE("Performing runoff vote")
     
-    remaining_runoffs--;
+    new remaining_runoffs;
+    GetTrieValue(vM, "remaining_runoffs", remaining_runoffs);
+    SetTrieValue(vM, "remaining_runoffs", remaining_runoffs - 1);
 
     //Array to store clients the menu will be displayed to.
-    runoff_clients = CreateArray();
+    new Handle:runoffClients = CreateArray();
     
     //Build the runoff vote based off of the results of the failed vote.
-    runoff_menu = BuildRunoffMenu(menu, callback, runoff_clients);
+    //TODO: Instead of returning a menu, return a list of vote_option tries.
+    new Handle:runoffOptions = BuildRunoffOptions(vM, runoffClients);
 
     //Setup the timer if...
     //  ...the menu was built successfully
-    if (runoff_menu != INVALID_HANDLE)
+    if (runoffOptions != INVALID_HANDLE)
     {        
         //Empty storage if we're revoting completely.
         if (!GetConVarBool(cvar_runoff_selective))
-            EmptyStorage();
+            EmptyStorage(vM);
         
         //Setup timer to delay the start of the runoff vote.
-        runoff_delay = 7;
+        SetTrieValue(vM, "runoff_delay", 7);
         
         //Display the first message
-        DisplayRunoffMessage(runoff_delay+1);
+        DisplayRunoffMessage(8);
         
-        DEBUG_MESSAGE("Runoff timer created. Runoff vote will be displayed in %i seconds.", runoff_delay + 1)
+        DEBUG_MESSAGE("Runoff timer created. Runoff vote will be displayed in %i seconds.", 8)
         
         //Setup data pack to go along with the timer.
-        //new Handle:pack;    
-        CreateTimer(
+        new Handle:pack;    
+        CreateDataTimer(
             1.0,
             Handle_RunoffVoteTimer,
-            INVALID_HANDLE, //pack,
+            pack,
             TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT
         );
         //Add info to the pack.
-        //WritePackString(pack, sound);
+        WritePackCell(pack, _:vM);
+        WritePackCell(pack, _:runoffOptions);
+        WritePackCell(pack, _:runoffClients);
+        SetTrieValue(response, "response", VoteResponse_Runoff);
     }
     else //Otherwise, cleanup
     {
         LogError("RUNOFF: Unable to create runoff vote menu, runoff aborted.");
-        CloseHandle(runoff_clients);
-        VoteFailed();
-        EmptyStorage();
-        DeleteVoteParams();
-        ClearVoteArrays();
+        CloseHandle(runoffClients);
+        VoteFailed(vM);
+        EmptyStorage(vM);
+        DeleteVoteParams(vM);
+        ClearVoteArrays(vM);
+        SetTrieValue(response, "response", VoteResponse_Fail);
     }
 }
 
 
 //Builds a runoff vote menu.
-//  menu:           the menu of the original vote we're running off from
-//  callback:       VoteHandler to be called when the voting is finished
 //  clientArray:    adt_array to be populated with clients whose votes were eliminated
-Handle:BuildRunoffMenu(Handle:menu, VoteHandler:callback, Handle:clientArray)
+Handle:BuildRunoffOptions(Handle:vM, Handle:clientArray)
 {
+    new Handle:vote_storage, Float:stored_threshold;
+    GetTrieValue(vM, "vote_storage", vote_storage);
+    GetTrieValue(vM, "stored_threshold", stored_threshold);
+
     new bool:verboseLogs = GetConVarBool(cvar_logging);
     if (verboseLogs)
         LogMessage("RUNOFF MENU: (Verbose) Building runoff vote menu.");
@@ -2805,7 +3343,8 @@ Handle:BuildRunoffMenu(Handle:menu, VoteHandler:callback, Handle:clientArray)
     new Float:runoffThreshold = stored_threshold;
     
     //Copy the current total number of votes. Needed because the number will change as we remove items.
-    new totalVotes = total_votes;
+    new totalVotes;
+    GetTrieValue(vM, "total_votes", totalVotes);
     
     new Handle:voteItem = INVALID_HANDLE;
     new Handle:voteClients = INVALID_HANDLE;
@@ -2840,7 +3379,8 @@ Handle:BuildRunoffMenu(Handle:menu, VoteHandler:callback, Handle:clientArray)
     new Float:newPercent;
     
     //Max number of maps in the runoff vote
-    new maxMaps = stored_runoffmaps_max;
+    new maxMaps;
+    GetTrieValue(vM, "stored_runoffmaps_max", maxMaps);
     new bool:checkMax = maxMaps > 1;
     
     //Starting at the item with the least votes, calculate the new possible max percentage
@@ -2866,7 +3406,7 @@ Handle:BuildRunoffMenu(Handle:menu, VoteHandler:callback, Handle:clientArray)
         }
         
         //No longer store the map
-        RemoveFromStorage(i);
+        RemoveFromStorage(vM, i);
         num_items--;
         
         //Stop if...
@@ -2885,35 +3425,24 @@ Handle:BuildRunoffMenu(Handle:menu, VoteHandler:callback, Handle:clientArray)
     }
     
     //Start building the new vote menu.
-    new Handle:newMenu = CreateMenu(Handle_VoteMenu, MenuAction_DisplayItem|MenuAction_Display);
-    SetVoteResultCallback(newMenu, callback);
-    SetMenuExitButton(newMenu, false);
-    
-    //Set the menu title to the old one.
-    new String:title[255];
-    GetMenuTitle(menu, title, sizeof(title));
-    SetMenuTitle(newMenu, title);
-    
-    new voteSlots = 0;
-    
-    //Add blocked slots.
-    if (GetConVarBool(cvar_runoff_slots))
-    {
-        voteSlots += stored_blockslots;
-        AddSlotBlockingToMenu(newMenu, stored_blockslots);
-    }
+    new Handle:newMenu = CreateArray();
     
     //Populate the new menu with what remains of the storage.
     new count = 0;
     decl String:info[255], String:disp[255];
+    new Handle:item;
     for (new i = 0; i < num_items; i++)
     {
         voteItem = GetArrayCell(vote_storage, i);
         GetTrieString(voteItem, "info", info, sizeof(info));
-        GetTrieString(voteItem, "disp", disp, sizeof(disp));
-        AddMenuItem(newMenu, info, disp);
+        GetTrieString(voteItem, "display", disp, sizeof(disp));
+        
+        item = CreateTrie();
+        SetTrieString(item, "info", info);
+        SetTrieString(item, "display", disp);
+        PushArrayCell(newMenu, item);
+        
         count++;
-        voteSlots++;
     }
     
     //Log an error and do nothing if...
@@ -2929,24 +3458,36 @@ Handle:BuildRunoffMenu(Handle:menu, VoteHandler:callback, Handle:clientArray)
         return INVALID_HANDLE;
     }
     
-    //Set the proper pagination.
-    SetCorrectMenuPagination(newMenu, voteSlots);
-    
     return newMenu;
 }
                        
                        
 //Called when the runoff timer for an end-of-map vote completes.
-public Action:Handle_RunoffVoteTimer(Handle:timer)
-{
+public Action:Handle_RunoffVoteTimer(Handle:timer, Handle:datapack)
+{    
+    ResetPack(datapack);
+    new Handle:vM = Handle:ReadPackCell(datapack);
+
+    new bool:vote_inprogress;
+    GetTrieValue(vM, "in_progress", vote_inprogress);
+
     if (!vote_inprogress)
     {
-        VoteFailed();
-        EmptyStorage();
-        DeleteVoteParams();
-        ClearVoteArrays();
+        VoteFailed(vM);
+        EmptyStorage(vM);
+        DeleteVoteParams(vM);
+        ClearVoteArrays(vM);
+        
+        new Handle:options = Handle:ReadPackCell(datapack);
+        new Handle:clients = Handle:ReadPackCell(datapack);
+        FreeOptions(options);
+        CloseHandle(clients);
+        
         return Plugin_Stop;
     }
+    
+    new runoff_delay;
+    GetTrieValue(vM, "runoff_delay", runoff_delay);
     
     DisplayRunoffMessage(runoff_delay);
 
@@ -2954,7 +3495,10 @@ public Action:Handle_RunoffVoteTimer(Handle:timer)
     //  ...the timer hasn't finished yet.
     if (runoff_delay > 0)
     {
-        runoff_delay--;
+        if (strlen(countdown_sound) > 0)
+            EmitSoundToAll(countdown_sound);
+        
+        SetTrieValue(vM, "runoff_delay", runoff_delay - 1);
         return Plugin_Continue;
     }
 
@@ -2968,13 +3512,29 @@ public Action:Handle_RunoffVoteTimer(Handle:timer)
         return Plugin_Continue;
     }
     
-    //Setup array of clients to display the vote to.
-    new clients[MAXPLAYERS];
-    ConvertArray(runoff_clients, clients, sizeof(clients));
-    new numClients = GetArraySize(runoff_clients);
-    CloseHandle(runoff_clients);
+    new Handle:options = Handle:ReadPackCell(datapack);
+    new Handle:clients = Handle:ReadPackCell(datapack);
     
-    //Play the vote start sound if...
+    new UMC_VoteType:type;
+    GetTrieValue(vM, "stored_type", type);
+    new time;
+    GetTrieValue(vM, "stored_votetime", time);
+    decl String:sound[PLATFORM_MAX_PATH];
+    GetTrieString(vM, "stored_runoff_sound", sound, sizeof(sound));
+    
+    new bool:vote_active = PerformVote(vM, type, options, time, clients, sound);
+    if (!vote_active)
+    {
+        DeleteVoteParams(vM);
+        ClearVoteArrays(vM);
+        EmptyStorage(vM);
+        VoteFailed(vM);
+    }
+    
+    FreeOptions(options);
+    CloseHandle(clients);
+    
+   /*  //Play the vote start sound if...
     //  ...the filename is defined.
     if (strlen(stored_runoff_sound) > 0)
         EmitSoundToAll(stored_runoff_sound);
@@ -3006,7 +3566,7 @@ public Action:Handle_RunoffVoteTimer(Handle:timer)
             LogMessage("RUNOFF: Menu already has a vote in progress, cannot start a new vote.");
         else
             vote_active = true;
-    }
+    } */
 
     return Plugin_Stop;
 }
@@ -3025,19 +3585,14 @@ DisplayRunoffMessage(timeRemaining)
 }
 
 
-//Handles the results of an end-of-map map vote.
-public Handle_MapVoteResults(Handle:menu, num_votes, num_clients, const client_info[][2], num_items,
-                             const item_info[][2])
-{
-    ProcessVoteResults(menu, num_votes, num_clients, client_info, num_items, item_info,
-                       Handle_MapVoteResults, Handle_MapVoteWinner);
-}
-
-
 //Handles the winner of an end-of-map map vote.
-public Handle_MapVoteWinner(const String:info[], const String:disp[], Float:percentage)
+public Handle_MapVoteWinner(Handle:vM, const String:info[], const String:disp[],
+                            Float:percentage)
 {
     //vote_completed = true;
+    
+    new total_votes;
+    GetTrieValue(vM, "total_votes", total_votes);
 
     //Print a message and extend the current map if...
     //    ...the server voted to extend the map.
@@ -3052,7 +3607,7 @@ public Handle_MapVoteWinner(const String:info[], const String:disp[], Float:perc
                 total_votes
         );
         LogMessage("MAPVOTE: Players voted to extend the map.");
-        ExtendMap();
+        ExtendMap(vM);
     }
     else if (StrEqual(info, DONT_CHANGE_OPTION))
     {
@@ -3066,7 +3621,7 @@ public Handle_MapVoteWinner(const String:info[], const String:disp[], Float:perc
         );
         
         LogMessage("MAPVOTE: Players voted to stay on the map (Don't Change).");
-        VoteFailed();
+        VoteFailed(vM);
     }
     else //Otherwise, we print a message and then set the new map.
     {
@@ -3080,6 +3635,12 @@ public Handle_MapVoteWinner(const String:info[], const String:disp[], Float:perc
                 total_votes
         );
         
+        new Handle:map_vote, UMC_ChangeMapTime:change_map_when;
+        GetTrieValue(vM, "map_vote", map_vote);
+        GetTrieValue(vM, "change_map_when", change_map_when);
+        decl String:stored_reason[PLATFORM_MAX_PATH];
+        GetTrieString(vM, "stored_reason", stored_reason, sizeof(stored_reason));
+        
         //Find the index of the winning map in the stored vote array.
         new index = StringToInt(info);
         decl String:map[MAP_LENGTH], String:group[MAP_LENGTH];
@@ -3092,10 +3653,14 @@ public Handle_MapVoteWinner(const String:info[], const String:disp[], Float:perc
         GetTrieValue(mapData, "mapcycle", mapcycle);
         
         //Set it.
+        DisableVoteInProgress(vM);
         DoMapChange(change_map_when, mapcycle, map, group, stored_reason, disp);
         
         LogMessage("MAPVOTE: Players voted for map '%s' from group '%s'", map, group);
     }
+    
+    decl String:stored_end_sound[PLATFORM_MAX_PATH];
+    GetTrieString(vM, "stored_end_sound", stored_end_sound, sizeof(stored_end_sound));
     
     //Play the vote completed sound if...
     //  ...the vote completed sound is defined.
@@ -3103,25 +3668,29 @@ public Handle_MapVoteWinner(const String:info[], const String:disp[], Float:perc
         EmitSoundToAll(stored_end_sound);
     
     //No longer need the vote array.
-    ClearVoteArrays();
-    DeleteVoteParams();
+    ClearVoteArrays(vM);
+    DeleteVoteParams(vM);
 }
 
 
-//Handles the results of an end-of-map category vote.
+/* //Handles the results of an end-of-map category vote.
 public Handle_CatVoteResults(Handle:menu, num_votes, num_clients, const client_info[][2], num_items,
                              const item_info[][2])
 {
     ProcessVoteResults(menu, num_votes, num_clients, client_info, num_items, item_info,
                        Handle_CatVoteResults, Handle_CatVoteWinner);
-}
+} */
 
 
 //Handles the winner of an end-of-map category vote.
-public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:percentage)
+public Handle_CatVoteWinner(Handle:vM, const String:cat[], const String:disp[],
+                            Float:percentage)
 {
     DEBUG_MESSAGE("Handling group vote winner: %s", cat)
     //vote_completed = true;
+    
+    new total_votes;
+    GetTrieValue(vM, "total_votes", total_votes);
     
     //Print a message and extend the map if...
     //    ...the server voted to extend the map.
@@ -3137,7 +3706,7 @@ public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:perce
                 total_votes
         );
         LogMessage("Players voted to extend the map.");
-        ExtendMap();
+        ExtendMap(vM);
     }
     else if (StrEqual(cat, DONT_CHANGE_OPTION))
     {
@@ -3152,13 +3721,23 @@ public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:perce
         );
         
         LogMessage("Players voted to stay on the map (Don't Change).");
-        VoteFailed();
+        VoteFailed(vM);
     }
     else //Otherwise, we pick a random map from the category and set that as the next map.
     {
         decl String:map[MAP_LENGTH];
         
         DEBUG_MESSAGE("Rewinding and copying the mapcycle")
+        
+        new Handle:stored_kv, Handle:stored_mapcycle;
+        new UMC_ChangeMapTime:change_map_when;
+        decl String:stored_reason[PLATFORM_MAX_PATH];
+        new bool:stored_exclude;
+        GetTrieValue(vM, "stored_kv", stored_kv);
+        GetTrieValue(vM, "stored_mapcycle", stored_mapcycle);
+        GetTrieValue(vM, "change_map_when", change_map_when);
+        GetTrieString(vM, "stored_reason", stored_reason, sizeof(stored_reason));
+        GetTrieValue(vM, "stored_exclude", stored_exclude);
         
         //Rewind the mapcycle.
         KvRewind(stored_kv); //rewind original
@@ -3243,20 +3822,17 @@ public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:perce
             if (GetWeightedRandomSubKey(map, sizeof(map), weightArr, nameArr, index))
             {
                 DEBUG_MESSAGE("Selecting random nomination")
-            
                 trie = GetArrayCell(cycleArr, index);
-                
                 GetTrieValue(trie, "mapcycle", nomKV);
-                
                 GetTrieString(trie, "nom_group", nomGroup, sizeof(nomGroup));
-                
+                DisableVoteInProgress(vM);
                 DoMapChange(change_map_when, nomKV, map, nomGroup, stored_reason, map);
             }
             else //Otherwise, we select a map randomly from the category.
             {
                 DEBUG_MESSAGE("Couldn't select a random nomination [you shouldn't ever see this...]")
-            
                 GetRandomMap(kv, map, sizeof(map));
+                DisableVoteInProgress(vM);
                 DoMapChange(change_map_when, stored_mapcycle, map, cat, stored_reason, map);
             }
             
@@ -3270,6 +3846,7 @@ public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:perce
         {
             DEBUG_MESSAGE("No nominations, selecting a random map from the winning group")
             GetRandomMap(kv, map, sizeof(map)); //, stored_exmaps, stored_exgroups);
+            DisableVoteInProgress(vM);
             DoMapChange(change_map_when, stored_mapcycle, map, cat, stored_reason, map);
             DEBUG_MESSAGE("Map selected was %s", map)
         }
@@ -3289,31 +3866,40 @@ public Handle_CatVoteWinner(const String:cat[], const String:disp[], Float:perce
                 percentage,
                 total_votes
         );
-        LogMessage("MAPVOTE: Players voted for map group '%s' and the map '%s' was randomly selected.", cat, map);
+        LogMessage(
+            "MAPVOTE: Players voted for map group '%s' and the map '%s' was randomly selected.",
+            cat, map
+        );
     }
+    
+    decl String:stored_end_sound[PLATFORM_MAX_PATH];
+    GetTrieString(vM, "stored_end_sound", stored_end_sound, sizeof(stored_end_sound));
     
     //Play the vote completed sound if...
     //  ...the vote completed sound is defined.
     if (strlen(stored_end_sound) > 0)
         EmitSoundToAll(stored_end_sound);
         
-    DeleteVoteParams();
+    DeleteVoteParams(vM);
 }
 
 
-//Handles the results of an end-of-map tiered vote.
+/* //Handles the results of an end-of-map tiered vote.
 public Handle_TierVoteResults(Handle:menu, num_votes, num_clients, const client_info[][2],
                               num_items, const item_info[][2])
 {        
     ProcessVoteResults(menu, num_votes, num_clients, client_info, num_items, item_info,
                        Handle_TierVoteResults, Handle_TierVoteWinner);
-}
+} */
 
 
 //Handles the winner of an end-of-map tiered vote.
-public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:percentage)
+public Handle_TierVoteWinner(Handle:vM, const String:cat[], const String:disp[], Float:percentage)
 {
     DEBUG_MESSAGE("Handling Tiered Endvote Winner \"%s\"", cat)
+    
+    new total_votes;
+    GetTrieValue(vM, "total_votes", total_votes);
     
     //Print a message and extend the map if...
     //    ...the server voted to extend the map.
@@ -3330,8 +3916,8 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
                 total_votes
         );
         LogMessage("MAPVOTE: Players voted to extend the map.");
-        DeleteVoteParams();
-        ExtendMap();
+        DeleteVoteParams(vM);
+        ExtendMap(vM);
     }
     else if (StrEqual(cat, DONT_CHANGE_OPTION))
     {
@@ -3345,13 +3931,19 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
         );
         
         LogMessage("MAPVOTE: Players voted to stay on the map (Don't Change).");
-        DeleteVoteParams();
-        VoteFailed();
+        DeleteVoteParams(vM);
+        VoteFailed(vM);
     }
     else //Otherwise, we set up the second stage of the tiered vote
     {
         DEBUG_MESSAGE("Setting up second part of Tiered V.")
         LogMessage("MAPVOTE (Tiered): Players voted for map group '%s'", cat);
+        
+        new Handle:stored_kv;
+        GetTrieValue(vM, "stored_kv", stored_kv);
+        
+        new bool:stored_exclude;
+        GetTrieValue(vM, "stored_exclude", stored_exclude);
         
         //Jump to the map group
         KvRewind(stored_kv);
@@ -3381,8 +3973,12 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
         KvJumpToKey(kv, cat);
         
         if (stored_exclude)
+        {
+            new Handle:stored_mapcycle;
+            GetTrieValue(vM, "stored_mapcycle", stored_mapcycle);
             FilterMapGroup(kv, stored_mapcycle);
-        
+        }
+            
         DEBUG_MESSAGE("Counting the number of available maps from the winning group.")
         //Get the number of valid maps from the group
         vMapCount += CountMapsFromGroup(kv);
@@ -3401,7 +3997,7 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
             LogMessage(
                 "MAPVOTE (Tiered): Only one valid map found in group. Handling results as a Map Group Vote."
             );
-            Handle_CatVoteWinner(cat, disp, percentage);
+            Handle_CatVoteWinner(vM, cat, disp, percentage);
             CloseHandle(kv);
             return;
         }
@@ -3409,7 +4005,7 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
         DEBUG_MESSAGE("Starting countdown timer for the second vote.")
         
         //Setup timer to delay the next vote for a few seconds.
-        tiered_delay = 4;
+        SetTrieValue(vM, "tiered_delay", 4);
         
         //Display the first message
         DisplayTierMessage(5);
@@ -3424,16 +4020,23 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
         
         CloseHandle(kv);
         
+        new Handle:pack = CreateDataPack();
+        
         //Setup timer to delay the next vote for a few seconds.
-        CreateTimer(
+        CreateDataTimer(
             1.0,
             Handle_TieredVoteTimer,
-            tieredKV,
-            TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT|TIMER_DATA_HNDL_CLOSE
+            pack,
+            TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT
         );
+        WritePackCell(pack, _:vM);
+        WritePackCell(pack, _:tieredKV);
     }
     
     DEBUG_MESSAGE("Playing vote complete sound.")
+    
+    decl String:stored_end_sound[PLATFORM_MAX_PATH];
+    GetTrieString(vM, "stored_end_sound", stored_end_sound, sizeof(stored_end_sound));
     
     //Play the vote completed sound if...
     //  ...the vote completed sound is defined.
@@ -3445,14 +4048,23 @@ public Handle_TierVoteWinner(const String:cat[], const String:disp[], Float:perc
 
 
 //Called when the timer for the tiered end-of-map vote triggers.
-public Action:Handle_TieredVoteTimer(Handle:timer, Handle:tieredKV)
+public Action:Handle_TieredVoteTimer(Handle:timer, Handle:pack)
 {
+    ResetPack(pack);
+    new Handle:vM = Handle:ReadPackCell(pack);
+    
+    new bool:vote_inprogress;
+    GetTrieValue(vM, "in_progress", vote_inprogress);
+
     if (!vote_inprogress)
     {
-        VoteFailed();
-        DeleteVoteParams();
+        VoteFailed(vM);
+        DeleteVoteParams(vM);
         return Plugin_Stop;
     }
+    
+    new tiered_delay;
+    GetTrieValue(vM, "tiered_delay", tiered_delay);
     
     DisplayTierMessage(tiered_delay);
     
@@ -3461,7 +4073,7 @@ public Action:Handle_TieredVoteTimer(Handle:timer, Handle:tieredKV)
         if (strlen(countdown_sound) > 0)
             EmitSoundToAll(countdown_sound);
 
-        tiered_delay--;
+        SetTrieValue(vM, "tiered_delay", tiered_delay - 1);
         return Plugin_Continue;
     }
         
@@ -3470,31 +4082,62 @@ public Action:Handle_TieredVoteTimer(Handle:timer, Handle:tieredKV)
         return Plugin_Continue;
     }
     
+    new Handle:tieredKV = Handle:ReadPackCell(pack);
+    
     //Log a message
     LogMessage("MAPVOTE (Tiered): Starting second stage of tiered vote.");
     
-    //Initialize the menu.
-    new Handle:menu = BuildMapVoteMenu(tieredKV, stored_mapcycle, Handle_MapVoteResults,
-                                       stored_scramble, false, false, stored_blockslots,
-                                       stored_ignoredupes, stored_strictnoms, true, stored_exclude);
+    new Handle:stored_mapcycle, bool:stored_scramble, bool:stored_ignoredupes,
+        bool:stored_strictnoms, bool:stored_exclude;
+    GetTrieValue(vM, "stored_mapcycle", stored_mapcycle);
+    GetTrieValue(vM, "stored_scramble", stored_scramble);
+    GetTrieValue(vM, "stored_ignoredupes", stored_ignoredupes);
+    GetTrieValue(vM, "stored_strictnoms", stored_strictnoms);
+    GetTrieValue(vM, "stored_exclude", stored_exclude);
     
-    if (menu != INVALID_HANDLE)
+    //Initialize the menu.
+    new Handle:options = BuildMapVoteItems(vM, tieredKV, stored_mapcycle, stored_scramble, false,
+            false, stored_ignoredupes, stored_strictnoms, true, stored_exclude);
+    
+    if (options != INVALID_HANDLE)
     {
         //Play the vote start sound if...
         //  ...the vote start sound is defined.
-        if (strlen(stored_start_sound) > 0)
+        /* if (strlen(stored_start_sound) > 0)
             EmitSoundToAll(stored_start_sound);
         
         //Display the menu.
-        VoteMenuToAllWithFlags(menu, stored_votetime, stored_adminflags);
+        VoteMenuToAllWithFlags(menu, stored_votetime, stored_adminflags); */
         
-        vote_active = true;
+        decl String:stored_start_sound[PLATFORM_MAX_PATH], String:adminFlags[64];
+        GetTrieString(vM, "stored_start_sound", stored_start_sound, sizeof(stored_start_sound));
+        GetTrieString(vM, "stored_adminflags", adminFlags, sizeof(adminFlags));
+        
+        SetTrieValue(vM, "stored_type", VoteType_Map);
+        
+        new stored_votetime;
+        GetTrieValue(vM, "stored_votetime", stored_votetime);
+        
+        //vote_active = true;
+        new Handle:clients = GetClientsWithFlags(adminFlags);
+        new bool:vote_active = PerformVote(vM, VoteType_Map, options, stored_votetime, clients,
+                                           stored_start_sound);
+                                           
+        CloseHandle(clients);
+        FreeOptions(options);
+        
+        if (!vote_active)
+        {
+            DeleteVoteParams(vM);
+            ClearVoteArrays(vM);
+            VoteFailed(vM);
+        }
     }
     else
     {
         LogError("MAPVOTE (Tiered): Unable to create second stage vote menu. Vote aborted.");
-        VoteFailed();
-        DeleteVoteParams();
+        VoteFailed(vM);
+        DeleteVoteParams(vM);
     }
         
     return Plugin_Stop;
@@ -3502,10 +4145,17 @@ public Action:Handle_TieredVoteTimer(Handle:timer, Handle:tieredKV)
 
 
 //Extend the current map.
-ExtendMap()
+ExtendMap(Handle:vM)
 {
-    vote_inprogress = false;
+    DisableVoteInProgress(vM);
     //vote_completed = false;
+    
+    new Float:extend_timestep;
+    new extend_roundstep;
+    new extend_fragstep;
+    GetTrieValue(vM, "extend_timestep", extend_timestep);
+    GetTrieValue(vM, "extend_roundstep", extend_roundstep);
+    GetTrieValue(vM, "extend_fragstep", extend_fragstep);
     
     //Set new limit cvar values if they are enabled to begin with (> 0).
     new Handle:cvar_maxrounds = FindConVar("mp_maxrounds");
@@ -3522,6 +4172,13 @@ ExtendMap()
     //Extend the time limit.
     ExtendMapTimeLimit(RoundToNearest(extend_timestep * 60));
     
+    //Execute the extend command
+    decl String:command[64];
+    GetConVarString(cvar_extend_command, command, sizeof(command));
+    if (strlen(command) > 0)
+        ServerCommand(command);
+    
+    //Call the extend forward.
     Call_StartForward(extend_forward);
     Call_Finish();
     
@@ -3531,9 +4188,9 @@ ExtendMap()
 
 
 //Called when the vote has failed.
-VoteFailed()
+VoteFailed(Handle:vM)
 {    
-    vote_inprogress = false;
+    DisableVoteInProgress(vM);
 
     Call_StartForward(failure_forward);
     Call_Finish();
@@ -3543,9 +4200,7 @@ VoteFailed()
 //Sets the next map and when to change to it.
 DoMapChange(UMC_ChangeMapTime:when, Handle:kv, const String:map[], const String:group[],
             const String:reason[], const String:display[]="")
-{
-    vote_inprogress = false;
-    
+{   
     //Set the next map group
     strcopy(next_cat, sizeof(next_cat), group);
 
@@ -3576,13 +4231,19 @@ DoMapChange(UMC_ChangeMapTime:when, Handle:kv, const String:map[], const String:
 
 
 //Deletes the stored parameters for the vote.
-DeleteVoteParams()
+DeleteVoteParams(Handle:vM)
 {
     DEBUG_MESSAGE("Deleting Vote Parameters")
+    
+    new Handle:stored_kv, Handle:stored_mapcycle;
+    GetTrieValue(vM, "stored_kv", stored_kv);
+    GetTrieValue(vM, "stored_mapcycle", stored_mapcycle);
+    
     CloseHandle(stored_kv);
     CloseHandle(stored_mapcycle);
-    stored_kv = INVALID_HANDLE;
-    stored_mapcycle = INVALID_HANDLE;
+    
+    SetTrieValue(vM, "stored_kv", INVALID_HANDLE);
+    SetTrieValue(vM, "stored_mapcycle", INVALID_HANDLE);
 }
 
 
@@ -4087,9 +4748,27 @@ bool:GetRandomMapFromCycle(Handle:kv, const String:group[], String:buffer[], siz
     //Buffer to store the name of the category we will be looking for a map in.
     decl String:gName[MAP_LENGTH];
     
-    strcopy(gName, sizeof(gName), group);
-    if (StrEqual(gName, INVALID_GROUP) || !KvJumpToKey(kv, gName))
+#if UMC_DEBUG
+    if (!StrEqual(group, INVALID_GROUP, false))
     {
+        DEBUG_MESSAGE("Searching for random map in group %s.", group)
+    }
+#endif
+    
+    strcopy(gName, sizeof(gName), group);
+
+#if UMC_DEBUG
+    DEBUG_MESSAGE("group: %s, gName: %s", group, gName)
+    new bool:p1 = StrEqual(gName, INVALID_GROUP, false);
+    new bool:p2 = p1 || !KvJumpToKey(kv, gName);
+    if (p1 || p2)
+    {
+        DEBUG_MESSAGE("Picking random group. P1: %i, P2: %i", p1, p2)
+        PrintKv(kv);
+#else
+    if (StrEqual(gName, INVALID_GROUP, false) || !KvJumpToKey(kv, gName))
+    {
+#endif
         if (!GetRandomCat(kv, gName, sizeof(gName)))
         {
             LogError(
@@ -4113,7 +4792,6 @@ bool:GetRandomMapFromCycle(Handle:kv, const String:group[], String:buffer[], siz
         );
         return false;
     }
-
 
     KvGoBack(kv);
     

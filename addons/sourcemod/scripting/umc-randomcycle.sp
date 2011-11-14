@@ -12,7 +12,7 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-randomcycle.txt"
+#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-randomcycle.txt"
 
 #define NEXT_MAPGROUP_KEY "next_mapgroup"
 
@@ -166,6 +166,8 @@ public OnConfigsExecuted()
         KvFindGroupOfMap(umc_mapcycle, mapName, groupName, sizeof(groupName));
     }
     
+    DEBUG_MESSAGE("Current Map: %s -- %s", mapName, groupName)
+    
     SetupNextRandGroup(mapName, groupName);
     
     //Add the map to all the memory queues.
@@ -184,15 +186,15 @@ public Action:_VGuiMenu(UserMsg:msg_id, Handle:bf, const players[], playersNum, 
                         bool:init)
 {
     //Do nothing if we have already seen the intermission.
-    if(intermission_called)
+    if (intermission_called)
         return;
 
     new String:type[10];
     BfReadString(bf, type, sizeof(type));
 
-    if(strcmp(type, "scores", false) == 0)
+    if (strcmp(type, "scores", false) == 0)
     {
-        if(BfReadByte(bf) == 1 && BfReadByte(bf) == 0)
+        if (BfReadByte(bf) == 1 && BfReadByte(bf) == 0)
         {
             intermission_called = true;
             Event_GameEnd(INVALID_HANDLE, "", false);
@@ -222,23 +224,27 @@ SetupNextRandGroup(const String:map[], const String:group[])
 {
     decl String:gNextGroup[MAP_LENGTH];
     
-    if (map_kv == INVALID_HANDLE || StrEqual(group, INVALID_GROUP, false))
+    if (umc_mapcycle == INVALID_HANDLE || StrEqual(group, INVALID_GROUP, false))
     {
         strcopy(next_rand_cat, sizeof(next_rand_cat), INVALID_GROUP);
         return;
     }
     
-    KvRewind(map_kv);
-    if (KvJumpToKey(map_kv, group))
+    KvRewind(umc_mapcycle);
+    if (KvJumpToKey(umc_mapcycle, group))
     {
-        KvGetString(map_kv, NEXT_MAPGROUP_KEY, gNextGroup, sizeof(gNextGroup), INVALID_GROUP);
-        if (KvJumpToKey(map_kv, map))
+        KvGetString(umc_mapcycle, NEXT_MAPGROUP_KEY, gNextGroup, sizeof(gNextGroup), 
+                    INVALID_GROUP);
+        if (KvJumpToKey(umc_mapcycle, map))
         {
-            KvGetString(map_kv, NEXT_MAPGROUP_KEY, next_rand_cat, sizeof(next_rand_cat), gNextGroup);
-            KvGoBack(map_kv);
+            KvGetString(umc_mapcycle, NEXT_MAPGROUP_KEY, next_rand_cat, sizeof(next_rand_cat), 
+                        gNextGroup);
+            KvGoBack(umc_mapcycle);
         }
-        KvGoBack(map_kv);   
+        KvGoBack(umc_mapcycle);   
     }
+    
+    DEBUG_MESSAGE("Next Random Mapgroup: %s", next_rand_cat)
 }
 
 
@@ -333,6 +339,7 @@ public Action:Command_Random(client, args)
 DoRandomNextMap() 
 {    
     LogMessage("Attempting to set the next map to a random selection.");
+    DEBUG_MESSAGE("next_rand_cat: %s", next_rand_cat)
     decl String:nextMap[MAP_LENGTH], String:nextGroup[MAP_LENGTH];
     if (UMC_GetRandomMap(map_kv, umc_mapcycle, next_rand_cat, nextMap, sizeof(nextMap), nextGroup,
                          sizeof(nextGroup), false, true))

@@ -51,13 +51,13 @@ stock Handle:CreateMapTrie(const String:map[], const String:group[])
 
 
 //Utility function to get a KeyValues Handle from a filename, with the specified root key.
-stock Handle:GetKvFromFile(const String:filename[], const String:rootKey[])
+stock Handle:GetKvFromFile(const String:filename[], const String:rootKey[], bool:checkNorm=true)
 {
     new Handle:kv = CreateKeyValues(rootKey);
     
     //Log an error and return empty handle if...
     //    ...the kv file fails to parse.
-    if (!ConvertNormalMapcycle(kv, filename) && !FileToKeyValues(kv, filename))
+    if (!(checkNorm && ConvertNormalMapcycle(kv, filename)) && !FileToKeyValues(kv, filename))
     {
         LogError("KV ERROR: Unable to load KV file: %s", filename);
         CloseHandle(kv);
@@ -220,6 +220,13 @@ stock bool:KvFindGroupOfMap(Handle:kv, const String:map[], String:buffer[], maxl
 }
 
 
+enum CustomHudFallbackType {
+    HudFallback_Chat,
+    HudFallback_Hint,
+    HudFallback_Center,
+	HudFallback_None
+}
+
 //Color Arrays for colors in warning messages.
 static g_iSColors[7]             = {1, 3, 3, 4, 4, 5, 6};
 static String:g_sSColors[7][13]  = {"{DEFAULT}", "{LIGHTGREEN}", "{TEAM}", "{GREEN}", "{RED}",
@@ -238,17 +245,17 @@ static Handle:center_message_timer = INVALID_HANDLE;
 static bool:center_warning_active = false;
 
 //Handle to the TF2 Game Message entity timer. For Vote Warnings.
-static Handle:game_message_timer = INVALID_HANDLE;
-static bool:game_message_active = false;
+//static Handle:game_message_timer = INVALID_HANDLE;
+//static bool:game_message_active = false;
 
 //Displays a message to the server
 stock DisplayServerMessage(const String:msg[], const String:type[])
 {
     //Kill timers for previous messages.
-    if (game_message_active)
-    {
-        TriggerTimer(game_message_timer);
-    }
+    //if (game_message_active)
+    //{
+    //    TriggerTimer(game_message_timer);
+    //}
     if (center_warning_active)
     {   
         center_warning_active = false;
@@ -349,7 +356,9 @@ stock DisplayServerMessage(const String:msg[], const String:type[])
                                                TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
         WritePackString(hCenterAd, message);
         
-        center_warning_active = true;
+        center_warning_active = center_message_timer != INVALID_HANDLE;
+        if (!center_warning_active)
+            CloseHandle(hCenterAd);
     }
     
     //Display a hint message ("H") if...
@@ -360,21 +369,7 @@ stock DisplayServerMessage(const String:msg[], const String:type[])
     //Display a TF2 Game Event message ("G") if...
     //    ...the user specifies.
     if (StrContains(type, "G") != -1)
-    {
-        /*
-        decl String:sIcon[64],  String:sBackground[6],  String:sTeam[6];
-        
-        KvGetString(g_hAdvertisements, "icon",  sIcon,  sizeof(sIcon),
-                    "leaderboard_dominated");
-        KvGetString(g_hAdvertisements, "background",  sBackground,
-
-        sizeof(sBackground), "0");
-        KvGetString(g_hAdvertisements, "team", sTeam, sizeof(sTeam), "0");
-        new Float:fTime = KvGetFloat(g_hAdvertisements, "time");
-        */
-        
-        TFGameText(message);
-    }
+        TF2_SendCustomHudMessageAll("ico_time_10", -1, HudFallback_Hint, message);
 }
 
 
@@ -403,43 +398,86 @@ public Action:Timer_CenterAd(Handle:timer, Handle:pack)
 }
 
 
-//Displays a game text message for TF2.
-stock static TFGameText(const String:message[], Float:time=10.0, const String:icon[]="leaderboard_dominated",
-           const String:background[]="0", const String:team[]="0")
-{        
-    if (!IsEntLimitReached(.message="unable to create game_text_tf"))
-    {
-        new Text_Ent = CreateEntityByName("game_text_tf");
-        DispatchKeyValue(Text_Ent,"message",message);
-        DispatchKeyValue(Text_Ent,"display_to_team",team);
-        DispatchKeyValue(Text_Ent,"icon",icon);
-        DispatchKeyValue(Text_Ent,"targetname","game_text1");
-        DispatchKeyValue(Text_Ent,"background",background);
-        DispatchSpawn(Text_Ent);
+//
+stock TF2_SendCustomHudMesssage(client, const String:icon[], team=-1, CustomHudFallbackType:fallback,
+								const String:format[], any:...)
+{
+    decl String:message[256];
+    VFormat(message, sizeof(message), format, 6);
+    
+    new Handle:pack = CreateDataPack();
+    WritePackCell(pack, GetClientUserId(client));
+    WritePackString(pack, message);
+    WritePackString(pack, icon);
+    WritePackCell(pack, team);
+    WritePackCell(pack, fallback);
+    QueryClientConVar(client, "cl_hud_minmode", MinModeCheckFinished, pack);
+}
 
-        AcceptEntityInput(Text_Ent, "Display", Text_Ent, Text_Ent);
+
+//
+stock TF2_SendCustomHudMessageAll(const String:icon[], team=-1, CustomHudFallbackType:fallback,
+								  const String:format[], any:...)
+{
+    decl String:message[256];
+    VFormat(message, sizeof(message), format, 5);
+    
+    for (new i = 1; i <= MaxClients; i++)
+    {
+        if (!IsFakeClient(i) || !IsClientInGame(i))
+            continue;
         
-        game_message_timer = CreateTimer(time, Kill_ent, 
-                                         EntIndexToEntRef(Text_Ent));
-        game_message_active = true;
+        new Handle:pack = CreateDataPack();
+        WritePackCell(pack, GetClientUserId(i));
+        WritePackString(pack, message);
+        WritePackString(pack, icon);
+        WritePackCell(pack, team);
+        WritePackCell(pack, _:fallback);
+        QueryClientConVar(i, "cl_hud_minmode", MinModeCheckFinished, pack);
     }
 }
 
 
-//Kills the game text message when the time limit is up.
-public Action:Kill_ent(Handle:timer, any:ref)
+//
+public MinModeCheckFinished(QueryCookie:cookie, uid, ConVarQueryResult:result, const String:cvarName[],
+							const String:cvarValue[], any:pack)
 {
-    new ent = EntRefToEntIndex(ref);
-    if (ent > 0 && IsValidEntity(ent))
+    ResetPack(pack);
+    new client = GetClientOfUserId(ReadPackCell(pack));
+    if (client == 0)
     {
-        decl String:classname[50];
-        if (GetEdictClassname(ent, classname, sizeof(classname)) &&
-            StrEqual(classname, "game_text_tf", false))
+        CloseHandle(pack);
+        return;
+    }
+    
+    decl String:message[256], String:icon[256];
+    ReadPackString(pack, message, sizeof(message));
+    ReadPackString(pack, icon,    sizeof(icon));
+    
+    new team = ReadPackCell(pack);
+    
+    if (result != ConVarQuery_Okay || StringToInt(cvarValue) == 0)
+    {
+        switch (CustomHudFallbackType:ReadPackCell(pack))
         {
-            AcceptEntityInput(ent, "kill");
+            case HudFallback_Chat:
+                PrintToChat(client, "%s", message);
+            case HudFallback_Hint:
+                PrintHintText(client, "%s", message);
+            case HudFallback_Center:
+                PrintCenterText(client, "%s", message);
         }
     }
-    game_message_active = false;
+    else
+    {
+        new Handle:msg = StartMessageOne("HudNotifyCustom", client);
+        BfWriteString(msg, message);
+        BfWriteString(msg, icon);
+        BfWriteByte(msg, ((team == -1) ? GetClientTeam(client) : team));
+        EndMessage();
+    }
+    
+    CloseHandle(pack);
 }
 
 
@@ -564,48 +602,6 @@ stock AddArrayToMenu(Handle:menu, Handle:arr, Handle:dispArr=INVALID_HANDLE)
 }
 
 
-//Function to check the entity limit. Used before spawning an entity.
-#tryinclude <entlimit>
-#if !defined _entlimit_included
-stock IsEntLimitReached(warn=20, critical=16, client=0, const String:message[]="")
-{
-    new max = GetMaxEntities();
-    new count = GetEntityCount();
-    new remaining = max - count;
-    if (remaining <= warn)
-    {
-        if (count <= critical)
-        {
-            PrintToServer("Warning: Entity limit is nearly reached! Please switch or reload the map!");
-            LogError("Entity limit is nearly reached: %d/%d (%d):%s", 
-                count, max, remaining, message);
-    
-            if (client > 0)
-            {
-                PrintToConsole(client, "Entity limit is nearly reached: %d/%d (%d):%s",
-                       count, max, remaining, message);
-            }
-        }
-        else
-        {
-            PrintToServer("Caution: Entity count is getting high!");
-            LogMessage("Entity count is getting high: %d/%d (%d):%s",
-                count, max, remaining, message);
-    
-            if (client > 0)
-            {
-                PrintToConsole(client, "Entity count is getting high: %d/%d (%d):%s",
-                       count, max, remaining, message);
-            }
-        }
-        return count;
-    }
-    else
-        return 0;
-}
-#endif
-
-
 //Changes the map in 5 seconds.
 stock ForceChangeInFive(const String:map[], const String:reason[]="")
 {
@@ -643,6 +639,8 @@ public Action:Handle_MapChangeTimer(Handle:timer, Handle:pack)
     ResetPack(pack);
     ReadPackString(pack, map, sizeof(map));
     ReadPackString(pack, reason, sizeof(reason));
+    
+    DEBUG_MESSAGE("Changing map to %s: %s", map, reason)
     
     //Change the map.
     ForceChangeLevel(map, reason);
@@ -1016,7 +1014,7 @@ stock bool:VoteMenuToAllWithFlags(Handle:menu, time, const String:flagstring[]="
     if (strlen(flagstring) > 0)
     {
         new flags = ReadFlagString(flagstring);
-        decl clients[MAXPLAYERS];
+        decl clients[MAXPLAYERS+1];
         new count = 0;
         for (new i = 1; i <= MaxClients; i++)
         {
@@ -1031,6 +1029,28 @@ stock bool:VoteMenuToAllWithFlags(Handle:menu, time, const String:flagstring[]="
     {
         return bool:VoteMenuToAll(menu, time);
     }
+}
+
+
+//
+stock Handle:GetClientsWithFlags(const String:flagstring[])
+{
+    new Handle:result = CreateArray();
+    for (new i = 1; i <= MaxClients; i++)
+    {
+        if (IsClientInGame(i) && ClientHasAdminFlags(i, flagstring))
+        {
+            PushArrayCell(result, i);
+        }
+    }
+    return result;
+}
+
+
+//
+stock bool:ClientHasFlagBits(client, flags)
+{
+    return flags & GetUserFlagBits(client);
 }
 
 

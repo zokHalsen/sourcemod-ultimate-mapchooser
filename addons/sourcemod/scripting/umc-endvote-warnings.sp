@@ -15,7 +15,7 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-endvote-warnings.txt"
+#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-endvote-warnings.txt"
 
 public Plugin:myinfo =
 {
@@ -38,6 +38,11 @@ new bool:frag_enabled;
 new bool:round_enabled;
 new bool:win_enabled;
 
+new bool:time_init;
+new bool:frag_init;
+new bool:round_init;
+new bool:win_init;
+
 //Warning adt_arrays
 new Handle:time_array  = INVALID_HANDLE;
 new Handle:frag_array  = INVALID_HANDLE;
@@ -57,6 +62,8 @@ new current_win;
 
 public OnPluginStart()
 {
+    DEBUG_MESSAGE("Loading plugin...")
+
     cvar_time = CreateConVar(
         "sm_umc_endvote_timewarnings",
         "addons/sourcemod/configs/vote_warnings.txt",
@@ -72,13 +79,13 @@ public OnPluginStart()
     cvar_round = CreateConVar(
         "sm_umc_endvote_roundwarnings",
         "",
-        "Specifies which file round-based vote warnings are defined in (uses mp_maxrounds)."
+        "Specifies which file round-based vote warnings are defined in. (uses mp_maxrounds)"
     );
     
     cvar_win = CreateConVar(
         "sm_umc_endvote_winwarnings",
         "",
-        "Specifies which file win-based vote warnings are defined in (uses mp_winlimit)."
+        "Specifies which file win-based vote warnings are defined in. (uses mp_winlimit)"
     );
     
     AutoExecConfig(true, "umc-endvote-warnings");
@@ -136,13 +143,22 @@ public OnConfigsExecuted()
     //Initialize warning variables if...
     //    ...vote warnings are enabled.
     if (time_enabled)
+    {
+        DEBUG_MESSAGE("Fetching time-warnings...")
         GetVoteWarnings(timefile, time_array, current_time);
+        DEBUG_MESSAGE("Number of time warnings: %i", GetArraySize(time_array))
+    }
     if (frag_enabled)
         GetVoteWarnings(fragfile, frag_array, current_frag);
     if (round_enabled)
         GetVoteWarnings(roundfile, round_array, current_round);
     if (win_enabled)
         GetVoteWarnings(winfile, win_array, current_win);
+        
+    time_init = false;
+    frag_init = false;
+    round_init = false;
+    win_init = false;
     
     //Set the starting points.
     //UpdateVoteWarnings(warnings_time_enabled, warnings_frag_enabled, warnings_round_enabled);
@@ -166,7 +182,7 @@ public CompareWarnings(index1, index2, Handle:array, Handle:hndl)
 GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
 {
     //Get our warnings file as a Kv file.
-    new Handle:kv = GetKvFromFile(fileName, "vote_warnings");
+    new Handle:kv = GetKvFromFile(fileName, "vote_warnings", false);
     
     //Do nothing if...
     //  ...we can't find the warning definitions.
@@ -203,7 +219,8 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
     //       will not execute. We will catch this case after we attempt to parse the file.
     if (!KvGotoFirstSubKey(kv))
     {
-        LogMessage("SETUP: No vote warnings defined, vote warnings were not created.");
+        LogMessage("No vote warnings defined, vote warnings were not created.");
+        CloseHandle(kv);
         return;
     }
     
@@ -288,6 +305,7 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
             SetTrieString(warning, "message", message);
             SetTrieString(warning, "notification", notification);
             SetTrieString(warning, "flags", flags);
+            DEBUG_MESSAGE("Warning time: %i, message: %s", warningTime - i, message)
             
             //Insert correct time remaining if...
             //    ...the message has a place to insert it.
@@ -313,6 +331,8 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
             
             //Increment the counter.
             warningCount++;
+            
+            DEBUG_MESSAGE("Number of warnings: %i", GetArraySize(warningArray))
         }
     } while(KvGotoNextKey(kv)); //Do this for every warning.
     
@@ -323,23 +343,25 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
     //    ...no vote warnings were found. This accounts for the case where the default definition was
     //       provided, but not actual warnings.
     if (warningCount < 1)
-        LogMessage("SETUP: No vote warnings defined, vote warnings were not created.");
+        LogMessage("No vote warnings defined, vote warnings were not created.");
     else //Otherwise, log a success!
     {
-        LogMessage("SETUP: Successfully parsed and set up %i vote warnings.", warningCount);
+        LogMessage("Successfully parsed and set up %i vote warnings.", warningCount);
     
         //Sort the array in descending order of time.
         SortADTArrayCustom(warningArray, CompareWarnings);
         
         next = GetArraySize(warningArray);
+        
+        DEBUG_MESSAGE("Sorted Warnings: %i", GetArraySize(warningArray))
     }
 }
 
 
-stock UpdateWarnings(Handle:array, threshold, &warningTime)
+UpdateWarnings(Handle:array, threshold, &warningTime)
 {
     //Storage variables.
-    new Handle:warning = INVALID_HANDLE;
+    //new Handle:warning = INVALID_HANDLE;
     new i, arraySize;
     
     //Test if a warning is the next warning to be displayed for...
@@ -347,8 +369,8 @@ stock UpdateWarnings(Handle:array, threshold, &warningTime)
     arraySize = GetArraySize(array);
     for (i = 0; i < arraySize; i++)
     {
-        warning = GetArrayCell(array, i);
-        GetTrieValue(warning, "time", warningTime);
+        //warning = GetArrayCell(array, i);
+        GetTrieValue(GetArrayCell(array, i), "time", warningTime);
         
         //We found out answer if...
         //    ...the trigger for the next warning hasn't passed.
@@ -356,17 +378,21 @@ stock UpdateWarnings(Handle:array, threshold, &warningTime)
             break;
     }
     
+    DEBUG_MESSAGE("Next warning after update located at index %i", i)
+    
     return i;
 }
 
 
 UpdateWinWarnings(winsleft)
 {
+    DEBUG_MESSAGE("*UpdateWinWarnings*")
     new warningTime;
     current_win = UpdateWarnings(win_array, winsleft, warningTime);
     
     if (current_win < GetArraySize(win_array))
     {
+        win_init = true;
         LogMessage(
             "First win-warning will appear at %i wins before the end of the map.",
             warningTime
@@ -377,11 +403,13 @@ UpdateWinWarnings(winsleft)
 
 UpdateFragWarnings(fragsleft)
 {
+    DEBUG_MESSAGE("*UpdateFragWarnings*")
     new warningTime;
     current_frag = UpdateWarnings(frag_array, fragsleft, warningTime);
     
     if (current_round < GetArraySize(round_array))
     {
+        frag_init = true;
         LogMessage(
             "First frag-warning will appear at %i frags before the end of map vote.",
             warningTime
@@ -392,11 +420,24 @@ UpdateFragWarnings(fragsleft)
 
 UpdateTimeWarnings(timeleft)
 {
+#if UMC_DEBUG
+    DEBUG_MESSAGE("*UpdateTimeWarnings*")
+    DEBUG_MESSAGE("Threshold: %i", timeleft)
+    new Handle:warning;
+    decl String:message[255];
+    for (new i = 0; i < GetArraySize(time_array); i++)
+    {
+        warning = GetArrayCell(time_array, i);
+        GetTrieString(warning, "message", message, sizeof(message));
+        DEBUG_MESSAGE("%i: %s", i, warning)
+    }
+#endif
     new warningTime;
     current_time = UpdateWarnings(time_array, timeleft, warningTime);
     
     if (current_time < GetArraySize(time_array))
     {
+        time_init = true;
         LogMessage(
             "First time-warning will appear %i seconds before the end of map vote.",
             warningTime
@@ -407,11 +448,13 @@ UpdateTimeWarnings(timeleft)
 
 UpdateRoundWarnings(roundsleft)
 {
+    DEBUG_MESSAGE("*UpdateRoundWarnings*")
     new warningTime;
     current_round = UpdateWarnings(round_array, roundsleft, warningTime);
     
     if (current_round < GetArraySize(round_array))
     {
+        round_init = true;
         LogMessage(
             "First round-warning will appear at %i rounds before the end of map vote.",
             warningTime
@@ -574,24 +617,32 @@ public UMC_EndVote_OnWinTimerUpdated(winsleft, team)
 
 public UMC_EndVote_OnTimeTimerTicked(timeleft)
 {
+    if (!time_init)
+        UpdateTimeWarnings(timeleft);
     TryDoTimeWarning(timeleft);
 }
 
 
 public UMC_EndVote_OnRoundTimerTicked(roundsleft)
 {
+    if (!round_init)
+        UpdateRoundWarnings(roundsleft);
     TryDoRoundWarning(roundsleft);
 }
 
 
 public UMC_EndVote_OnFragTimerTicked(fragsleft, client)
 {
+    if (!frag_init)
+        UpdateFragWarnings(fragsleft);
     TryDoFragWarning(fragsleft, client);
 }
 
 
 public UMC_EndVote_OnWinTimerTicked(winsleft, team)
 {
+    if (!win_init)
+        UpdateWinWarnings(winsleft);
     TryDoWinWarning(winsleft, team);
 }
 

@@ -11,7 +11,7 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-weight.txt"
+#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-weight.txt"
 
 public Plugin:myinfo =
 {
