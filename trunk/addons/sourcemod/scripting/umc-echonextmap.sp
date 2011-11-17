@@ -16,7 +16,7 @@
 
 public Plugin:myinfo =
 {
-    name = "[UMC] Map Commands",
+    name = "[UMC] Echo Nextmap",
     author = "Steell",
     description = "Displays messages to the server when the next map is set.",
     version = PL_VERSION,
@@ -83,24 +83,31 @@ public OnLibraryAdded(const String:name[])
 //Called when UMC has set the next map.
 public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], const String:display[])
 {
-    new bool:disp = GetConVarBool(cvar_display);
+    new bool:disp = !GetConVarBool(cvar_display);
 
     if (GetConVarBool(cvar_center))
     {
-        decl String:msg[256];
+        new String:msg[256];
         if (disp && strlen(display) > 0)
             Format(msg, sizeof(msg), "[UMC] %t", "Next Map", display);
         else
             Format(msg, sizeof(msg), "[UMC] %t", "Next Map", map);
+        DEBUG_MESSAGE("Attempting to display center message: \"%s\"", msg)
         DisplayServerMessage(msg, "C");
         //PrintCenterTextAll("[UMC] %t", "Next Map", map);
     }
     if (GetConVarBool(cvar_hint))
     {
         if (disp && strlen(display) > 0)
+        {
+            DEBUG_MESSAGE("Attempting to display hint message: \"%s\"", display)
             PrintHintTextToAll("[UMC] %t", "Next Map", display);
+        }
         else
+        {
+            DEBUG_MESSAGE("Attempting to display hint message: \"%s\"", map)
             PrintHintTextToAll("[UMC] %t", "Next Map", map);
+        }
     }
 }
 

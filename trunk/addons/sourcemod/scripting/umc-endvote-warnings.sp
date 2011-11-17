@@ -428,8 +428,10 @@ UpdateTimeWarnings(timeleft)
     for (new i = 0; i < GetArraySize(time_array); i++)
     {
         warning = GetArrayCell(time_array, i);
-        GetTrieString(warning, "message", message, sizeof(message));
-        DEBUG_MESSAGE("%i: %s", i, warning)
+        if (GetTrieString(warning, "message", message, sizeof(message)))
+        {
+            DEBUG_MESSAGE("%i: %s", i, warning)
+        }
     }
 #endif
     new warningTime;

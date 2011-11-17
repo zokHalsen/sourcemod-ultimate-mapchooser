@@ -652,7 +652,7 @@ public OnPluginStart()
     
     cvar_logging = CreateConVar(
         "sm_umc_logging_verbose",
-        "0",
+        "1",
         "Enables in-depth logging. Use this to have the plugin log how votes are being populated.",
         0, true, 0.0, true, 1.0
     );
@@ -919,6 +919,7 @@ public Native_UMCVoteManagerCancel(Handle:plugin, numParams)
     
     VoteCancelled(voteManager);
 }
+
 
 //
 public Native_UMCRegVoteManager(Handle:plugin, numParams)
@@ -1648,6 +1649,8 @@ public Action:Command_StopVote(client, args)
 //                                        CORE VOTE MANAGER                                       //
 //************************************************************************************************//
 
+new bool:core_vote_active;
+
 //
 public Action:VM_MapVote(duration, Handle:vote_items, Handle:clients, const String:startSound[])
 {
@@ -1666,10 +1669,13 @@ public Action:VM_MapVote(duration, Handle:vote_items, Handle:clients, const Stri
         if (strlen(startSound) > 0)
             EmitSoundToAll(startSound);
         
+        core_vote_active = true;
+        
         return Plugin_Continue;
     }
     
     //ClearVoteArrays();
+    LogError("Could not start core vote.");
     return Plugin_Stop;
 }
 
@@ -1696,6 +1702,7 @@ public Action:VM_GroupVote(duration, Handle:vote_items, Handle:clients, const St
     }
     
     //ClearVoteArrays();
+    LogError("Could not start core vote.");
     return Plugin_Stop;
 }
 
@@ -1782,7 +1789,11 @@ Handle:BuildVoteMenu(Handle:vote_items, const String:title[], VoteHandler:callba
 //
 public VM_CancelVote()
 {
-    CancelVote();
+    if (core_vote_active)
+    {
+        core_vote_active = false;
+        CancelVote();
+    }
 }
 
 
@@ -1817,7 +1828,11 @@ public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
         case MenuAction_VoteCancel:
         {
             DEBUG_MESSAGE("Vote Cancelled")
-            UMC_VoteManagerVoteCancelled("core");
+            if (core_vote_active)
+            {
+                //Vote was cancelled generically, notify UMC.
+                UMC_VoteManagerVoteCancelled("core");
+            }
         }
         case MenuAction_Display:
         {
@@ -1856,6 +1871,8 @@ public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
 public Handle_MapVoteResults(Handle:menu, num_votes, num_clients, const client_info[][2], num_items,
                              const item_info[][2])
 {
+    core_vote_active = false;
+
     new Handle:results = ConvertVoteResults(menu, num_clients, client_info, num_items, item_info);
                                             
     UMC_VoteManagerVoteCompleted("core", results, Handle_Response);
@@ -2906,18 +2923,15 @@ FindStringInVoteArray(const String:target[], const String:val[], Handle:arr)
 VoteCancelled(Handle:vM)
 {
     new Handle:plugin, UMC_VoteCancelledHandler:handler;
-    new bool:vote_inprogress, bool:vote_active;
+    new bool:vote_inprogress;//, bool:vote_active;
     GetTrieValue(vM, "in_progress", vote_inprogress);
-    GetTrieValue(vM, "active", vote_active);
+    //GetTrieValue(vM, "active", vote_active);
     if (vote_inprogress)
     {
         GetTrieValue(vM, "cancel", handler);
         GetTrieValue(vM, "plugin", plugin);
         
-        Call_StartFunction(plugin, handler);
-        Call_Finish();
-        
-        if (vote_active)
+        /*if (vote_active)
         {
             LogMessage("Map vote ended with no votes.");
         
@@ -2926,12 +2940,15 @@ VoteCancelled(Handle:vM)
             //vote_active = false;
             
             //Cleanup the vote
-            EmptyStorage(vM);
-            DeleteVoteParams(vM);
-            ClearVoteArrays(vM);
-            
-            VoteFailed(vM);
-        }
+        }*/
+        
+        ClearVoteArrays(vM);
+        EmptyStorage(vM);
+        DeleteVoteParams(vM);
+        VoteFailed(vM);
+        
+        Call_StartFunction(plugin, handler);
+        Call_Finish();
     }
 }
 
@@ -3103,15 +3120,12 @@ AddToStorage(Handle:vM, Handle:vote_results)
     new Handle:vote_storage;
     GetTrieValue(vM, "vote_storage", vote_storage);
     
+    SetTrieValue(vM, "prev_vote_count", GetArraySize(vote_storage));
+    DEBUG_MESSAGE("Old storage size (PVC): %i", GetArraySize(vote_storage))
+    
     new num_items = GetArraySize(vote_results);
-    
-    new total_votes;
-    GetTrieValue(vM, "total_votes", total_votes);
-    
     new storageIndex;
-    
     new num_votes = 0;
-    
     new Handle:voteItem = INVALID_HANDLE;
     new Handle:voteClientArray = INVALID_HANDLE;
     decl String:infoBuffer[255], String:dispBuffer[255];
@@ -3139,11 +3153,12 @@ AddToStorage(Handle:vM, Handle:vote_results)
         }
     }
     SortADTArrayCustom(vote_storage, CompareStoredVoteItems);
+    
+    new total_votes;
+    GetTrieValue(vM, "total_votes", total_votes);
     SetTrieValue(vM, "total_votes", total_votes + num_votes);
     
-    SetTrieValue(vM, "prev_vote_count", num_votes);
-    
-    DEBUG_MESSAGE("Storage size: %i", GetArraySize(vote_storage))
+    DEBUG_MESSAGE("New storage size: %i", GetArraySize(vote_storage))
 }
 
 
@@ -3159,16 +3174,18 @@ Handle:ProcessVoteResults(Handle:vM, Handle:vote_results)
     //Vote is no longer running.
     //vote_active = false;
     
-    new remaining_runoffs, prev_vote_count;
-    GetTrieValue(vM, "remaining_runoffs", remaining_runoffs);
-    GetTrieValue(vM, "prev_vote_count", prev_vote_count);
-
     //Adds these results to the storage.
     AddToStorage(vM, vote_results);
     
     //Perform a runoff vote if it is necessary.
     if (NeedRunoff(vM))
     {
+        new remaining_runoffs, prev_vote_count;
+        GetTrieValue(vM, "remaining_runoffs", remaining_runoffs);
+        GetTrieValue(vM, "prev_vote_count", prev_vote_count);
+        
+        DEBUG_MESSAGE("Will Runoff? (RR: %i) (PVC: %i)", remaining_runoffs, prev_vote_count)
+        
         //If we can't runoff anymore
         if (remaining_runoffs == 0 || prev_vote_count == 2)
         {
@@ -3250,7 +3267,7 @@ ProcessVoteWinner(Handle:vM, Handle:response)
 bool:NeedRunoff(Handle:vM)
 {
     //Retrive
-    new stored_threshold, total_votes;
+    new Float:stored_threshold, total_votes;
     new Handle:vote_storage;
     GetTrieValue(vM, "stored_threshold", stored_threshold);
     GetTrieValue(vM, "total_votes", total_votes);
@@ -3282,7 +3299,6 @@ DoRunoffVote(Handle:vM, Handle:response)
     new Handle:runoffClients = CreateArray();
     
     //Build the runoff vote based off of the results of the failed vote.
-    //TODO: Instead of returning a menu, return a list of vote_option tries.
     new Handle:runoffOptions = BuildRunoffOptions(vM, runoffClients);
 
     //Setup the timer if...
@@ -4010,7 +4026,6 @@ public Handle_TierVoteWinner(Handle:vM, const String:cat[], const String:disp[],
         //Display the first message
         DisplayTierMessage(5);
         
-        //TODO: Better to just filter the mapcycle instead of building an array.
         new Handle:tieredKV = MakeSecondTieredCatExclusion(kv, cat);
         
 #if UMC_DEBUG

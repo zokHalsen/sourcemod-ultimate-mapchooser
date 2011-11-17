@@ -141,7 +141,13 @@ public OnPluginStart()
     
     //Load the translations file
     LoadTranslations("ultimate-mapchooser.phrases");
+    
+    //Make listeners for player chat. Needed to recognize chat commands.
+    AddCommandListener(OnPlayerChat, "say");
+    AddCommandListener(OnPlayerChat, "say2"); //Insurgency Only
+    AddCommandListener(OnPlayerChat, "say_team");
 
+    
 #if AUTOUPDATE_ENABLE
     if (LibraryExists("updater"))
     {
@@ -223,21 +229,89 @@ public Action:OnPlayerChat(client, const String:command[], argc)
     //Return immediately if...
     //    ...nothing was typed.
     if (argc == 0) return Plugin_Continue;
-
-    //Get what was typed.
-    decl String:text[13];
-    GetCmdArg(1, text, sizeof(text));
     
-    if (GetConVarBool(cvar_nominate) && StrEqual(text, "nominate", false))
+    if (!GetConVarBool(cvar_nominate))
     {
-        if (vote_completed)
+        return Plugin_Continue;
+    }
+    
+    //Get what was typed.
+    decl String:text[80];
+    GetCmdArg(1, text, sizeof(text));
+    TrimString(text);
+    
+    decl String:arg[MAP_LENGTH];
+    
+    new next = BreakString(text, arg, sizeof(arg));
+    
+    if (StrEqual(arg, "nominate", false))
+    {
+        if (vote_completed || !can_nominate)
         {
             PrintToChat(client, "\x03[UMC]\x01 %t", "No Nominate Nextmap");
         }
         else //Otherwise, let them nominate.
         {
-            if (!DisplayNominationMenu(client))
-                PrintToChat(client, "\x03[UMC]\x01 %t", "No Nominate Nextmap");
+            if (next != -1)
+            {
+                BreakString(text[next], arg, sizeof(arg));
+                
+                //Get the selected map.
+                decl String:groupName[MAP_LENGTH], String:nomGroup[MAP_LENGTH];
+                KvFindGroupOfMap(map_kv, arg, groupName, sizeof(groupName));
+                
+                if (StrEqual(groupName, INVALID_GROUP))
+                {
+                    //TODO: Change to translation phrase
+                    PrintToChat(client, "\x03[UMC]\x01 Could not find map \"%s\"", arg);
+                }
+                else
+                {
+                    KvRewind(map_kv);
+                    
+                    KvJumpToKey(map_kv, groupName);
+                    
+                    decl String:adminFlags[64];
+                    GetConVarString(cvar_flags, adminFlags, sizeof(adminFlags));
+                    
+                    KvGetString(map_kv, NOMINATE_ADMINFLAG_KEY, adminFlags, sizeof(adminFlags), adminFlags);
+    
+                    KvJumpToKey(map_kv, arg);
+                    
+                    KvGetString(map_kv, NOMINATE_ADMINFLAG_KEY, adminFlags, sizeof(adminFlags), adminFlags);
+                    
+                    KvGetString(map_kv, "nominate_group", nomGroup, sizeof(nomGroup), groupName);
+                    
+                    KvGoBack(map_kv);
+                    KvGoBack(map_kv);
+
+                    new clientFlags = GetUserFlagBits(client);
+                    
+                    //Check if admin flag set
+                    if (adminFlags[0] != '\0' && !(clientFlags & ReadFlagString(adminFlags)))
+                    {
+                        //TODO: Change to translation phrase
+                        PrintToChat(client, "\x03[UMC]\x01 Could not find map \"%s\"", arg);
+                    }
+                    else
+                    {
+                        //Nominate it.
+                        UMC_NominateMap(map_kv, arg, groupName, client, nomGroup);
+                    
+                        //Display a message.
+                        decl String:clientName[MAX_NAME_LENGTH];
+                        GetClientName(client, clientName, sizeof(clientName));
+                        PrintToChatAll("\x03[UMC]\x01 %t", "Player Nomination", clientName, arg);
+                        LogMessage("%s has nominated '%s' from group '%s'", clientName, arg, groupName);
+                    }
+                }
+                
+            }
+            else
+            {
+                if (!DisplayNominationMenu(client))
+                    PrintToChat(client, "\x03[UMC]\x01 %t", "No Nominate Nextmap");
+            }                
         }
     }
     return Plugin_Continue;
@@ -308,16 +382,76 @@ public Action:Command_Nominate(client, args)
 {
     if (!GetConVarBool(cvar_nominate))
         return Plugin_Handled;
-    
+        
     if (vote_completed || !can_nominate)
     {
-        ReplyToCommand(client, "[UMC] %t", "No Nominate Nextmap");
+        ReplyToCommand(client, "\x03[UMC]\x01 %t", "No Nominate Nextmap");
     }
     else //Otherwise, let them nominate.
     {
-        if (!DisplayNominationMenu(client))
-            ReplyToCommand(client, "[UMC] %t", "No Nominate Nextmap");
-            //TODO: Change to different (new) translation.
+        if (args > 0)
+        {
+            //Get what was typed.
+            decl String:arg[MAP_LENGTH];
+            GetCmdArg(1, arg, sizeof(arg));
+            TrimString(arg);
+            
+            //Get the selected map.
+            decl String:groupName[MAP_LENGTH], String:nomGroup[MAP_LENGTH];
+            KvFindGroupOfMap(map_kv, arg, groupName, sizeof(groupName));
+            
+            if (StrEqual(groupName, INVALID_GROUP))
+            {
+                //TODO: Change to translation phrase
+                ReplyToCommand(client, "\x03[UMC]\x01 Could not find map \"%s\"", arg);
+            }
+            else
+            {
+                KvRewind(map_kv);
+                
+                KvJumpToKey(map_kv, groupName);
+                
+                decl String:adminFlags[64];
+                GetConVarString(cvar_flags, adminFlags, sizeof(adminFlags));
+                
+                KvGetString(map_kv, NOMINATE_ADMINFLAG_KEY, adminFlags, sizeof(adminFlags), adminFlags);
+
+                KvJumpToKey(map_kv, arg);
+                
+                KvGetString(map_kv, NOMINATE_ADMINFLAG_KEY, adminFlags, sizeof(adminFlags), adminFlags);
+                
+                KvGetString(map_kv, "nominate_group", nomGroup, sizeof(nomGroup), groupName);
+                
+                KvGoBack(map_kv);
+                KvGoBack(map_kv);
+
+                new clientFlags = GetUserFlagBits(client);
+                
+                //Check if admin flag set
+                if (adminFlags[0] != '\0' && !(clientFlags & ReadFlagString(adminFlags)))
+                {
+                    //TODO: Change to translation phrase
+                    ReplyToCommand(client, "\x03[UMC]\x01 Could not find map \"%s\"", arg);
+                }
+                else
+                {
+                    //Nominate it.
+                    UMC_NominateMap(map_kv, arg, groupName, client, nomGroup);
+                
+                    //Display a message.
+                    decl String:clientName[MAX_NAME_LENGTH];
+                    GetClientName(client, clientName, sizeof(clientName));
+                    PrintToChatAll("\x03[UMC]\x01 %t", "Player Nomination", clientName, arg);
+                    LogMessage("%s has nominated '%s' from group '%s'", clientName, arg, groupName);
+                }
+            }
+            
+        }
+        else
+        {
+            if (!DisplayNominationMenu(client))
+                ReplyToCommand(client, "\x03[UMC]\x01 %t", "No Nominate Nextmap");
+        }                
     }
     return Plugin_Handled;
 }
