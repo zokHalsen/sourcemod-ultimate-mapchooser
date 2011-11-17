@@ -117,6 +117,7 @@ public Action:VM_MapVote(duration, Handle:vote_items, Handle:clients, const Stri
     }
     
     //ClearVoteArrays();
+    LogError("Could not start built-in vote.");
     return Plugin_Stop;
 }
 
