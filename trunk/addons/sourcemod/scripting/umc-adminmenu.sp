@@ -80,7 +80,6 @@ public Plugin:myinfo =
 new Handle:cvar_filename             = INVALID_HANDLE;
 new Handle:cvar_scramble             = INVALID_HANDLE;
 new Handle:cvar_vote_time            = INVALID_HANDLE;
-new Handle:cvar_block_slots          = INVALID_HANDLE;
 new Handle:cvar_strict_noms          = INVALID_HANDLE;
 new Handle:cvar_runoff               = INVALID_HANDLE;
 new Handle:cvar_runoff_sound         = INVALID_HANDLE;
@@ -238,13 +237,6 @@ public OnPluginStart()
         "0",
         "Specifies whether the number of nominated maps appearing in the vote for a map group should be limited by the group's \"maps_invote\" setting.",
         0, true, 0.0, true, 1.0
-    );
-
-    cvar_block_slots = CreateConVar(
-        "sm_umc_am_blockslots",
-        "0",
-        "Specifies how many slots in a vote are disabled to prevent accidental voting.",
-        0, true, 0.0, true, 5.0
     );
 
     cvar_extend_rounds = CreateConVar(
@@ -1866,9 +1858,8 @@ DoMapVote(client)
     
     UMC_StartVote(
         "core",
-        mapcycle, umc_mapcycle, type, GetConVarInt(cvar_vote_time), scramble,
-        GetConVarInt(cvar_block_slots), vote_start_sound, vote_end_sound, extend,
-        GetConVarFloat(cvar_extend_time), GetConVarInt(cvar_extend_rounds),
+        mapcycle, umc_mapcycle, type, GetConVarInt(cvar_vote_time), scramble, vote_start_sound,
+        vote_end_sound, extend, GetConVarFloat(cvar_extend_time), GetConVarInt(cvar_extend_rounds),
         GetConVarInt(cvar_extend_frags), dontChange, threshold, when, failAction, runoffs,
         GetConVarInt(cvar_runoff_max), runoffFailAction, runoff_sound,
         GetConVarBool(cvar_strict_noms), GetConVarBool(cvar_vote_allowduplicates), flags,

@@ -34,7 +34,13 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
-3.3 (10//11)
+3.3 (11/17/11)
+Slot blocking functionality has been changed. Modules now cannot specify how many slots they want blocked. All slot blocking is not controlled by core.
+-New cvar "votemanager_core_blockslots" has been added to control this feature in Core.
+-All "blockslots" cvars in various UMC modules have been removed.
+Vote Manager support placeholder has been added. Next version will allow modules to specify their own VM IDs.
+New cvar "sm_umc_votemanager_core_blockslots" has been added. With this update, the ability to specify how many slots to be blocked on a per-module basis has been removed. This cvar will be used for all cases where block slots are added to votes. (This means that the blockslots cvars in the various module .cfgs are now meaningless, and can be removed if you so desire).
+Removed "runoff_blockslots" cvar. Runoff votes will always use the same BlockSlot setting as is used normally.
 Added new Extend Command cvar, used to specify a command to be executed when a map is extended.
 -New cvar "extend_command" in ultimate-mapchooser.cfg to control this feature.
 Fixed issue with Random Mapcycle module which caused "next_mapgroup" option to be ignored.
@@ -533,13 +539,14 @@ new Handle:failure_forward = INVALID_HANDLE;
 
 /* Vote Management System */
 new Handle:vote_managers = INVALID_HANDLE;
+new Handle:vote_manager_ids = INVALID_HANDLE;
 
 //Flags
 //new bool:vote_completed;   //Has a vote been completed?
 new bool:change_map_round; //Change map when the round ends?
 //new bool:vote_active;      //Is there an active vote menu?
 
-new votes_inprogress; //Amount of votes in progress? (Includes delays between tiered + runoff)
+//new votes_inprogress; //Amount of votes in progress? (Includes delays between tiered + runoff)
 
 
 #if RUNTESTS
@@ -701,10 +708,10 @@ public OnPluginStart()
     );
     
     //Admin command to stop votes in progress.
-    /*RegAdminCmd(
+    RegAdminCmd(
         "sm_umc_stopvote", Command_StopVote, ADMFLAG_CHANGEMAP,
-        "Stops a UMC vote that's in progress."
-    );*/
+        "Stops all UMC votes that are in progress."
+    );
     
     //Hook round end events
     HookEvent("round_end",            Event_RoundEnd); //Generic
@@ -753,6 +760,7 @@ public OnPluginStart()
     failure_forward = CreateGlobalForward("UMC_OnVoteFailed", ET_Ignore);
     
     vote_managers = CreateTrie();
+    vote_manager_ids = CreateArray(ByteCountToCells(64));
     
     UMC_RegisterVoteManager("core", VM_MapVote, VM_GroupVote, VM_CancelVote);
     
@@ -895,6 +903,23 @@ public OnMapEnd()
 {
     //Empty array of nominations (and close all handles).
     ClearNominations();
+    
+    //End all votes currently in progress.
+    new size = GetArraySize(vote_manager_ids);
+    new Handle:vM;
+    new bool:inProgress;
+    decl String:id[64];
+    for (new i = 0; i < size; i++)
+    {
+        GetArrayString(vote_manager_ids, i, id, sizeof(id));
+        GetTrieValue(vote_managers, id, vM);
+        GetTrieValue(vM, "in_progress", inProgress);
+        if (inProgress)
+        {
+            DEBUG_MESSAGE("Ending vote in progress: %s", id)
+            VoteCancelled(vM);
+        }
+    }
 }
 
 
@@ -905,6 +930,7 @@ public OnMapEnd()
 //
 public Native_UMCVoteManagerCancel(Handle:plugin, numParams)
 {
+    DEBUG_MESSAGE("*UMC_VoteManagerCancel*")
     new len;
     GetNativeStringLength(1, len);
     new String:id[len+1];
@@ -916,6 +942,8 @@ public Native_UMCVoteManagerCancel(Handle:plugin, numParams)
     {
         ThrowNativeError(SP_ERROR_PARAM, "A Vote Manager with the ID \"%s\" does not exist!", id);
     }
+    
+    DEBUG_MESSAGE("Vote Manager found, calling VoteCancelled")
     
     VoteCancelled(voteManager);
 }
@@ -951,6 +979,8 @@ public Native_UMCRegVoteManager(Handle:plugin, numParams)
     SetTrieValue(voteManager, "total_votes", 0);
     SetTrieValue(voteManager, "prev_vote_count", 0);
     SetTrieValue(voteManager, "map_vote", CreateArray());
+    
+    PushArrayString(vote_manager_ids, id);
 }
 
 
@@ -985,6 +1015,12 @@ public Native_UMCUnregVoteManager(Handle:plugin, numParams)
     
     RemoveFromTrie(vote_managers, id);
     
+    new index = FindStringInArray(vote_manager_ids, id);
+    if (index != -1)
+    {
+        RemoveFromArray(vote_manager_ids, index);
+    }
+    
     if (StrEqual(id, "core", false))
     {
         UMC_RegisterVoteManager("core", VM_MapVote, VM_GroupVote, VM_CancelVote);
@@ -995,6 +1031,8 @@ public Native_UMCUnregVoteManager(Handle:plugin, numParams)
 //
 public Native_UMCVoteManagerComplete(Handle:plugin, numParams)
 {
+    DEBUG_MESSAGE("*VoteManagerVoteCompleted*")
+
     new len;
     GetNativeStringLength(1, len);
     new String:id[len+1];
@@ -1270,7 +1308,10 @@ public Native_UMCStartVote(Handle:plugin, numParams)
     GetTrieValue(voteManager, "in_progress", vote_inprogress);
     
     if (vote_inprogress)
+    {
+        LogError("Cannot start a vote, vote manager \"%s\" already has a vote in progress.", voteManagerID);
         return _:false;
+    }
     
     //Get the name of the calling plugin.
     decl String:stored_reason[PLATFORM_MAX_PATH];
@@ -1284,49 +1325,49 @@ public Native_UMCStartVote(Handle:plugin, numParams)
     new UMC_VoteType:type = UMC_VoteType:GetNativeCell(4);
     new time = GetNativeCell(5);
     new bool:scramble = bool:GetNativeCell(6);
-    new numBlockSlots = GetNativeCell(7);
     
     
-    GetNativeStringLength(8, len);
+    GetNativeStringLength(7, len);
     new String:startSound[len+1];
     if (len > 0)
-        GetNativeString(8, startSound, len+1);
-    GetNativeStringLength(9, len);
+        GetNativeString(7, startSound, len+1);
+    GetNativeStringLength(8, len);
     new String:endSound[len+1];
     if (len > 0)
-        GetNativeString(9, endSound, len+1);
+        GetNativeString(8, endSound, len+1);
     
-    new bool:extend = bool:GetNativeCell(10);
-    new Float:timestep = Float:GetNativeCell(11);
-    new roundstep = GetNativeCell(12);
-    new fragstep = GetNativeCell(13);
-    new bool:dontChange = bool:GetNativeCell(14);
-    new Float:threshold = Float:GetNativeCell(15);
-    new UMC_ChangeMapTime:successAction = UMC_ChangeMapTime:GetNativeCell(16);
-    new UMC_VoteFailAction:failAction = UMC_VoteFailAction:GetNativeCell(17);
-    new maxRunoffs = GetNativeCell(18);
-    new maxRunoffMaps = GetNativeCell(19);
-    new UMC_RunoffFailAction:runoffFailAction = UMC_RunoffFailAction:GetNativeCell(20);
+    new bool:extend = bool:GetNativeCell(9);
+    new Float:timestep = Float:GetNativeCell(10);
+    new roundstep = GetNativeCell(11);
+    new fragstep = GetNativeCell(12);
+    new bool:dontChange = bool:GetNativeCell(13);
+    new Float:threshold = Float:GetNativeCell(14);
+    new UMC_ChangeMapTime:successAction = UMC_ChangeMapTime:GetNativeCell(15);
+    new UMC_VoteFailAction:failAction = UMC_VoteFailAction:GetNativeCell(16);
+    new maxRunoffs = GetNativeCell(17);
+    new maxRunoffMaps = GetNativeCell(18);
+    new UMC_RunoffFailAction:runoffFailAction = UMC_RunoffFailAction:GetNativeCell(19);
     
-    GetNativeStringLength(21, len);
+    GetNativeStringLength(20, len);
     new String:runoffSound[len+1];
     if (len > 0)
-        GetNativeString(21, runoffSound, len+1);
+        GetNativeString(20, runoffSound, len+1);
     
-    new bool:nominationStrictness = bool:GetNativeCell(22);
-    new bool:allowDuplicates = bool:GetNativeCell(23);
+    new bool:nominationStrictness = bool:GetNativeCell(21);
+    new bool:allowDuplicates = bool:GetNativeCell(22);
     
-    GetNativeStringLength(24, len);
+    GetNativeStringLength(23, len);
     new String:adminFlags[len+1];
     if (len > 0)
-        GetNativeString(24, adminFlags, len+1);
+        GetNativeString(23, adminFlags, len+1);
         
-    new bool:runExclusionCheck = (numParams >= 25) ? (bool:GetNativeCell(25)) : true;
+    DEBUG_MESSAGE("Vote Admin Flags: \"%s\"", adminFlags)
+        
+    new bool:runExclusionCheck = (numParams >= 24) ? (bool:GetNativeCell(24)) : true;
     
     //OK now that that's done, let's save 'em.
     SetTrieValue(voteManager, "stored_type", type);
     SetTrieValue(voteManager, "stored_scramble", scramble);
-    SetTrieValue(voteManager, "stored_blockslots", numBlockSlots);
     SetTrieValue(voteManager, "stored_ignoredupes", allowDuplicates);
     SetTrieValue(voteManager, "stored_strictnoms", nominationStrictness);
 
@@ -1383,11 +1424,7 @@ public Native_UMCStartVote(Handle:plugin, numParams)
         
         //return _:VoteMenuToAllWithFlags(menu, time, adminFlags);
         new bool:vote_active = PerformVote(voteManager, type, options, time, clients, startSound);
-        if (vote_active)
-        {
-            votes_inprogress++;
-        }
-        else
+        if (!vote_active)
         {
             DeleteVoteParams(voteManager);
             ClearVoteArrays(voteManager);
@@ -1484,7 +1521,6 @@ public Native_UMCIsVoteInProgress(Handle:plugin, numParams)
 {
     if (numParams > 0)
     {
-        //Retrieve the many, many parameters.
         new len;
         GetNativeStringLength(1, len);
         new String:voteManagerID[len+1];
@@ -1504,7 +1540,19 @@ public Native_UMCIsVoteInProgress(Handle:plugin, numParams)
             return inProgress;
         }
     }
-    return votes_inprogress > 0;
+    decl String:buffer[64];
+    new size = GetArraySize(vote_manager_ids);
+    new Handle:vM;
+    new bool:inProgress;
+    for (new i = 0; i < size; i++)
+    {
+        GetArrayString(vote_manager_ids, i, buffer, sizeof(buffer));
+        GetTrieValue(vote_managers, buffer, vM);
+        GetTrieValue(vM, "in_progress", inProgress);
+        if (inProgress)
+            return _:true;
+    }
+    return _:false;
 }
 
 
@@ -1624,26 +1672,30 @@ public Action:Command_Reload(client, args)
 
 
 //"sm_umc_stopvote"
-/*
 public Action:Command_StopVote(client, args)
 {
-    //TODO: UPDATE FOR NEW VM SYSTEM
-    if (vote_inprogress)
+    //End all votes currently in progress.
+    new size = GetArraySize(vote_manager_ids);
+    new Handle:vM;
+    new bool:inProgress;
+    decl String:id[64];
+    new bool:stopped = false;
+    for (new i = 0; i < size; i++)
     {
-        if (vote_active)
+        GetArrayString(vote_manager_ids, i, id, sizeof(id));
+        GetTrieValue(vote_managers, id, vM);
+        GetTrieValue(vM, "in_progress", inProgress);
+        if (inProgress)
         {
-            CancelVote();
+            DEBUG_MESSAGE("Ending vote in progress: %s", id)
+            stopped = true;
+            VoteCancelled(vM);
         }
-        else
-            vote_inprogress = false;
     }
-    else
-    {
-        ReplyToCommand(client, "\x03[UMC]\x01 No map vote running!");
-    }
+    if (!stopped)
+        ReplyToCommand(client, "\x03[UMC]\x01 No map vote running!"); //TODO Translation?
     return Plugin_Handled;
 }
-*/
 
 //************************************************************************************************//
 //                                        CORE VOTE MANAGER                                       //
@@ -1654,25 +1706,37 @@ new bool:core_vote_active;
 //
 public Action:VM_MapVote(duration, Handle:vote_items, Handle:clients, const String:startSound[])
 {
+    DEBUG_MESSAGE("Attempting to start core vote...")
     decl clientArr[MAXPLAYERS+1];
     new count = 0;
     new size = GetArraySize(clients);
     for (new i = 0; i < size; i++)
     {
+        DEBUG_MESSAGE("Adding client to vote: %N (%i)", GetArrayCell(clients, i), GetArrayCell(clients, i))
         clientArr[count++] = GetArrayCell(clients, i);
+    }
+    
+    if (count == 0)
+    {
+        LogError("Could not start core vote, no players to display vote to!");
+        return Plugin_Stop;
     }
     
     new Handle:menu = BuildVoteMenu(vote_items, "Map Vote Menu Title", Handle_MapVoteResults);
     
-    if (VoteMenu(menu, clientArr, count, duration))
+    DEBUG_MESSAGE("Setting CVA True")
+    core_vote_active = true;
+    
+    if (menu != INVALID_HANDLE && VoteMenu(menu, clientArr, count, duration))
     {
         if (strlen(startSound) > 0)
             EmitSoundToAll(startSound);
         
-        core_vote_active = true;
-        
         return Plugin_Continue;
     }
+    
+    DEBUG_MESSAGE("Setting CVA False -- Couldn't start vote")
+    core_vote_active = false;
     
     //ClearVoteArrays();
     LogError("Could not start core vote.");
@@ -1691,7 +1755,16 @@ public Action:VM_GroupVote(duration, Handle:vote_items, Handle:clients, const St
         clientArr[count++] = GetArrayCell(clients, i);
     }
     
+    if (count == 0)
+    {
+        LogError("Could not start core vote, no players to display vote to!");
+        return Plugin_Stop;
+    }
+    
     new Handle:menu = BuildVoteMenu(vote_items, "Group Vote Menu Title", Handle_MapVoteResults);
+      
+    DEBUG_MESSAGE("Setting CVA True")
+    core_vote_active = true;
     
     if (menu != INVALID_HANDLE && VoteMenu(menu, clientArr, count, duration))
     {
@@ -1700,6 +1773,9 @@ public Action:VM_GroupVote(duration, Handle:vote_items, Handle:clients, const St
         
         return Plugin_Continue;
     }
+    
+    DEBUG_MESSAGE("Setting CVA False -- Couldn't start vote")
+    core_vote_active = false;
     
     //ClearVoteArrays();
     LogError("Could not start core vote.");
@@ -1789,8 +1865,12 @@ Handle:BuildVoteMenu(Handle:vote_items, const String:title[], VoteHandler:callba
 //
 public VM_CancelVote()
 {
+    DEBUG_MESSAGE("Vote Cancelled Callback -- Core")
+    DEBUG_MESSAGE("Is Core Vote still active? %i", core_vote_active)
     if (core_vote_active)
     {
+        DEBUG_MESSAGE("Vote Cancelled Callback -- Core Inner")
+        DEBUG_MESSAGE("Setting CVA False -- Cancelled")
         core_vote_active = false;
         CancelVote();
     }
@@ -1827,9 +1907,11 @@ public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
         }
         case MenuAction_VoteCancel:
         {
-            DEBUG_MESSAGE("Vote Cancelled")
+            DEBUG_MESSAGE("Vote Cancelled (Reason: %i)", param1)
+            DEBUG_MESSAGE("Is Core Vote still active? %i", core_vote_active)
             if (core_vote_active)
             {
+                DEBUG_MESSAGE("Vote Cancelled and Cancel Callback not yet called!")
                 //Vote was cancelled generically, notify UMC.
                 UMC_VoteManagerVoteCancelled("core");
             }
@@ -1871,6 +1953,8 @@ public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
 public Handle_MapVoteResults(Handle:menu, num_votes, num_clients, const client_info[][2], num_items,
                              const item_info[][2])
 {
+    DEBUG_MESSAGE("Handling vote results...")
+    DEBUG_MESSAGE("Setting CVA False -- Completed")
     core_vote_active = false;
 
     new Handle:results = ConvertVoteResults(menu, num_clients, client_info, num_items, item_info);
@@ -1938,6 +2022,7 @@ Handle:ConvertVoteResults(Handle:menu, num_clients, const client_info[][2], num_
 //
 DisableVoteInProgress(Handle:vM)
 {
+    DEBUG_MESSAGE("Vote no longer in progress!")
     SetTrieValue(vM, "in_progress", false);
 }
 
@@ -2860,7 +2945,7 @@ bool:GetRandomMap(Handle:kv, String:buffer[], size)
     
     //Add a map to the random pool.
     do
-    {    
+    {
         //Get the name of the map.
         KvGetSectionName(kv, temp, sizeof(temp));
         
@@ -2922,12 +3007,15 @@ FindStringInVoteArray(const String:target[], const String:val[], Handle:arr)
 //Catches the case where a vote occurred but nobody voted.
 VoteCancelled(Handle:vM)
 {
+    DEBUG_MESSAGE("*VoteCancelled*")
     new Handle:plugin, UMC_VoteCancelledHandler:handler;
     new bool:vote_inprogress;//, bool:vote_active;
     GetTrieValue(vM, "in_progress", vote_inprogress);
     //GetTrieValue(vM, "active", vote_active);
     if (vote_inprogress)
     {
+        DEBUG_MESSAGE("Cancelling vote that is in progress...")
+    
         GetTrieValue(vM, "cancel", handler);
         GetTrieValue(vM, "plugin", plugin);
         
@@ -2950,6 +3038,12 @@ VoteCancelled(Handle:vM)
         Call_StartFunction(plugin, handler);
         Call_Finish();
     }
+#if UMC_DEBUG
+    else
+    {
+        DEBUG_MESSAGE("Vote not in progress, nothing to cancel!")
+    }
+#endif
 }
 
 

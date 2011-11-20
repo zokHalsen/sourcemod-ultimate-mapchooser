@@ -6,11 +6,11 @@
 
 #pragma semicolon 1
 
-#define PL_VERSION "3.3-beta3"
+#define PL_VERSION "3.3r2"
 
-#define UMC_DEBUG 1
+#define UMC_DEBUG 0
 
-#define AUTOUPDATE_ENABLE 0
+#define AUTOUPDATE_ENABLE 1
 
 #define INVALID_GROUP ""
 #define MAP_LENGTH 64
@@ -124,7 +124,6 @@ forward Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const St
  * @param type  The type of vote.
  * @param time  How long the vote should remain acive (in seconds).
  * @param scramble  Determines if the vote menu is scrambled.
- * @param numBlockSlots Amount of slots in the vote to be blocked.
  * @param startSound    Sound to be played when the vote starts (must be precached already).
  * @param endSound      Sound to be played when the vote ends (must be precached already).
  * @param extendOption  Determines if an "Extend Map" option is displayed.
@@ -147,12 +146,11 @@ forward Action:UMC_OnDetermineMapExclude(Handle:kv, const String:map[], const St
  * @return True on success, false on failure.
  */
 native bool:UMC_StartVote(const String:id[], Handle:mapcycle, Handle:originalMapcycle,
-    UMC_VoteType:type, time, bool:scramble, numBlockSlots, const String:startSound[],
-    const String:endSound[], bool:extendOption, Float:timestep, roundstep, fragstep,
-    bool:dontChangeOption, Float:threshold, UMC_ChangeMapTime:successAction,
-    UMC_VoteFailAction:failAction, maxRunoffs, maxRunoffMaps, UMC_RunoffFailAction:runoffFailAction,
-    const String:runoffSound[], bool:nominationStrictness, bool:allowDuplicates,
-    const String:adminFlags[], bool:runExclusion=true);
+    UMC_VoteType:type, time, bool:scramble, const String:startSound[], const String:endSound[],
+    bool:extendOption, Float:timestep, roundstep, fragstep, bool:dontChangeOption, Float:threshold,
+    UMC_ChangeMapTime:successAction, UMC_VoteFailAction:failAction, maxRunoffs, maxRunoffMaps,
+    UMC_RunoffFailAction:runoffFailAction, const String:runoffSound[], bool:nominationStrictness,
+    bool:allowDuplicates, const String:adminFlags[], bool:runExclusion=true);
     
     
 /**

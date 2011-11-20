@@ -43,7 +43,6 @@ public Plugin:myinfo =
 new Handle:cvar_filename             = INVALID_HANDLE;
 new Handle:cvar_scramble             = INVALID_HANDLE;
 new Handle:cvar_vote_time            = INVALID_HANDLE;
-new Handle:cvar_block_slots          = INVALID_HANDLE;
 new Handle:cvar_strict_noms          = INVALID_HANDLE;
 new Handle:cvar_runoff               = INVALID_HANDLE;
 new Handle:cvar_runoff_sound         = INVALID_HANDLE;
@@ -126,13 +125,6 @@ public OnPluginStart()
         "20",
         "Specifies how long a vote should be available for.",
         0, true, 10.0
-    );
-    
-    cvar_block_slots = CreateConVar(
-        "sm_umc_playerlimit_blockslots",
-        "0",
-        "Specifies how many slots in a vote are disabled to prevent accidental voting.",
-        0, true, 0.0, true, 5.0
     );
     
     cvar_strict_noms = CreateConVar(
@@ -658,7 +650,6 @@ ChangeToValidMap(Handle:cvar)
                     UMC_VoteType:GetConVarInt(cvar_vote_type),                  //Vote Type (map, group, tiered)
                     GetConVarInt(cvar_vote_time),                               //Vote duration
                     GetConVarBool(cvar_scramble),                               //Scramble
-                    GetConVarInt(cvar_block_slots),                             //Slot Blocking
                     vote_start_sound,                                           //Start Sound
                     vote_end_sound,                                             //End Sound
                     false,                                                      //Extend option

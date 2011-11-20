@@ -28,7 +28,6 @@ public Plugin:myinfo =
 new Handle:cvar_filename             = INVALID_HANDLE;
 new Handle:cvar_scramble             = INVALID_HANDLE;
 new Handle:cvar_vote_time            = INVALID_HANDLE;
-new Handle:cvar_block_slots          = INVALID_HANDLE;
 new Handle:cvar_strict_noms          = INVALID_HANDLE;
 new Handle:cvar_runoff               = INVALID_HANDLE;
 new Handle:cvar_runoff_sound         = INVALID_HANDLE;
@@ -182,13 +181,6 @@ public OnPluginStart()
         "0",
         "Specifies whether the number of nominated maps appearing in the vote for a map group should be limited by the group's \"maps_invote\" setting.",
         0, true, 0.0, true, 1.0
-    );
-
-    cvar_block_slots = CreateConVar(
-        "sm_umc_rtv_blockslots",
-        "0",
-        "Specifies how many slots in a vote are disabled to prevent accidental voting.",
-        0, true, 0.0, true, 5.0
     );
 
     cvar_rtv_interval = CreateConVar(
@@ -822,16 +814,16 @@ public StartRTV()
         
         decl String:flags[64];
         GetConVarString(cvar_voteflags, flags, sizeof(flags));
+        DEBUG_MESSAGE("Vote Flags: \"%s\"", flags)
         
         //Start the UMC vote.
-        UMC_StartVote(
+        new bool:result = UMC_StartVote(
             "core",
             map_kv,                                                     //Mapcycle
             umc_mapcycle,                                               //Complete Mapcycle
             UMC_VoteType:GetConVarInt(cvar_rtv_type),                   //Vote Type (map, group, tiered)
             GetConVarInt(cvar_vote_time),                               //Vote duration
             GetConVarBool(cvar_scramble),                               //Scramble
-            GetConVarInt(cvar_block_slots),                             //Slot Blocking
             vote_start_sound,                                           //Start Sound
             vote_end_sound,                                             //End Sound
             false,                                                      //Extend option
@@ -850,6 +842,11 @@ public StartRTV()
             GetConVarBool(cvar_vote_allowduplicates),                   //Ignore Duplicates
             flags                                                       //Admin Flags
         );
+        
+        if (!result)
+        {
+            LogError("Could not start UMC vote.");
+        }
     }
 }
 
