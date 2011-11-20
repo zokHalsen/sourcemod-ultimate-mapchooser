@@ -30,7 +30,6 @@ public Plugin:myinfo =
 new Handle:cvar_filename             = INVALID_HANDLE;
 new Handle:cvar_scramble             = INVALID_HANDLE;
 new Handle:cvar_vote_time            = INVALID_HANDLE;
-new Handle:cvar_block_slots          = INVALID_HANDLE;
 new Handle:cvar_strict_noms          = INVALID_HANDLE;
 new Handle:cvar_runoff               = INVALID_HANDLE;
 new Handle:cvar_runoff_sound         = INVALID_HANDLE;
@@ -198,7 +197,7 @@ public OnPluginStart()
     cvar_vote_threshold = CreateConVar(
         "sm_umc_endvote_threshold",
         "0",
-        "If a winning vote has less than this percentage of total votes, a runoff vote will be held.",
+        "If the winning option has less than this percentage of total votes, a vote will fail and the action specified in \"sm_umc_endvote_failaction\" cvar will be performed.",
         0, true, 0.0, true, 1.0
     );
     
@@ -239,13 +238,6 @@ public OnPluginStart()
         "0",
         "Specifies whether the number of nominated maps appearing in the vote for a map group should be limited by the group's \"maps_invote\" setting.",
         0, true, 0.0, true, 1.0
-    );
-
-    cvar_block_slots = CreateConVar(
-        "sm_umc_endvote_blockslots",
-        "0",
-        "Specifies how many slots in a vote are disabled to prevent accidental voting.",
-        0, true, 0.0, true, 5.0
     );
 
     cvar_extend_rounds = CreateConVar(
@@ -364,6 +356,10 @@ public OnPluginStart()
     HookConVarChange(cvar_endvote,    Handle_VoteChange);
     HookConVarChange(cvar_start_time, Handle_TriggerChange);
     //HookConVarChange(cvar_runoff,     Handle_RunoffChange);
+    
+#if UMC_DEBUG
+    HookConVarChange(cvar_filename, Handle_MapCycleFileChange);
+#endif
     
     //Initialize our memory arrays
     new numCells = ByteCountToCells(MAP_LENGTH);
@@ -772,6 +768,17 @@ RemovePreviousMapsFromCycle()
 //************************************************************************************************//
 //                                          CVAR CHANGES                                          //
 //************************************************************************************************//
+
+#if UMC_DEBUG
+public Handle_MapCycleFileChange(Handle:convar, const String:oldVal[], const String:newVal[])
+{
+    if (!StrEqual(oldVal, newVal))
+    {
+        DEBUG_MESSAGE("sm_umc_endvote_cyclefile -- value has been changed from \"%s\" to \"%s\"", oldVal, newVal)
+    }
+}
+#endif
+
 
 //Called when the cvar for the maximum number of rounds has been changed. Used for end-of-map vote
 //based on rounds.
@@ -1224,14 +1231,13 @@ public StartMapVote()
     GetConVarString(cvar_flags, flags, sizeof(flags));
     
     //Start the UMC vote.
-    UMC_StartVote(
+    new bool:result = UMC_StartVote(
         "core",
         map_kv,                                                     //Mapcycle
         umc_mapcycle,                                               //Full mapcycle
         UMC_VoteType:GetConVarInt(cvar_vote_type),                  //Vote Type (map, group, tiered)
         GetConVarInt(cvar_vote_time),                               //Vote duration
         GetConVarBool(cvar_scramble),                               //Scramble
-        GetConVarInt(cvar_block_slots),                             //Slot Blocking
         vote_start_sound,                                           //Start Sound
         vote_end_sound,                                             //End Sound
         GetConVarInt(cvar_extensions) > extend_counter,             //Extend option
@@ -1250,6 +1256,11 @@ public StartMapVote()
         GetConVarBool(cvar_vote_allowduplicates),                   //Ignore Duplicates
         flags                                                       //Admin Flags
     );
+    
+    if (!result)
+    {
+        LogError("Could not start UMC vote.");
+    }
 }
 
 

@@ -85,7 +85,10 @@ public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], con
     KvGetString(kv, PRE_COMMAND_KEY, gPreCommand, sizeof(gPreCommand), "");
     
     if (strlen(gPreCommand) > 0)
+    {
+        LogMessage("SETUP: Executing map group pre-command: '%s'", gPreCommand);
         ServerCommand(gPreCommand);
+    }
         
     KvJumpToKey(kv, map);
     
@@ -93,7 +96,10 @@ public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], con
     KvGetString(kv, PRE_COMMAND_KEY, mPreCommand, sizeof(mPreCommand), "");
     
     if (strlen(mPreCommand) > 0)
+    {
+        LogMessage("SETUP: Executing map pre-command: '%s'", mPreCommand);
         ServerCommand(mPreCommand);
+    }
         
     KvRewind(kv);
 }

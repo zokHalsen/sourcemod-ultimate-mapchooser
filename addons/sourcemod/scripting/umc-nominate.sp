@@ -142,12 +142,6 @@ public OnPluginStart()
     //Load the translations file
     LoadTranslations("ultimate-mapchooser.phrases");
     
-    //Make listeners for player chat. Needed to recognize chat commands.
-    AddCommandListener(OnPlayerChat, "say");
-    AddCommandListener(OnPlayerChat, "say2"); //Insurgency Only
-    AddCommandListener(OnPlayerChat, "say_team");
-
-    
 #if AUTOUPDATE_ENABLE
     if (LibraryExists("updater"))
     {
@@ -230,6 +224,8 @@ public Action:OnPlayerChat(client, const String:command[], argc)
     //    ...nothing was typed.
     if (argc == 0) return Plugin_Continue;
     
+    DEBUG_MESSAGE("Checking for chat command...")
+    
     if (!GetConVarBool(cvar_nominate))
     {
         return Plugin_Continue;
@@ -246,14 +242,18 @@ public Action:OnPlayerChat(client, const String:command[], argc)
     
     if (StrEqual(arg, "nominate", false))
     {
+        DEBUG_MESSAGE("Chat command registered!")
+    
         if (vote_completed || !can_nominate)
         {
             PrintToChat(client, "\x03[UMC]\x01 %t", "No Nominate Nextmap");
         }
         else //Otherwise, let them nominate.
         {
+            DEBUG_MESSAGE("Checking for argument...")
             if (next != -1)
             {
+                DEBUG_MESSAGE("Argument found!")
                 BreakString(text[next], arg, sizeof(arg));
                 
                 //Get the selected map.
@@ -297,6 +297,8 @@ public Action:OnPlayerChat(client, const String:command[], argc)
                     {
                         //Nominate it.
                         UMC_NominateMap(map_kv, arg, groupName, client, nomGroup);
+                        
+                        DEBUG_MESSAGE("Nomination via extra arg -- chat.")
                     
                         //Display a message.
                         decl String:clientName[MAX_NAME_LENGTH];
@@ -309,6 +311,7 @@ public Action:OnPlayerChat(client, const String:command[], argc)
             }
             else
             {
+                DEBUG_MESSAGE("No argument! Displaying menu.")
                 if (!DisplayNominationMenu(client))
                     PrintToChat(client, "\x03[UMC]\x01 %t", "No Nominate Nextmap");
             }                
@@ -437,6 +440,8 @@ public Action:Command_Nominate(client, args)
                 {
                     //Nominate it.
                     UMC_NominateMap(map_kv, arg, groupName, client, nomGroup);
+                    
+                    DEBUG_MESSAGE("Nomination via extra arg -- command.")
                 
                     //Display a message.
                     decl String:clientName[MAX_NAME_LENGTH];
@@ -706,6 +711,7 @@ public Handle_NominationMenu(Handle:menu, MenuAction:action, client, param2)
             //Display a message.
             decl String:clientName[MAX_NAME_LENGTH];
             GetClientName(client, clientName, sizeof(clientName));
+            DEBUG_MESSAGE("Nomination via menu.")
             PrintToChatAll("\x03[UMC]\x01 %t", "Player Nomination", clientName, map);
             LogMessage("%s has nominated '%s' from group '%s'", clientName, map, group);
             

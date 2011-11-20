@@ -1036,21 +1036,17 @@ stock bool:VoteMenuToAllWithFlags(Handle:menu, time, const String:flagstring[]="
 stock Handle:GetClientsWithFlags(const String:flagstring[])
 {
     new Handle:result = CreateArray();
+    new bool:checkFlags = strlen(flagstring) > 0;
+    new flags = ReadFlagString(flagstring);
     for (new i = 1; i <= MaxClients; i++)
     {
-        if (IsClientInGame(i) && ClientHasAdminFlags(i, flagstring))
+        if (IsClientInGame(i) && (!checkFlags || (flags & GetUserFlagBits(i))))
         {
+            DEBUG_MESSAGE("Client has correct flags: %L (%i) [F: %s]", i, i, flagstring)
             PushArrayCell(result, i);
         }
     }
     return result;
-}
-
-
-//
-stock bool:ClientHasFlagBits(client, flags)
-{
-    return flags & GetUserFlagBits(client);
 }
 
 
