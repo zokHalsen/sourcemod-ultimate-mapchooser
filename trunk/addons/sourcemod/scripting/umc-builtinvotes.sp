@@ -88,6 +88,13 @@ public OnLibraryAdded(const String:name[])
 #endif
 
 
+//
+public OnPluginEnd()
+{
+    UMC_UnregisterVoteManager("core");
+}
+
+
 //************************************************************************************************//
 //                                        CORE VOTE MANAGER                                       //
 //************************************************************************************************//
@@ -103,18 +110,26 @@ public Action:VM_MapVote(duration, Handle:vote_items, Handle:clients, const Stri
         clientArr[count++] = GetArrayCell(clients, i);
     }
     
+    if (count == 0)
+    {
+        LogError("Could not start core vote, no players to display vote to!");
+        return Plugin_Stop;
+    }
+    
     //new Handle:menu = BuildVoteMenu(vote_items, "Map Vote Menu Title", Handle_MapVoteResults);
     g_menu = BuildVoteMenu(vote_items, Handle_MapVoteResults);
+            
+    vote_active = true;
     
     if (g_menu != INVALID_HANDLE && DisplayBuiltinVote(g_menu, clientArr, count, duration))
     {
         if (strlen(startSound) > 0)
             EmitSoundToAll(startSound);
-            
-        vote_active = true;
         
         return Plugin_Continue;
     }
+            
+    vote_active = false;
     
     //ClearVoteArrays();
     LogError("Could not start built-in vote.");
@@ -169,6 +184,7 @@ public VM_CancelVote()
 {
     if (vote_active)
     {
+        vote_active = false;
         CancelBuiltinVote();
     }
 }
@@ -186,10 +202,13 @@ public Handle_VoteMenu(Handle:menu, BuiltinVoteAction:action, param1, param2)
         }
         case BuiltinVoteAction_Cancel:
         {
-            vote_active = false;
-            DEBUG_MESSAGE("Vote Cancelled")
             DisplayBuiltinVoteFail(g_menu, BuiltinVoteFailReason:param1);
-            UMC_VoteManagerVoteCancelled("core");
+            if (vote_active)
+            {
+                DEBUG_MESSAGE("Vote Cancelled")
+                vote_active = false;
+                UMC_VoteManagerVoteCancelled("core");
+            }
         }
     }
 }
