@@ -648,7 +648,7 @@ public Action:Handle_MapChangeTimer(Handle:timer, Handle:pack)
 
 
 //Changes the map based off of the given action.
-stock SetupMapChange(UMC_ChangeMapTime:action, const String:map[], const String:reason[]="")
+/*stock SetupMapChange(UMC_ChangeMapTime:action, const String:map[], const String:reason[]="")
 {
     switch (action)
     {
@@ -680,7 +680,7 @@ stock SetupMapChange(UMC_ChangeMapTime:action, const String:map[], const String:
             SetTheNextMap(map);
         }
     }
-}
+}*/
 
 
 //Determines if the current server time is between the given min and max.

@@ -713,6 +713,11 @@ public OnPluginStart()
         "Stops all UMC votes that are in progress."
     );
     
+    RegAdminCmd(
+        "sm_umc_maphistory", Command_MapHistory, ADMFLAG_CHANGEMAP,
+        "Shows the most recent maps played"
+    );
+    
     //Hook round end events
     HookEvent("round_end",            Event_RoundEnd); //Generic
     HookEventEx("game_round_end",     Event_RoundEnd); //Hidden: Source, Neotokyo
@@ -1615,6 +1620,24 @@ public Native_UMCGetCurrentGroup(Handle:plugin, numParams)
 //                                            COMMANDS                                            //
 //************************************************************************************************//
 
+//
+public Action:Command_MapHistory(client, args)
+{
+    PrintToConsole(client, "Map History:");
+
+    new size = GetMapHistorySize();
+    decl String:map[MAP_LENGTH], String:reason[100], String:timeString[100];
+    new time;
+    for (new i = 0; i < size; i++)
+    {
+        GetMapHistory(i, map, sizeof(map), reason, sizeof(reason), time);
+        FormatTime(timeString, sizeof(timeString), NULL_STRING, time);
+        ReplyToCommand(client, "%02i. %s : %s : %s", i+1, map, reason, timeString);
+    }
+    return Plugin_Handled;
+}
+
+
 //Called when the command to set the nextmap is called.
 public Action:Command_SetNextmap(client, args)
 {
@@ -1712,13 +1735,16 @@ public Action:VM_MapVote(duration, Handle:vote_items, Handle:clients, const Stri
     new size = GetArraySize(clients);
     for (new i = 0; i < size; i++)
     {
-        DEBUG_MESSAGE("Adding client to vote: %N (%i)", GetArrayCell(clients, i), GetArrayCell(clients, i))
-        clientArr[count++] = GetArrayCell(clients, i);
+        if (IsClientInGame(i))
+        {
+            DEBUG_MESSAGE("Adding client to vote: %N (%i)", GetArrayCell(clients, i), GetArrayCell(clients, i))
+            clientArr[count++] = GetArrayCell(clients, i);
+        }
     }
     
     if (count == 0)
     {
-        LogError("Could not start core vote, no players to display vote to!");
+        LogMessage("Could not start core vote, no players to display vote to!");
         return Plugin_Stop;
     }
     
@@ -1757,7 +1783,7 @@ public Action:VM_GroupVote(duration, Handle:vote_items, Handle:clients, const St
     
     if (count == 0)
     {
-        LogError("Could not start core vote, no players to display vote to!");
+        LogMessage("Could not start core vote, no players to display vote to!");
         return Plugin_Stop;
     }
     
@@ -1869,7 +1895,8 @@ public VM_CancelVote()
     DEBUG_MESSAGE("Is Core Vote still active? %i", core_vote_active)
     if (core_vote_active)
     {
-        DEBUG_MESSAGE("Vote Cancelled Callback -- Core Inner")
+        DEBUG_MESSAGE("Vote Cancelled Callback -- Core Inner")        
+        DEBUG_MESSAGE("Vote Cancelled and Cancel Callback not yet called!")
         DEBUG_MESSAGE("Setting CVA False -- Cancelled")
         core_vote_active = false;
         CancelVote();
@@ -1911,8 +1938,9 @@ public Handle_VoteMenu(Handle:menu, MenuAction:action, param1, param2)
             DEBUG_MESSAGE("Is Core Vote still active? %i", core_vote_active)
             if (core_vote_active)
             {
-                DEBUG_MESSAGE("Vote Cancelled and Cancel Callback not yet called!")
-                //Vote was cancelled generically, notify UMC.
+                //Vote was cancelled generically, notify UMC.                
+                DEBUG_MESSAGE("Setting CVA False -- Cancelled")
+                core_vote_active = false;
                 UMC_VoteManagerVoteCancelled("core");
             }
         }
@@ -3399,9 +3427,21 @@ DoRunoffVote(Handle:vM, Handle:response)
     //  ...the menu was built successfully
     if (runoffOptions != INVALID_HANDLE)
     {        
-        //Empty storage if we're revoting completely.
+        //Empty storage and add all clients if we're revoting completely.
         if (!GetConVarBool(cvar_runoff_selective))
+        {
+            DEBUG_MESSAGE("Non-selective runoff vote: erasing storage and adding all clients.")
             EmptyStorage(vM);
+            ClearArray(runoffClients);
+            for (new i = 1; i <= MaxClients; i++)
+            {
+                if (IsClientInGame(i))
+                {
+                    DEBUG_MESSAGE("Adding client %i", i)
+                    PushArrayCell(runoffClients, i);
+                }
+            }
+        }
         
         //Setup timer to delay the start of the runoff vote.
         SetTrieValue(vM, "runoff_delay", 7);
@@ -4313,15 +4353,34 @@ DoMapChange(UMC_ChangeMapTime:when, Handle:kv, const String:map[], const String:
     //Set the next map group
     strcopy(next_cat, sizeof(next_cat), group);
 
-    if (when == ChangeMapTime_RoundEnd && FindConVar("mp_maxrounds") == INVALID_HANDLE)
+    //
+    switch (when)
     {
-        DEBUG_MESSAGE("Setting RoundEnd Flags (no mp_maxrounds cvar)")
-        change_map_round = true;
-        SetTheNextMap(map);
+        case ChangeMapTime_Now: //We change the map in 5 seconds.
+            ForceChangeInFive(map, reason);
+        case ChangeMapTime_RoundEnd: //We change the map at the end of the round.
+        {
+            LogMessage("%s: Map will change to '%s' at the end of the round.", reason, map);
+            
+            change_map_round = true;
+                        
+            SetTheNextMap(map);
+            
+            //Print a message.
+            PrintToChatAll("\x03[UMC]\x01 %t", "Map Change at Round End");
+        }
+        case ChangeMapTime_MapEnd: //We set the map as the next map.
+        {
+            //Get the currently set next map.
+            decl String:curMap[MAP_LENGTH];
+            GetNextMap(curMap, sizeof(curMap));
+            
+            //Set the voted map as the next map if...
+            //    ...that map isn't already set as the next map.
+            //if (!StrEqual(curMap, map))
+            SetTheNextMap(map);
+        }
     }
-    else
-        SetupMapChange(when, map, reason);
-    
     
     new Handle:new_kv = INVALID_HANDLE;
     if (kv != INVALID_HANDLE)
