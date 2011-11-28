@@ -1733,12 +1733,14 @@ public Action:VM_MapVote(duration, Handle:vote_items, Handle:clients, const Stri
     decl clientArr[MAXPLAYERS+1];
     new count = 0;
     new size = GetArraySize(clients);
+    new client;
     for (new i = 0; i < size; i++)
     {
-        if (IsClientInGame(i))
+        client = GetArrayCell(clients, i);
+        if (IsClientInGame(client))
         {
-            DEBUG_MESSAGE("Adding client to vote: %N (%i)", GetArrayCell(clients, i), GetArrayCell(clients, i))
-            clientArr[count++] = GetArrayCell(clients, i);
+            DEBUG_MESSAGE("Adding client to vote: %N (%i)", client, client)
+            clientArr[count++] = client;
         }
     }
     
@@ -1776,9 +1778,15 @@ public Action:VM_GroupVote(duration, Handle:vote_items, Handle:clients, const St
     decl clientArr[MAXPLAYERS+1];
     new count = 0;
     new size = GetArraySize(clients);
+    new client;
     for (new i = 0; i < size; i++)
     {
-        clientArr[count++] = GetArrayCell(clients, i);
+        client = GetArrayCell(clients, i);
+        if (IsClientInGame(client))
+        {
+            DEBUG_MESSAGE("Adding client to vote: %N (%i)", client, client)
+            clientArr[count++] = client;
+        }
     }
     
     if (count == 0)
