@@ -107,7 +107,10 @@ public Action:VM_MapVote(duration, Handle:vote_items, Handle:clients, const Stri
     new size = GetArraySize(clients);
     for (new i = 0; i < size; i++)
     {
-        clientArr[count++] = GetArrayCell(clients, i);
+        if (IsClientInGame(i)
+        {
+            clientArr[count++] = GetArrayCell(clients, i);
+        }
     }
     
     if (count == 0)
