@@ -12,7 +12,11 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-rockthevote.txt"
+#if AUTOUPDATE_DEV
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/dev/updateinfo-umc-rockthevote.txt"
+#else
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-rockthevote.txt"
+#endif
 
 //Plugin Information
 public Plugin:myinfo =
@@ -23,6 +27,13 @@ public Plugin:myinfo =
     version     = PL_VERSION,
     url         = "http://forums.alliedmods.net/showthread.php?t=134190"
 };
+
+//Changelog:
+/*
+3.3.1 (12/13/11)
+Updated sm_umc_rtv_postvoteaction cvar to allow for normal RTV votes after a vote has taken place.
+
+*/
 
         ////----CONVARS-----/////
 new Handle:cvar_filename             = INVALID_HANDLE;
@@ -200,8 +211,8 @@ public OnPluginStart()
     cvar_rtv_postaction = CreateConVar(
         "sm_umc_rtv_postvoteaction",
         "0",
-        "What to do with RTVs after another UMC vote has completed.\n 0 - Allow, success = instant change,\n 1 - Deny",
-        0, true, 0.0, true, 1.0
+        "What to do with RTVs after another UMC vote has completed.\n 0 - Allow, success = instant change,\n 1 - Deny,\n 2 - Hold a normal RTV vote",
+        0, true, 0.0, true, 2.0
     );
 
     cvar_rtv_minplayers = CreateConVar(
@@ -605,7 +616,7 @@ AttemptRTV(client)
     //Print a message if...
     //    ...an RTV has already been completed OR
     //    ...a vote has already been completed and RTVs after votes aren't allowed.
-    if (rtv_completed || (vote_completed && GetConVarBool(cvar_rtv_postaction)))
+    if (rtv_completed || (vote_completed && GetConVarInt(cvar_rtv_postaction) == 1))
     {
         DEBUG_MESSAGE("RTV Already Completed? -- %s", rtv_completed ? "true" : "false")
         DEBUG_MESSAGE("Vote Already Completed? -- %s", vote_completed ? "true" : "false")
@@ -783,10 +794,12 @@ public StartRTV()
     DEBUG_MESSAGE("Disabling RTV; setting rtv_completed flag to true")
     rtv_completed = true;
     
+    new postAction = GetConVarInt(cvar_rtv_postaction);
+    
     //Change the map immediately if...
     //    ...there has already been an end-of-map vote AND
     //    ...the cvar that handles RTV actions after end-of-map votes specifies to change the map.
-    if (vote_completed && GetConVarInt(cvar_rtv_postaction) == 0)
+    if (vote_completed && postAction == 0)
     {
         //Get the next map set by the vote.
         decl String:temp[MAP_LENGTH];
@@ -799,7 +812,7 @@ public StartRTV()
     }
     //Otherwise, build the RTV vote if...
     //    ...a vote hasn't already been completed.
-    else if (!vote_completed)
+    else if (!vote_completed || postAction == 2)
     {
         //Do nothing if...
         //    ...there is a vote already in progress.
@@ -845,7 +858,7 @@ public StartRTV()
         
         if (!result)
         {
-            LogError("Could not start UMC vote.");
+            LogMessage("Could not start UMC vote.");
         }
     }
 }

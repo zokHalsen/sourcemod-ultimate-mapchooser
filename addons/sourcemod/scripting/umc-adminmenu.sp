@@ -14,7 +14,11 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-adminmenu.txt"
+#if AUTOUPDATE_DEV
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/dev/updateinfo-umc-adminmenu.txt"
+#else
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-adminmenu.txt"
+#endif
 
 #define AMMENU_ITEM_INDEX_AUTO 0
 #define AMMENU_ITEM_INDEX_MANUAL 1

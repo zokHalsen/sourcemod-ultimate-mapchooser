@@ -12,7 +12,11 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-echonextmap.txt"
+#if AUTOUPDATE_DEV
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/dev/updateinfo-umc-echonextmap.txt"
+#else
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-echonextmap.txt"
+#endif
 
 public Plugin:myinfo =
 {

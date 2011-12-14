@@ -12,7 +12,11 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-timelimits.txt"
+#if AUTOUPDATE_DEV
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/dev/updateinfo-umc-timelimits.txt"
+#else
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-timelimits.txt"
+#endif
 
 public Plugin:myinfo =
 {

@@ -11,7 +11,11 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-maprate-reweight.txt"
+#if AUTOUPDATE_DEV
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/dev/updateinfo-umc-maprate-reweight.txt"
+#else
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-maprate-reweight.txt"
+#endif
 
 //Welcome to UMC Map Rate Reweight by Steell!
 /**
