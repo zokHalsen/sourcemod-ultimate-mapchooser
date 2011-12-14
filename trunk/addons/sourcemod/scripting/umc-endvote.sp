@@ -14,7 +14,11 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-endvote.txt"
+#if AUTOUPDATE_DEV
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/dev/updateinfo-umc-endvote.txt"
+#else
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-endvote.txt"
+#endif
 
 //Plugin Information
 public Plugin:myinfo =
@@ -1259,7 +1263,7 @@ public StartMapVote()
     
     if (!result)
     {
-        LogError("Could not start UMC vote.");
+        LogMessage("Could not start UMC vote.");
     }
 }
 

@@ -16,7 +16,11 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-core.txt"
+#if AUTOUPDATE_DEV
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/dev/updateinfo-umc-core.txt"
+#else
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-core.txt"
+#endif
 
 //Some definitions
 #define NOTHING_OPTION "?nothing?"
@@ -34,6 +38,12 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
+3.3.1 (12/13/2011)
+Fixed issue where errors were being logged accidentally.
+Fixed issue where cancelling a vote could cause errors (and in some cases cause voting to stop working).
+Fixed issue where Selective Runoff was always enabled.
+Updated sm_umc_rtv_postvoteaction cvar to allow for normal RTV votes after a vote has taken place.
+
 3.3 (11/17/11)
 Slot blocking functionality has been changed. Modules now cannot specify how many slots they want blocked. All slot blocking is not controlled by core.
 -New cvar "votemanager_core_blockslots" has been added to control this feature in Core.
@@ -413,6 +423,11 @@ Initial Release
 */
 
 //TODO / IDEAS:
+//  Keep track of clients between votes by storing them as userids OR steamids.
+//      -Possibility of SteamIDs due to how visual vote operates.
+//
+//  Natives take an array of clients rather than a string of flags.
+//
 //    New "next_map" map command, works with "next_mapgroup".
 //        -If next_map is set but next_mapgroup isn't, the current group is assumed.
 //        -If next_map is not set but next_mapgroup is, then a map is selected at random from the group.
@@ -426,7 +441,7 @@ Initial Release
 //  Add cvar to control where nominations are placed in the vote (on top vs. scrambled)
 //  Possible Bug: map change (sm_map or changelevel) after a vote completes can set the wrong 
 //                current_cat. I'm not exactly sure how to fix this.
-//                PERHAPS: store the next map, whent he map changes compare the current map to the one we have
+//                PERHAPS: store the next map, when the map changes compare the current map to the one we have
 //                         stored. If they are different, set the current_cat to INVALID_GROUP.
 //  New mapexclude_strict cvar that doesn't take map group into account when excluding previously played maps.
 //  In situations where we're filtering a list of map tries (map/group tries) for a specific

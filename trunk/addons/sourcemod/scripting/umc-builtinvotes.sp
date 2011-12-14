@@ -14,8 +14,11 @@
 
 //Auto update
 #include <updater>
-#define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-builtinvotes.txt"
-
+#if AUTOUPDATE_DEV
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/dev/updateinfo-umc-builtinvotes.txt"
+#else
+    #define UPDATE_URL "http://www.ccs.neu.edu/home/steell/sourcemod/ultimate-mapchooser/updateinfo-umc-builtinvotes.txt"
+#endif
 
 new bool:vote_active;
 new Handle:g_menu;
@@ -29,6 +32,15 @@ public Plugin:myinfo =
     version     = PL_VERSION,
     url         = "http://forums.alliedmods.net/showthread.php?t=134190"
 };
+
+
+//Changelog:
+/*
+3.3.1 (12/13/11)
+Fixed issue where errors were being logged accidentally.
+Fixed issue where cancelling a vote could cause errors (and in some cases cause voting to stop working).
+
+*/
 
 
 //
@@ -107,7 +119,7 @@ public Action:VM_MapVote(duration, Handle:vote_items, Handle:clients, const Stri
     new size = GetArraySize(clients);
     for (new i = 0; i < size; i++)
     {
-        if (IsClientInGame(i)
+        if (IsClientInGame(i))
         {
             clientArr[count++] = GetArrayCell(clients, i);
         }
