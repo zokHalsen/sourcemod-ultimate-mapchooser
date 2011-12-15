@@ -117,11 +117,13 @@ public Action:VM_MapVote(duration, Handle:vote_items, Handle:clients, const Stri
     decl clientArr[MAXPLAYERS+1];
     new count = 0;
     new size = GetArraySize(clients);
+    new client;
     for (new i = 0; i < size; i++)
     {
-        if (IsClientInGame(i))
+        client = GetArrayCell(clients, i);
+        if (IsClientInGame(client))
         {
-            clientArr[count++] = GetArrayCell(clients, i);
+            clientArr[count++] = client;
         }
     }
     
