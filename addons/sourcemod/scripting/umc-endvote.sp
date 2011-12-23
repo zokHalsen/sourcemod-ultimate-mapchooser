@@ -1003,7 +1003,9 @@ CheckMaxRounds(round_count)
         new maxrounds = GetConVarInt(cvar_maxrounds);
         if (maxrounds > 0)
         {
-            if (round_count >= (maxrounds - GetConVarInt(cvar_start_rounds)))
+            new startRounds = GetConVarInt(cvar_start_rounds);
+            DEBUG_MESSAGE("Determining if mp_maxrounds trigger has been reached. MR: %i, T: %i, C: %i", maxrounds, startRounds, round_count)
+            if (round_count >= (maxrounds - startRounds))
             {
                 LogMessage("Round limit triggered end of map vote.");
                 DestroyTimers();
