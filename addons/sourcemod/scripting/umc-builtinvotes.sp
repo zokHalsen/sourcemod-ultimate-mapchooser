@@ -36,6 +36,9 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
+3.3.1r2 (12/15/11)
+Fixed issue which prevented votes from starting.
+
 3.3.1 (12/13/11)
 Fixed issue where errors were being logged accidentally.
 Fixed issue where cancelling a vote could cause errors (and in some cases cause voting to stop working).
@@ -179,14 +182,12 @@ Handle:BuildVoteMenu(Handle:vote_items, BuiltinVoteHandler:callback)
         GetTrieString(voteItem, "info", info, sizeof(info));
         GetTrieString(voteItem, "display", display, sizeof(display));
         
-        if (StrEqual(info, EXTEND_MAP_OPTION))
-        {
-            AddBuiltinVoteItem(menu, BUILTINVOTES_EXTEND, BUILTINVOTES_EXTEND);
-        }
-        else
-        {
-            AddBuiltinVoteItem(menu, info, display);
-        }
+        AddBuiltinVoteItem(
+            menu, info,
+            StrEqual(info, EXTEND_MAP_OPTION) 
+                ? BUILTINVOTES_EXTEND
+                : display
+        );
     }
     
     //DEBUG_MESSAGE("Setting proper pagination.")

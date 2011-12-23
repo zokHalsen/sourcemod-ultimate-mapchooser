@@ -6,13 +6,13 @@
 
 #pragma semicolon 1
 
-#define PL_VERSION "3.3.1r2"
+#define PL_VERSION "3.3.2-dev"
 
-#define UMC_DEBUG 0
+#define UMC_DEBUG 1
 
 #define AUTOUPDATE_ENABLE 1
 
-#define AUTOUPDATE_DEV 0
+#define AUTOUPDATE_DEV 1
 
 #define INVALID_GROUP ""
 #define MAP_LENGTH 64
