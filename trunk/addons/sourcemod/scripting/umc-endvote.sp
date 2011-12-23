@@ -690,7 +690,13 @@ MakeVoteTimer()
     DEBUG_MESSAGE("*MakeVoteTimer*")
     vote_timer = MakeTimer();
     
-    //Log
+    UpdateOtherTimers();
+}
+
+
+//Updates the non-mp_timelimit "timers."
+UpdateOtherTimers()
+{
     new start;
     
     if (cvar_maxrounds != INVALID_HANDLE)
@@ -1277,6 +1283,7 @@ public UMC_OnMapExtended()
 {
     DEBUG_MESSAGE("*Map extended.*")
     UpdateTimers();
+    UpdateOtherTimers();
     extend_counter++;
     vote_completed = false;
     vote_enabled = true;
