@@ -35,6 +35,7 @@
     * _sm_umc_reload_mapcycles_ - Requests that all modules reload their UMC-Mapcycles.
     * _sm_umc_setnextmap `<mapname>`_ - Sets the next map (same functionality as was built into the original mapchooser.smx)
     * _sm_umc_stopvote_ - Stops an Ultimate Mapchooser vote currently in progress.
+    * _sm_umc_displaymaplists `<0|1>`_ - Displays all maplists being used by UMC. Pass 1 as an argument to see them after being filtered through [AboutExclusion UMC Map Exclusion].
 
 = List of CVars =
   The cvar list for the Core module is located in *cfg/sourcemod/ultimate-mapchooser.cfg*.
