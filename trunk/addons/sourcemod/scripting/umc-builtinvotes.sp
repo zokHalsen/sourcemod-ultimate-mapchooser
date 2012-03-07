@@ -22,6 +22,7 @@
 
 new bool:vote_active;
 new Handle:g_menu;
+new Handle:cvar_logging;
 
 //Plugin Information
 public Plugin:myinfo =
@@ -49,6 +50,8 @@ Fixed issue where cancelling a vote could cause errors (and in some cases cause 
 //
 public OnAllPluginsLoaded()
 {
+    cvar_logging = FindConVar("sm_umc_logging_verbose");
+
     new String:game[20];
     GetGameFolderName(game, sizeof(game));
     
@@ -117,6 +120,8 @@ public OnPluginEnd()
 //
 public Action:VM_MapVote(duration, Handle:vote_items, Handle:clients, const String:startSound[])
 {
+    new bool:verboseLogs = cvar_logging != INVALID_HANDLE && GetConVarBool(cvar_logging);
+
     decl clientArr[MAXPLAYERS+1];
     new count = 0;
     new size = GetArraySize(clients);
@@ -126,13 +131,15 @@ public Action:VM_MapVote(duration, Handle:vote_items, Handle:clients, const Stri
         client = GetArrayCell(clients, i);
         if (IsClientInGame(client))
         {
+            if (verboseLogs)
+                LogUMCMessage("%i: %N (%i)", i, client, client);
             clientArr[count++] = client;
         }
     }
     
     if (count == 0)
     {
-        LogError("Could not start core vote, no players to display vote to!");
+        LogUMCMessage("Could not start core vote, no players to display vote to!");
         return Plugin_Stop;
     }
     
@@ -160,6 +167,11 @@ public Action:VM_MapVote(duration, Handle:vote_items, Handle:clients, const Stri
 //
 Handle:BuildVoteMenu(Handle:vote_items, BuiltinVoteHandler:callback)
 {
+    new bool:verboseLogs = cvar_logging != INVALID_HANDLE && GetConVarBool(cvar_logging);
+    
+    if (verboseLogs)
+        LogUMCMessage("VOTE MENU:");
+
     new size = GetArraySize(vote_items);
     if (size <= 1)
     {
@@ -188,6 +200,9 @@ Handle:BuildVoteMenu(Handle:vote_items, BuiltinVoteHandler:callback)
                 ? BUILTINVOTES_EXTEND
                 : display
         );
+        
+        if (verboseLogs)
+            LogUMCMessage("%i: %s (%s)", i + 1, display, info);
     }
     
     //DEBUG_MESSAGE("Setting proper pagination.")
@@ -213,10 +228,10 @@ public Handle_VoteMenu(Handle:menu, BuiltinVoteAction:action, param1, param2)
 {
     switch (action)
     {
-        case BuiltinVoteAction_End:
+        case BuiltinVoteAction_Select:
         {
-            DEBUG_MESSAGE("MenuAction_End")
-            CloseHandle(menu);
+            if (cvar_logging != INVALID_HANDLE && GetConVarBool(cvar_logging))
+                LogUMCMessage("%L selected menu item %i", param1, param2);
         }
         case BuiltinVoteAction_Cancel:
         {
@@ -227,6 +242,11 @@ public Handle_VoteMenu(Handle:menu, BuiltinVoteAction:action, param1, param2)
                 vote_active = false;
                 UMC_VoteManagerVoteCancelled("core");
             }
+        }
+        case BuiltinVoteAction_End:
+        {
+            DEBUG_MESSAGE("MenuAction_End")
+            CloseHandle(menu);
         }
     }
 }

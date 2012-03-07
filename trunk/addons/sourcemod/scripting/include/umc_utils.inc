@@ -26,7 +26,7 @@ stock DebugMessage(const String:message[], any:...)
     decl String:fMessage[size];
     VFormat(fMessage, size, message, 2);
     
-    LogMessage("DEBUG: %s", fMessage);
+    LogUMCMessage("DEBUG: %s", fMessage);
 }
 #define DEBUG_MESSAGE(%0) DebugMessage(%0);
 
@@ -38,6 +38,21 @@ stock DebugMessage(const String:message[], any:...)
 
 
 #define MIN(%0, %1) ((%0) < (%1)) ? (%0) : (%1)
+
+
+stock LogUMCMessage(const String:message[], any:...)
+{
+    new size = strlen(message) + 255;
+    decl String:fMessage[size];
+    VFormat(fMessage, size, message, 2);
+    
+    decl String:fileName[PLATFORM_MAX_PATH];
+    decl String:timeStamp[64];
+    FormatTime(timeStamp, sizeof(timeStamp), "%Y%m%d", GetTime());
+    BuildPath(Path_SM, fileName, sizeof(fileName), "logs/UMC_%s.log", timeStamp);
+    
+    LogToFile(fileName, fMessage);
+}
 
 
 //Utility function to build a map trie.
@@ -65,7 +80,7 @@ stock Handle:GetKvFromFile(const String:filename[], const String:rootKey[], bool
     }
     
 #if UMC_DEBUG
-    PrintKv(kv);
+    LogKv(kv);
 #endif
     
     return kv;
@@ -616,7 +631,7 @@ stock ForceChangeInFive(const String:map[], const String:reason[]="")
 //Changes the map after the specified time period.
 stock ForceChangeMap(const String:map[], Float:time, const String:reason[]="")
 {
-    LogMessage("%s: Changing map to '%s' in %.f seconds.", reason, map, time);
+    LogUMCMessage("%s: Changing map to '%s' in %.f seconds.", reason, map, time);
 
     //Setup the timer.
     new Handle:pack;
@@ -656,7 +671,7 @@ public Action:Handle_MapChangeTimer(Handle:timer, Handle:pack)
             ForceChangeInFive(map, reason);
         case ChangeMapTime_RoundEnd: //We change the map at the end of the round.
         {
-            LogMessage("%s: Map will change to '%s' at the end of the round.", reason, map);
+            LogUMCMessage("%s: Map will change to '%s' at the end of the round.", reason, map);
             
             new Handle:cvarMaxRounds = FindConVar("mp_maxrounds");
             
@@ -805,7 +820,7 @@ stock Float:ArraySum(const Float:floats[], size)
 //Utility function to set the next map.
 stock SetTheNextMap(const String:mapName[])
 {
-    LogMessage("Setting nextmap to: %s", mapName);
+    LogUMCMessage("Setting nextmap to: %s", mapName);
     SetNextMap(mapName);
 }
 
@@ -956,7 +971,7 @@ stock SortMapTrieArray(Handle:array)
 
 
 //Prints the sections of a kv to the log.
-stock PrintKv(Handle:kv, depth=0)
+stock PrintKvToConsole(Handle:kv, client, depth=0)
 {
     decl String:section[64];
     KvGetSectionName(kv, section, sizeof(section));
@@ -965,14 +980,39 @@ stock PrintKv(Handle:kv, depth=0)
     decl String:space[whitespace];
     FillWhiteSpace(space, whitespace);
     
-    LogMessage("%i: %s\"%s\"", depth, space, section);
+    PrintToConsole(client, "%s\"%s\"", space, section);
     
     if (!KvGotoFirstSubKey(kv))
         return;
     
     do
     {
-        PrintKv(kv, depth + 1);
+        PrintKvToConsole(kv, client, depth + 1);
+    }
+    while (KvGotoNextKey(kv));
+    
+    KvGoBack(kv);
+}
+
+
+//Prints the sections of a kv to the log.
+stock LogKv(Handle:kv, depth=0)
+{
+    decl String:section[64];
+    KvGetSectionName(kv, section, sizeof(section));
+    
+    new whitespace = depth*2+1;
+    decl String:space[whitespace];
+    FillWhiteSpace(space, whitespace);
+    
+    LogUMCMessage("%i: %s\"%s\"", depth+1, space, section);
+    
+    if (!KvGotoFirstSubKey(kv))
+        return;
+    
+    do
+    {
+        LogKv(kv, depth + 1);
     }
     while (KvGotoNextKey(kv));
     
@@ -1003,7 +1043,7 @@ stock PrintNominationArray(Handle:array)
         nom = GetArrayCell(array, i);
         GetTrieString(nom, MAP_TRIE_MAP_KEY, map, sizeof(map));
         GetTrieString(nom, MAP_TRIE_GROUP_KEY, group, sizeof(group));
-        LogMessage("%20s   |    %20s", map, group);
+        LogUMCMessage("%20s   |    %20s", map, group);
     }
 }
 
@@ -1040,7 +1080,8 @@ stock Handle:GetClientsWithFlags(const String:flagstring[])
     new flags = ReadFlagString(flagstring);
     for (new i = 1; i <= MaxClients; i++)
     {
-        if (IsClientInGame(i) && (!checkFlags || (flags & GetUserFlagBits(i))))
+        if (IsClientInGame(i) && !IsFakeClient(i)
+            && (!checkFlags || (flags & GetUserFlagBits(i))))
         {
             DEBUG_MESSAGE("Client has correct flags: %L (%i) [F: %s]", i, i, flagstring)
             PushArrayCell(result, i);

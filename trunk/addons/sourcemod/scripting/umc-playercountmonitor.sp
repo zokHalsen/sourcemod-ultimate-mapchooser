@@ -40,6 +40,13 @@ public Plugin:myinfo =
     url         = "http://forums.alliedmods.net/showthread.php?t=134190"
 };
 
+//Changelog:
+/*
+3.3.2 (3/4/2012)
+Updated UMC Logging functionality
+Added ability to view the current mapcycle of all modules
+*/
+
 //TODO: Cvar to control what to do if a vote has already occured.
 
 
@@ -338,7 +345,7 @@ public OnClientPutInServer(client)
     if (validity_enabled && clientCount > map_max_players
         && GetConVarInt(cvar_invalid_max) != _:PLAction_Nothing)
     {
-        LogMessage("Number of clients above player threshold. %i clients, %i max.",
+        LogUMCMessage("Number of clients above player threshold. %i clients, %i max.",
             clientCount, map_max_players);
         PrintToChatAll("\x03[UMC]\x01 %t", "Too Many Players", map_max_players);
         ChangeToValidMap(cvar_invalid_max);
@@ -359,7 +366,7 @@ public OnClientDisconnect_Post(client)
     if (validity_enabled && clientCount < map_min_players
         && GetConVarInt(cvar_invalid_min) != _:PLAction_Nothing)
     {
-        LogMessage("Number of clients below player threshold: %i clients, %i min",
+        LogUMCMessage("Number of clients below player threshold: %i clients, %i min",
             clientCount, map_min_players);
         PrintToChatAll("\x03[UMC]\x01 %t", "Not Enough Players", map_min_players);
         ChangeToValidMap(cvar_invalid_min);
@@ -441,7 +448,7 @@ SetupMinMaxPlayers(const String:map[], const String:group[])
             KvRewind(umc_mapcycle);
             
             //Log Info
-            LogMessage("Min Players: %i, Max Players: %i", map_min_players, map_max_players);
+            LogUMCMessage("Min Players: %i, Max Players: %i", map_min_players, map_max_players);
     
             //Make timer to do min/max player check.
             MakePlayerLimitCheckTimer();
@@ -451,10 +458,10 @@ SetupMinMaxPlayers(const String:map[], const String:group[])
     }
     
     //Error, was not able to find the appropriate data.
-    LogMessage("Current Map Group could not be determined. (Non-UMC mapchange or plugin just loaded.)");
+    LogUMCMessage("Current Map Group could not be determined. (Non-UMC mapchange or plugin just loaded.)");
     
     //Log Info
-    LogMessage("Min Players: %i, Max Players: %i", map_min_players, map_max_players);
+    LogUMCMessage("Min Players: %i, Max Players: %i", map_min_players, map_max_players);
 }
 
 
@@ -499,7 +506,7 @@ MakePlayerLimitCheckTimer()
     //Get the timer delay
     new Float:delay = GetConVarFloat(cvar_invalid_delay);
     
-    LogMessage("Server will begin watching for inproper number of players in %.f seconds.", delay);
+    LogUMCMessage("Server will begin watching for inproper number of players in %.f seconds.", delay);
     
     //Create the timer.
     CreateTimer(
@@ -518,7 +525,7 @@ public Action:Handle_PlayerLimitTimer(Handle:Timer)
     //We are now checking for valid player amounts.
     validity_enabled = true;
     
-    LogMessage("Server is now watching for inproper number of players.");
+    LogUMCMessage("Server is now watching for inproper number of players.");
     
     //Check player limits now.
     RunPlayerLimitCheck();
@@ -542,7 +549,7 @@ public RunPlayerLimitCheck()
     if (validity_enabled && clientCount > map_max_players
         && GetConVarInt(cvar_invalid_max) != _:PLAction_Nothing)
     {
-        LogMessage("Number of clients above player threshold. %i clients, %i max.",
+        LogUMCMessage("Number of clients above player threshold. %i clients, %i max.",
             clientCount, map_max_players);
         PrintToChatAll("\x03[UMC]\x01 %t", "Too Many Players", map_max_players);
         ChangeToValidMap(cvar_invalid_max);
@@ -553,7 +560,7 @@ public RunPlayerLimitCheck()
     else if (validity_enabled && clientCount < map_min_players
              && GetConVarInt(cvar_invalid_min) != _:PLAction_Nothing)
     {
-        LogMessage("Number of clients below player threshold: %i clients, %i min",
+        LogUMCMessage("Number of clients below player threshold: %i clients, %i min",
             clientCount, map_min_players);
         PrintToChatAll("\x03[UMC]\x01 %t", "Not Enough Players", map_min_players);
         ChangeToValidMap(cvar_invalid_min);
@@ -573,7 +580,7 @@ ChangeToValidMap(Handle:cvar)
         case PLAction_Now: //Pick a map and change to it.
         {
             //Log message
-            LogMessage("Changing to a map that can support %i players.",
+            LogUMCMessage("Changing to a map that can support %i players.",
                 GetRealClientCount());
             
             //Get the picked map.
@@ -587,14 +594,14 @@ ChangeToValidMap(Handle:cvar)
         }
         case PLAction_YesNo: //Pick a map and run yes/no vote.
         {
-            LogMessage("Picking a map that can support %i players.", GetRealClientCount());
+            LogUMCMessage("Picking a map that can support %i players.", GetRealClientCount());
             
             //Get the picked map.
             decl String:map[MAP_LENGTH];
             if (UMC_GetRandomMap(map_kv, umc_mapcycle, INVALID_GROUP, map, sizeof(map), vote_group,
                                  sizeof(vote_group), false, true))
             {
-                LogMessage("Perfoming YES/NO vote to change the map to '%s'", map);
+                LogUMCMessage("Perfoming YES/NO vote to change the map to '%s'", map);
             
                 //Run the yes/no vote if...
                 //    ...there isn't already a vote in progress.
@@ -627,14 +634,14 @@ ChangeToValidMap(Handle:cvar)
                 }
                 else
                 {
-                    LogMessage("Unable to start YES/NO vote, another vote is in progress.");
+                    LogUMCMessage("Unable to start YES/NO vote, another vote is in progress.");
                     MakeRetryVoteTimer(RunPlayerLimitCheck);
                 }
             }
         }
         case PLAction_Vote: //Run a full mapvote.
         {
-            LogMessage("Performing map vote to change to a map that can support %i players.",
+            LogUMCMessage("Performing map vote to change to a map that can support %i players.",
                 GetRealClientCount());
         
             //Run the mapvote if...
@@ -675,7 +682,7 @@ ChangeToValidMap(Handle:cvar)
             }
             else
             {
-                LogMessage("Unable to start map vote, another vote is in progress.");
+                LogUMCMessage("Unable to start map vote, another vote is in progress.");
                 MakeRetryVoteTimer(RunPlayerLimitCheck);
             }
         }
@@ -785,5 +792,24 @@ public UMC_RequestReloadMapcycle()
         validity_enabled = false;
     else
         RemovePreviousMapsFromCycle();
+}
+
+
+//Called when UMC requests that the mapcycle is printed to the console.
+public UMC_DisplayMapCycle(client, bool:filtered)
+{
+    PrintToConsole(client, "Module: Player Count Monitor");
+    if (filtered)
+    {
+        new Handle:filteredMapcycle = UMC_FilterMapcycle(
+            map_kv, umc_mapcycle, false, true
+        );
+        PrintKvToConsole(filteredMapcycle, client);
+        CloseHandle(filteredMapcycle);
+    }
+    else
+    {
+        PrintKvToConsole(umc_mapcycle, client);
+    }
 }
 

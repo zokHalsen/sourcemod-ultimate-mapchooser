@@ -192,7 +192,7 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
     //  ...we can't find the warning definitions.
     if (kv == INVALID_HANDLE)
     {
-        LogMessage("Unable to parse warning file '%s', no vote warnings created.", fileName);
+        LogUMCMessage("Unable to parse warning file '%s', no vote warnings created.", fileName);
         return;
     }
     
@@ -223,7 +223,7 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
     //       will not execute. We will catch this case after we attempt to parse the file.
     if (!KvGotoFirstSubKey(kv))
     {
-        LogMessage("No vote warnings defined, vote warnings were not created.");
+        LogUMCMessage("No vote warnings defined, vote warnings were not created.");
         CloseHandle(kv);
         return;
     }
@@ -347,10 +347,10 @@ GetVoteWarnings(const String:fileName[], Handle:warningArray, &next)
     //    ...no vote warnings were found. This accounts for the case where the default definition was
     //       provided, but not actual warnings.
     if (warningCount < 1)
-        LogMessage("No vote warnings defined, vote warnings were not created.");
+        LogUMCMessage("No vote warnings defined, vote warnings were not created.");
     else //Otherwise, log a success!
     {
-        LogMessage("Successfully parsed and set up %i vote warnings.", warningCount);
+        LogUMCMessage("Successfully parsed and set up %i vote warnings.", warningCount);
     
         //Sort the array in descending order of time.
         SortADTArrayCustom(warningArray, CompareWarnings);
@@ -397,7 +397,7 @@ UpdateWinWarnings(winsleft)
     if (current_win < GetArraySize(win_array))
     {
         win_init = true;
-        LogMessage(
+        LogUMCMessage(
             "First win-warning will appear at %i wins before the end of the map.",
             warningTime
         );
@@ -414,7 +414,7 @@ UpdateFragWarnings(fragsleft)
     if (current_round < GetArraySize(round_array))
     {
         frag_init = true;
-        LogMessage(
+        LogUMCMessage(
             "First frag-warning will appear at %i frags before the end of map vote.",
             warningTime
         );
@@ -434,7 +434,7 @@ UpdateTimeWarnings(timeleft)
         warning = GetArrayCell(time_array, i);
         if (GetTrieString(warning, "message", message, sizeof(message)))
         {
-            DEBUG_MESSAGE("%i: %s", i, warning)
+            DEBUG_MESSAGE("%i: %s", i, message)
         }
     }
 #endif
@@ -444,7 +444,7 @@ UpdateTimeWarnings(timeleft)
     if (current_time < GetArraySize(time_array))
     {
         time_init = true;
-        LogMessage(
+        LogUMCMessage(
             "First time-warning will appear %i seconds before the end of map vote.",
             warningTime
         );
@@ -461,7 +461,7 @@ UpdateRoundWarnings(roundsleft)
     if (current_round < GetArraySize(round_array))
     {
         round_init = true;
-        LogMessage(
+        LogUMCMessage(
             "First round-warning will appear at %i rounds before the end of map vote.",
             warningTime
         );

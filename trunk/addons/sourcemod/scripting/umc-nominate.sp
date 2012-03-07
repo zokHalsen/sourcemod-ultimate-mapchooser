@@ -30,6 +30,13 @@ public Plugin:myinfo =
     url         = "http://forums.alliedmods.net/showthread.php?t=134190"
 };
 
+//Changelog:
+/*
+3.3.2 (3/4/2012)
+Updated UMC Logging functionality
+Added ability to view the current mapcycle of all modules
+*/
+
         ////----CONVARS-----/////
 new Handle:cvar_filename        = INVALID_HANDLE;
 new Handle:cvar_nominate        = INVALID_HANDLE;
@@ -308,7 +315,7 @@ public Action:OnPlayerChat(client, const String:command[], argc)
                         decl String:clientName[MAX_NAME_LENGTH];
                         GetClientName(client, clientName, sizeof(clientName));
                         PrintToChatAll("\x03[UMC]\x01 %t", "Player Nomination", clientName, arg);
-                        LogMessage("%s has nominated '%s' from group '%s'", clientName, arg, groupName);
+                        LogUMCMessage("%s has nominated '%s' from group '%s'", clientName, arg, groupName);
                     }
                 }
                 
@@ -451,7 +458,7 @@ public Action:Command_Nominate(client, args)
                     decl String:clientName[MAX_NAME_LENGTH];
                     GetClientName(client, clientName, sizeof(clientName));
                     PrintToChatAll("\x03[UMC]\x01 %t", "Player Nomination", clientName, arg);
-                    LogMessage("%s has nominated '%s' from group '%s'", clientName, arg, groupName);
+                    LogUMCMessage("%s has nominated '%s' from group '%s'", clientName, arg, groupName);
                 }
             }
             
@@ -476,7 +483,7 @@ bool:DisplayNominationMenu(client)
     if (!can_nominate)
         return false;
 
-    LogMessage("%N wants to nominate a map.", client);
+    LogUMCMessage("%N wants to nominate a map.", client);
 
     //Build the menu
     new Handle:menu = GetConVarBool(cvar_nominate_tiered) 
@@ -717,7 +724,7 @@ public Handle_NominationMenu(Handle:menu, MenuAction:action, client, param2)
             GetClientName(client, clientName, sizeof(clientName));
             DEBUG_MESSAGE("Nomination via menu.")
             PrintToChatAll("\x03[UMC]\x01 %t", "Player Nomination", clientName, map);
-            LogMessage("%s has nominated '%s' from group '%s'", clientName, map, group);
+            LogUMCMessage("%s has nominated '%s' from group '%s'", clientName, map, group);
             
             //Close handles for stored data for the client's menu.
             CloseHandle(nom_menu_groups[client]);
@@ -803,3 +810,30 @@ public UMC_OnMapExtended()
 {
     vote_completed = false;
 }
+
+
+//Called when UMC requests that the mapcycle is printed to the console.
+public UMC_DisplayMapCycle(client, bool:filtered)
+{
+    PrintToConsole(client, "Module: Nominations");
+    if (filtered)
+    {
+        PrintToConsole(client, "Maps available to nominate:");
+        new Handle:filteredMapcycle = UMC_FilterMapcycle(
+            map_kv, umc_mapcycle, true, false
+        );
+        PrintKvToConsole(filteredMapcycle, client);
+        CloseHandle(filteredMapcycle);
+        PrintToConsole(client, "Maps available for map change (if nominated):");
+        filteredMapcycle = UMC_FilterMapcycle(
+            map_kv, umc_mapcycle, true, true
+        );
+        PrintKvToConsole(filteredMapcycle, client);
+        CloseHandle(filteredMapcycle);
+    }
+    else
+    {
+        PrintKvToConsole(umc_mapcycle, client);
+    }
+}
+

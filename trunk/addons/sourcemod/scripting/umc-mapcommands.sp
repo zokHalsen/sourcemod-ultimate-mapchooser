@@ -6,6 +6,7 @@
 
 #include <sourcemod>
 #include <umc-core>
+#include <umc_utils>
 
 #undef REQUIRE_PLUGIN
 
@@ -29,8 +30,12 @@ public Plugin:myinfo =
 #define COMMAND_KEY     "command"
 #define PRE_COMMAND_KEY "pre-command"
 
-/* Globals */
-new String:group_command[256], String:map_command[256];
+//Changelog:
+/*
+*/
+
+new String:map_command[256];
+new String:group_command[256];
 
 
 #if AUTOUPDATE_ENABLE
@@ -58,16 +63,20 @@ public OnLibraryAdded(const String:name[])
 //Execute commands after all configs have been executed.
 public OnConfigsExecuted()
 {
+    decl String:map[MAP_LENGTH], String:group[MAP_LENGTH];
+    GetCurrentMap(map, sizeof(map));
+    UMC_GetCurrentMapGroup(group, sizeof(group));
+
     if (strlen(group_command) > 0)
     {
-        LogMessage("SETUP: Executing map group command: '%s'", group_command);
+        LogUMCMessage("SETUP: Executing map group command: '%s'", group_command);
         ServerCommand(group_command);
         strcopy(group_command, sizeof(group_command), "");
     }
     
     if (strlen(map_command) > 0)
     {
-        LogMessage("SETUP: Executing map command: '%s'", map_command);
+        LogUMCMessage("SETUP: Executing map command: '%s'", map_command);
         ServerCommand(map_command);
         strcopy(map_command, sizeof(map_command), "");
     }
@@ -90,7 +99,7 @@ public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], con
     
     if (strlen(gPreCommand) > 0)
     {
-        LogMessage("SETUP: Executing map group pre-command: '%s'", gPreCommand);
+        LogUMCMessage("SETUP: Executing map group pre-command: '%s'", gPreCommand);
         ServerCommand(gPreCommand);
     }
         
@@ -101,7 +110,7 @@ public UMC_OnNextmapSet(Handle:kv, const String:map[], const String:group[], con
     
     if (strlen(mPreCommand) > 0)
     {
-        LogMessage("SETUP: Executing map pre-command: '%s'", mPreCommand);
+        LogUMCMessage("SETUP: Executing map pre-command: '%s'", mPreCommand);
         ServerCommand(mPreCommand);
     }
         

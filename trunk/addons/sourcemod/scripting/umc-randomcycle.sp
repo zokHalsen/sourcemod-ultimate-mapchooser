@@ -30,11 +30,25 @@ public Plugin:myinfo =
     url         = "http://forums.alliedmods.net/showthread.php?t=134190"
 };
 
+//Changelog:
+/*
+3.3.2 (3/4/2012)
+Added ability for Random Mapcycle to select the next map at the start of the game.
+-New cvar "sm_umc_randcycle_start" to control this ability
+Updated UMC Logging functionality
+Added ability to view the current mapcycle of all modules
+
+3.3.1 (12/13/11)
+Updated sm_umc_rtv_postvoteaction cvar to allow for normal RTV votes after a vote has taken place.
+
+*/
+
         ////----CONVARS-----/////
 new Handle:cvar_filename        = INVALID_HANDLE;
 new Handle:cvar_randnext        = INVALID_HANDLE;
 new Handle:cvar_randnext_mem    = INVALID_HANDLE;
 new Handle:cvar_randnext_catmem = INVALID_HANDLE;
+new Handle:cvar_start            = INVALID_HANDLE;
         ////----/CONVARS-----/////
 
 //Mapcycle KV
@@ -63,6 +77,13 @@ new bool:setting_map; //Are we setting the nextmap at the end of this map?
 //Called when the plugin is finished loading.
 public OnPluginStart()
 {
+    cvar_start = CreateConVar(
+        "sm_umc_randcycle_start",
+        "1",
+        "Specifies when to select the next map.\n 0 - Map Start,\n 1 - Map End",
+        0, true, 0.0, true, 1.0
+    );
+
     cvar_randnext_catmem = CreateConVar(
         "sm_umc_randcycle_groupexclude",
         "0",
@@ -114,7 +135,7 @@ public OnPluginStart()
         !StrEqual(game, "dod", false) &&
         !StrEqual(game, "insurgency", false))
     {
-        LogMessage("SETUP: Hooking intermission...");
+        LogUMCMessage("SETUP: Hooking intermission...");
         VGuiMenu = GetUserMessageId("VGUIMenu");
         HookUserMessage(VGuiMenu, _VGuiMenu);
     }
@@ -182,6 +203,11 @@ public OnConfigsExecuted()
     
     if (setting_map)
         RemovePreviousMapsFromCycle();
+        
+    if (!GetConVarBool(cvar_start))
+    {
+        DoRandomNextMap();
+    }
 }
 
 
@@ -214,7 +240,7 @@ public Event_GameEnd(Handle:evnt, const String:name[], bool:dontBroadcast)
     //    ...the cvar to do so is enabled AND
     //    ...we haven't completed an end-of-map vote AND
     //    ...we haven't completed an RTV.
-    if (GetConVarBool(cvar_randnext) && setting_map)
+    if (GetConVarBool(cvar_start) && GetConVarBool(cvar_randnext) && setting_map)
         DoRandomNextMap();
 }
 
@@ -342,7 +368,7 @@ public Action:Command_Random(client, args)
 //Sets a random next map. Returns true on success.
 DoRandomNextMap() 
 {    
-    LogMessage("Attempting to set the next map to a random selection.");
+    LogUMCMessage("Attempting to set the next map to a random selection.");
     DEBUG_MESSAGE("next_rand_cat: %s", next_rand_cat)
     decl String:nextMap[MAP_LENGTH], String:nextGroup[MAP_LENGTH];
     if (UMC_GetRandomMap(map_kv, umc_mapcycle, next_rand_cat, nextMap, sizeof(nextMap), nextGroup,
@@ -353,7 +379,7 @@ DoRandomNextMap()
     }
     else
     {
-        LogMessage("Failed to find a suitable random map.");
+        LogUMCMessage("Failed to find a suitable random map.");
     }
 }
 
@@ -376,5 +402,24 @@ public UMC_RequestReloadMapcycle()
     if (reloaded)
         RemovePreviousMapsFromCycle();
     setting_map = reloaded && setting_map;
+}
+
+
+//Called when UMC requests that the mapcycle is printed to the console.
+public UMC_DisplayMapCycle(client, bool:filtered)
+{
+    PrintToConsole(client, "Module: Random Mapcycle");
+    if (filtered)
+    {
+        new Handle:filteredMapcycle = UMC_FilterMapcycle(
+            map_kv, umc_mapcycle, false, true
+        );
+        PrintKvToConsole(filteredMapcycle, client);
+        CloseHandle(filteredMapcycle);
+    }
+    else
+    {
+        PrintKvToConsole(umc_mapcycle, client);
+    }
 }
 

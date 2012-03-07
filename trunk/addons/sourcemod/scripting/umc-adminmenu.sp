@@ -73,12 +73,19 @@ public Plugin:myinfo =
     url         = "http://forums.alliedmods.net/showthread.php?t=134190"
 };
 
+//Changelog:
+/*
+3.3.2 (3/4/2012)
+Updated UMC Logging functionality
+Added ability to view the current mapcycle of all modules
+*/
 
 /* IDEAS:
     Votes:
         Semi-auto mode: plugin picks the map, user has to confirm if he wants it
         in the vote. If he answers no, then it goes in the exclusion array.
 */
+
 
         ////----CONVARS-----/////
 new Handle:cvar_filename             = INVALID_HANDLE;
@@ -2339,7 +2346,7 @@ DoAutoMapChange(client, UMC_ChangeMapTime:when)
 DoMapChange(client, UMC_ChangeMapTime:when, const String:map[], const String:group[])
 {
     UMC_SetNextMap(map_kv, map, group, when);
-    LogMessage("%L set the next map to %s from group %s.", client, map, group);
+    LogUMCMessage("%L set the next map to %s from group %s.", client, map, group);
 }
 
 
@@ -2844,6 +2851,25 @@ public UMC_RequestReloadMapcycle()
     can_vote = ReloadMapcycle();
     if (can_vote)
         RemovePreviousMapsFromCycle();
+}
+
+
+//Called when UMC requests that the mapcycle is printed to the console.
+public UMC_DisplayMapCycle(client, bool:filtered)
+{
+    PrintToConsole(client, "Module: UMC Admin Menu");
+    if (filtered)
+    {
+        new Handle:filteredMapcycle = UMC_FilterMapcycle(
+            map_kv, umc_mapcycle, false, true
+        );
+        PrintKvToConsole(filteredMapcycle, client);
+        CloseHandle(filteredMapcycle);
+    }
+    else
+    {
+        PrintKvToConsole(umc_mapcycle, client);
+    }
 }
 
 

@@ -6,6 +6,7 @@
 
 #include <sourcemod>
 #include <umc-core>
+#include <umc_utils>
 
 #undef REQUIRE_PLUGIN
 
@@ -227,7 +228,7 @@ public UMC_OnReweightMap(Handle:kv, const String:map[], const String:group[])
     UMC_AddWeightModifier(weight);
     
 #if UMC_DEBUG
-    LogMessage("Map %s was reweighted by %f", map, weight);
+    LogUMCMessage("Map %s was reweighted by %f", map, weight);
 #endif
 }
 
