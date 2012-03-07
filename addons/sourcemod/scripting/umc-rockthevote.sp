@@ -30,9 +30,12 @@ public Plugin:myinfo =
 
 //Changelog:
 /*
+3.3.2 (3/4/2012)
+Updated UMC Logging functionality
+Added ability to view the current mapcycle of all modules
+
 3.3.1 (12/13/11)
 Updated sm_umc_rtv_postvoteaction cvar to allow for normal RTV votes after a vote has taken place.
-
 */
 
         ////----CONVARS-----/////
@@ -737,7 +740,7 @@ MakeRTVTimer()
     if (rtv_delaystart > 0)
     {
         //Log a message
-        LogMessage("RTV will be made available in %.f seconds.", rtv_delaystart);
+        LogUMCMessage("RTV will be made available in %.f seconds.", rtv_delaystart);
         
         //Create timer that lasts every second.
         CreateTimer(
@@ -750,7 +753,7 @@ MakeRTVTimer()
     else
     {
         //rtv_enabled = true;
-        LogMessage("RTV is now available.");
+        LogUMCMessage("RTV is now available.");
     }
 }
 
@@ -767,7 +770,7 @@ public Action:Handle_RTVTimer(Handle:timer)
     
     //rtv_enabled = true;
     
-    LogMessage("RTV is now available.");
+    LogUMCMessage("RTV is now available.");
     
     //Stop the timer.
     return Plugin_Stop;
@@ -786,7 +789,7 @@ UpdateRTVThreshold(count)
 //Starts an RTV.
 public StartRTV()
 {
-    LogMessage("Starting RTV.");
+    LogUMCMessage("Starting RTV.");
     
     //Clear the array of clients who have entered RTV.
     ClearArray(rtv_clients);
@@ -805,7 +808,7 @@ public StartRTV()
         decl String:temp[MAP_LENGTH];
         GetNextMap(temp, sizeof(temp));
         
-        LogMessage("End of map vote has already been completed, changing map.");
+        LogUMCMessage("End of map vote has already been completed, changing map.");
         
         //Change to it.
         ForceChangeInFive(temp, "RTV");
@@ -818,7 +821,7 @@ public StartRTV()
         //    ...there is a vote already in progress.
         if (IsVoteInProgress()) 
         {
-            LogMessage("There is a vote already in progress, cannot start a new vote.");
+            LogUMCMessage("There is a vote already in progress, cannot start a new vote.");
             MakeRetryVoteTimer(StartRTV);
             return;
         }
@@ -858,7 +861,7 @@ public StartRTV()
         
         if (!result)
         {
-            LogMessage("Could not start UMC vote.");
+            LogUMCMessage("Could not start UMC vote.");
         }
     }
 }
@@ -898,5 +901,24 @@ public UMC_RequestReloadMapcycle()
         rtv_enabled = false;
     else
         RemovePreviousMapsFromCycle();
+}
+
+
+//Called when UMC requests that the mapcycle is printed to the console.
+public UMC_DisplayMapCycle(client, bool:filtered)
+{
+    PrintToConsole(client, "Module: Rock The Vote");
+    if (filtered)
+    {
+        new Handle:filteredMapcycle = UMC_FilterMapcycle(
+            map_kv, umc_mapcycle, false, true
+        );
+        PrintKvToConsole(filteredMapcycle, client);
+        CloseHandle(filteredMapcycle);
+    }
+    else
+    {
+        PrintKvToConsole(umc_mapcycle, client);
+    }
 }
 

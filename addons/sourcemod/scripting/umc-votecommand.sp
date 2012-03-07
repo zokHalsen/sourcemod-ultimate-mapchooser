@@ -28,6 +28,13 @@ public Plugin:myinfo =
     url         = "http://forums.alliedmods.net/showthread.php?t=134190"
 };
 
+//Changelog:
+/*
+3.3.2 (3/4/2012)
+Updated UMC Logging functionality
+Added ability to view the current mapcycle of all modules
+*/
+
         ////----CONVARS-----/////
 new Handle:cvar_filename             = INVALID_HANDLE;
 new Handle:cvar_scramble             = INVALID_HANDLE;
@@ -450,6 +457,25 @@ public UMC_RequestReloadMapcycle()
     can_vote = ReloadMapcycle();
     if (can_vote)
         RemovePreviousMapsFromCycle();
+}
+
+
+//Called when UMC requests that the mapcycle is printed to the console.
+public UMC_DisplayMapCycle(client, bool:filtered)
+{
+    PrintToConsole(client, "Module: Vote Command");
+    if (filtered)
+    {
+        new Handle:filteredMapcycle = UMC_FilterMapcycle(
+            map_kv, umc_mapcycle, false, true
+        );
+        PrintKvToConsole(filteredMapcycle, client);
+        CloseHandle(filteredMapcycle);
+    }
+    else
+    {
+        PrintKvToConsole(umc_mapcycle, client);
+    }
 }
 
 

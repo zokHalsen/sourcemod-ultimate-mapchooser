@@ -6,13 +6,13 @@
 
 #pragma semicolon 1
 
-#define PL_VERSION "3.3.2-dev"
+#define PL_VERSION "3.3.3-dev"
 
 #define UMC_DEBUG 1
 
-#define AUTOUPDATE_ENABLE 1
+#define AUTOUPDATE_ENABLE 0
 
-#define AUTOUPDATE_DEV 1
+#define AUTOUPDATE_DEV 0
 
 #define INVALID_GROUP ""
 #define MAP_LENGTH 64
@@ -250,7 +250,8 @@ native bool:UMC_IsMapValid(Handle:mapcycle, const String:map[], const String:gro
  *
  * @return Handle to the new mapcycle KV.
  */
-native Handle:UMC_FilterMapcycle(Handle:mapcycle, bool:isNomination, bool:forMapChange);
+native Handle:UMC_FilterMapcycle(Handle:mapcycle, Handle:originalMapcycle, bool:isNomination,
+                                 bool:forMapChange);
 
 
 /**
@@ -306,7 +307,7 @@ forward UMC_OnVoteFailed(); //UMC_FailReason:reason);
  * @param kv    The mapcycle used for the vote.
  * @param map   The name of the winning map.
  * @param group The group of the winning map.
- * @param display	The "display name" of the winning map.
+ * @param display    The "display name" of the winning map.
  * 
  * @noreturn
  */
@@ -447,6 +448,11 @@ functag public UMC_VoteOptionHandler(Handle:menu, Handle:percentage, Handle:tota
  *
 forward UMC_OnVoteMenuCreated(Handle:voteMenu);
 */
+
+/**
+ *
+ */
+forward UMC_DisplayMapCycle(client, bool:filtered);
 
 
 //SourceMod Malarky

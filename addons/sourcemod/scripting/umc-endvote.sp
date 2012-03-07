@@ -30,6 +30,13 @@ public Plugin:myinfo =
     url         = "http://forums.alliedmods.net/showthread.php?t=134190"
 };
 
+//Changelog:
+/*
+3.3.2 (3/4/2012)
+Updated UMC Logging functionality
+Added ability to view the current mapcycle of all modules
+*/
+
         ////----CONVARS-----/////
 new Handle:cvar_filename             = INVALID_HANDLE;
 new Handle:cvar_scramble             = INVALID_HANDLE;
@@ -348,7 +355,8 @@ public OnPluginStart()
         HookEventEx("game_round_end",         Event_RoundEnd); //Hidden: Source, Neotokyo
         HookEventEx("teamplay_win_panel",     Event_RoundEndTF2); //TF2
         HookEventEx("arena_win_panel",        Event_RoundEndTF2); //TF2
-        HookEventEx("teamplay_restart_round", Event_TFRestartRound); //TF2	
+        HookEventEx("teamplay_restart_round", Event_TFRestartRound); //TF2    
+        HookEventEx("round_win",                Event_RoundEnd); //Nuclear Dawn
     }
     
     //Hook score.
@@ -499,7 +507,7 @@ public Event_PlayerDeath(Handle:evnt, String:name[], bool:dontBroadcast)
     
         if (frags >= (fraglimit - startfrags))
         {
-            LogMessage("Frag limit triggered end of map vote.");
+            LogUMCMessage("Frag limit triggered end of map vote.");
             DestroyTimers();
             SetupMapVote();
         }
@@ -703,7 +711,7 @@ UpdateOtherTimers()
     {
         start = GetConVarInt(cvar_maxrounds) - GetConVarInt(cvar_start_rounds) - round_counter;
         if (start > 0)
-            LogMessage("End of map vote will appear after %i more rounds.", start);
+            LogUMCMessage("End of map vote will appear after %i more rounds.", start);
             
         //Update our vote warnings.
         //UpdateVoteWarnings(.round=warnings_round_enabled, .frag=warnings_frag_enabled);
@@ -719,7 +727,7 @@ UpdateOtherTimers()
         start = GetConVarInt(cvar_winlimit) - GetConVarInt(cvar_start_rounds) - winScore;
         DEBUG_MESSAGE("Cvar (mp_winlimit): %i, Cvar (startrounds): %i, WinnerScore: %i", GetConVarInt(cvar_winlimit), GetConVarInt(cvar_start_rounds), winScore)
         if (start > 0)
-            LogMessage("End of map vote will appear after %i more wins.", start);
+            LogUMCMessage("End of map vote will appear after %i more wins.", start);
         
         //Update our vote warnings.
         //UpdateVoteWarnings(.round=warnings_round_enabled, .frag=warnings_frag_enabled);
@@ -735,7 +743,7 @@ UpdateOtherTimers()
         new topFragger = GetTopFragger(fragCount);
         start = GetConVarInt(cvar_fraglimit) - GetConVarInt(cvar_start_frags) - fragCount;
         if (start > 0)
-            LogMessage("End of map vote will appear after %i more frags.", start);
+            LogUMCMessage("End of map vote will appear after %i more frags.", start);
             
         //Update our vote warnings.
         //UpdateVoteWarnings(.round=warnings_round_enabled, .frag=warnings_frag_enabled);
@@ -799,9 +807,9 @@ public Handle_MaxroundsChange(Handle:convar, const String:oldVal[], const String
     
     //Log
     if (start > 0)
-        LogMessage("End of map vote will appear after %i more rounds.", start);
+        LogUMCMessage("End of map vote will appear after %i more rounds.", start);
     else if (old > 0)
-        LogMessage("End of map vote round trigger disabled.");
+        LogUMCMessage("End of map vote round trigger disabled.");
         
     //UpdateVoteWarnings(.round=warnings_round_enabled);
     Call_StartForward(round_update_forward);
@@ -825,9 +833,9 @@ public Handle_WinlimitChange(Handle:cvar, const String:oldVal[], const String:ne
     
     //Log
     if (start > 0)
-        LogMessage("End of map vote will appear after %i more wins.", start);
+        LogUMCMessage("End of map vote will appear after %i more wins.", start);
     else if (old > 0)
-        LogMessage("End of map vote round trigger disabled.");
+        LogUMCMessage("End of map vote round trigger disabled.");
         
     Call_StartForward(win_update_forward);
     Call_PushCell(start);
@@ -843,11 +851,11 @@ public Handle_FraglimitChange(Handle:convar, const String:oldVal[], const String
     new newlimit = StringToInt(newVal);
     if (newlimit > 0)
     {
-        LogMessage("End of map vote will appear after %i frags.",
+        LogUMCMessage("End of map vote will appear after %i frags.",
             StringToInt(newVal) - GetConVarInt(cvar_start_frags));
     }
     else if (StringToInt(oldVal) > 0)
-        LogMessage("End of map vote frag trigger disabled.");
+        LogUMCMessage("End of map vote frag trigger disabled.");
     
     new topFrags;
     new topFragger = GetTopFragger(topFrags);
@@ -980,7 +988,7 @@ CheckWinLimit(winner_score, winning_team)
         {
             if (winner_score >= (winlimit - GetConVarInt(cvar_start_rounds)))
             {
-                LogMessage("Win limit triggered end of map vote.");
+                LogUMCMessage("Win limit triggered end of map vote.");
                 DestroyTimers();
                 StartMapVoteRoundEnd();
             }
@@ -1007,7 +1015,7 @@ CheckMaxRounds(round_count)
             DEBUG_MESSAGE("Determining if mp_maxrounds trigger has been reached. MR: %i, T: %i, C: %i", maxrounds, startRounds, round_count)
             if (round_count >= (maxrounds - startRounds))
             {
-                LogMessage("Round limit triggered end of map vote.");
+                LogUMCMessage("Round limit triggered end of map vote.");
                 DestroyTimers();
                 StartMapVoteRoundEnd();
             }
@@ -1053,7 +1061,7 @@ Handle:MakeTimer()
         timer_alive = false;
         
         //Log message
-        LogMessage("Unable to create end of map vote time-trigger, trigger time already passed.");
+        LogUMCMessage("Unable to create end of map vote time-trigger, trigger time already passed.");
     }
     return result;
 }
@@ -1119,7 +1127,7 @@ bool:SetTimerTriggerTime()
         vote_delaystart = triggertime - 1;
         result = true;
         
-        LogMessage("End of map vote will appear after %.f seconds", triggertime);
+        LogUMCMessage("End of map vote will appear after %.f seconds", triggertime);
     }
     else //Otherwise...
     {
@@ -1148,7 +1156,7 @@ UpdateTimers()
     {
         if (SetTimerTriggerTime())
         {
-            LogMessage("Map vote timer successfully updated.");
+            LogUMCMessage("Map vote timer successfully updated.");
         }
         else
         {
@@ -1163,7 +1171,7 @@ UpdateTimers()
         vote_timer = MakeTimer();
     
         if (timer_alive)
-            LogMessage("Map vote timer successfully updated.");
+            LogUMCMessage("Map vote timer successfully updated.");
     }
 }
 
@@ -1171,7 +1179,7 @@ UpdateTimers()
 //Disables all end-of-map vote timers.
 DestroyTimers()
 {
-    LogMessage("End of map vote disabled.");
+    LogUMCMessage("End of map vote disabled.");
 
     //Delete the time trigger if...
     //    ...the timer is alive.
@@ -1219,18 +1227,18 @@ public StartMapVote()
 {
     if (!vote_enabled)
     {
-        //LogMessage("Cancelling map vote.");
+        //LogUMCMessage("Cancelling map vote.");
         return;
     }
 
     //Log a message
-    LogMessage("Starting an end of map vote.");
+    LogUMCMessage("Starting an end of map vote.");
     
     //Log an error and retry vote if...
     //    ...another vote is currently running for some reason.
     if (IsVoteInProgress()) 
     {
-        LogMessage("There is a vote already in progress, cannot start a new vote.");
+        LogUMCMessage("There is a vote already in progress, cannot start a new vote.");
         MakeRetryVoteTimer(StartMapVote);
         return;
     }
@@ -1271,7 +1279,7 @@ public StartMapVote()
     
     if (!result)
     {
-        LogMessage("Could not start UMC vote.");
+        LogUMCMessage("Could not start UMC vote.");
     }
 }
 
@@ -1315,4 +1323,22 @@ public UMC_RequestReloadMapcycle()
     }
 }
 
+
+//Called when UMC requests that the mapcycle is printed to the console.
+public UMC_DisplayMapCycle(client, bool:filtered)
+{
+    PrintToConsole(client, "Module: End of Map Vote");
+    if (filtered)
+    {
+        new Handle:filteredMapcycle = UMC_FilterMapcycle(
+            map_kv, umc_mapcycle, false, true
+        );
+        PrintKvToConsole(filteredMapcycle, client);
+        CloseHandle(filteredMapcycle);
+    }
+    else
+    {
+        PrintKvToConsole(umc_mapcycle, client);
+    }
+}
 
