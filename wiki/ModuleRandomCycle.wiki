@@ -25,6 +25,9 @@
 }}}
   Where *GROUPNAME* is the name of the mapgroup to be selected from next time, or nothing ("") if it should select from every group.
 
+= List of Commands =
+  Random Mapcycle provides the following commands:
+    * _sm_umc_randcycle_picknextmapnow_ - Sets the next map to a random map.
 
 =Example=
   {{{
